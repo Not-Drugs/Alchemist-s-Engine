@@ -991,6 +991,90 @@ footer button:hover {
     display: none !important;
 }
 
+/* Progressive reveal: hidden by default, fade in when .revealed added */
+.reveal-hidden {
+    display: none;
+}
+
+.revealing {
+    display: block;
+    animation: fadeInReveal 0.9s ease-out;
+}
+
+/* Support different display types — resources use flex, etc. */
+#resources.revealing { display: flex; }
+.resource.revealing { display: flex; }
+.tab-btn.revealing { display: inline-block; }
+footer.revealing { display: flex; }
+button.revealing { display: inline-block; }
+
+@keyframes fadeInReveal {
+    0%   { opacity: 0; transform: translateY(-6px); filter: blur(3px); }
+    60%  { opacity: 1; filter: blur(0); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Narration line — delivers flavor as systems unfold */
+.narration {
+    text-align: center;
+    color: var(--text-dim);
+    font-style: italic;
+    padding: 12px 0;
+    margin-bottom: 12px;
+    min-height: 1.4em;
+    letter-spacing: 1px;
+    transition: color 0.5s ease;
+}
+
+.narration.fresh {
+    color: var(--text-bright);
+    text-shadow: 0 0 6px var(--text-primary);
+}
+
+/* Intro controls: prominent Kindling button when world is empty */
+#intro-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+#intro-controls.hidden { display: none; }
+
+#intro-kindle-btn {
+    width: 100%;
+    max-width: 220px;
+    padding: 14px 18px;
+    font-size: 0.95rem;
+    background: var(--bg-dark);
+    border: 1px solid var(--text-dim);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 2px;
+    transition: all 0.15s ease;
+}
+
+#intro-kindle-btn:hover {
+    border-color: var(--text-primary);
+    background: #001a00;
+    box-shadow: 0 0 10px rgba(0,255,0,0.3);
+}
+
+.intro-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-style: italic;
+    letter-spacing: 1px;
+}
+
+/* The cold engine — dim by default, warms as temperature rises */
+#furnace-ascii.cold {
+    color: #333;
+    opacity: 0.6;
+}
+
 /* Merge Animation */
 @keyframes mergeFlash {
     0% { transform: scale(1); }

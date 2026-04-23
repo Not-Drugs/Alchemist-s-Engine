@@ -10,37 +10,40 @@
     <div id="game-container">
         <header>
             <h1>ALCHEMIST'S ENGINE</h1>
-            <div id="prestige-display" class="hidden">
+            <div id="prestige-display" class="reveal-hidden">
                 <span>Philosopher's Stones: <span id="philosopher-stones">0</span></span>
                 <span>Wisdom Multiplier: <span id="wisdom-mult">1.00</span>x</span>
             </div>
         </header>
 
         <main>
-            <!-- Resource Bar -->
-            <section id="resources">
-                <div class="resource" id="heat-resource">
+            <!-- Flavor / narration line -->
+            <div id="narration" class="narration">A dormant engine sits before you. It is cold and still.</div>
+
+            <!-- Resource Bar (hidden until first heat) -->
+            <section id="resources" class="reveal-hidden">
+                <div class="resource reveal-hidden" id="heat-resource">
                     <span class="resource-icon">[~]</span>
                     <span class="resource-name">Heat</span>
                     <span class="resource-value" id="heat-value">0</span>
                     <span class="resource-rate" id="heat-rate">+0/s</span>
                 </div>
-                <div class="resource hidden" id="metal-resource">
+                <div class="resource reveal-hidden" id="metal-resource">
                     <span class="resource-icon">[#]</span>
                     <span class="resource-name">Metal</span>
                     <span class="resource-value" id="metal-value">0</span>
                 </div>
-                <div class="resource hidden" id="alloy-resource">
+                <div class="resource reveal-hidden" id="alloy-resource">
                     <span class="resource-icon">[%]</span>
                     <span class="resource-name">Alloy</span>
                     <span class="resource-value" id="alloy-value">0</span>
                 </div>
-                <div class="resource hidden" id="gear-resource">
+                <div class="resource reveal-hidden" id="gear-resource">
                     <span class="resource-icon">[*]</span>
                     <span class="resource-name">Gears</span>
                     <span class="resource-value" id="gear-value">0</span>
                 </div>
-                <div class="resource hidden" id="essence-resource">
+                <div class="resource reveal-hidden" id="essence-resource">
                     <span class="resource-icon">[+]</span>
                     <span class="resource-name">Essence</span>
                     <span class="resource-value" id="essence-value">0</span>
@@ -49,19 +52,9 @@
 
             <!-- Main Game Area -->
             <div id="game-area">
-                <!-- Alchemical Table (Merge Grid) -->
-                <section id="merge-section">
-                    <h2>Alchemical Table</h2>
-                    <div id="merge-grid"></div>
-                    <div id="spawn-controls">
-                        <button id="spawn-fuel" class="spawn-btn" title="Click or press [F]. Shift-click to fill grid.">[+] Spark (Free) [F]</button>
-                        <button id="spawn-ore" class="spawn-btn hidden" disabled title="Click or press [O]. Shift-click to spawn many.">[+] Raw Ore (10 Heat) [O]</button>
-                    </div>
-                </section>
-
-                <!-- Furnace -->
+                <!-- Furnace is the heart of the opening -->
                 <section id="furnace-section">
-                    <h2>The Furnace</h2>
+                    <h2>The Engine</h2>
                     <div id="furnace">
                         <div id="furnace-visual">
                             <pre id="furnace-ascii">
@@ -74,21 +67,36 @@
  /___________\
 |_____________|
             </pre>
-                            <span id="furnace-temp">0*</span>
+                            <span id="furnace-temp" class="reveal-hidden">0*</span>
                         </div>
-                        <div id="furnace-fuel-slot" class="drop-zone">
+                        <!-- Intro controls: single button to feed kindling directly -->
+                        <div id="intro-controls">
+                            <button id="intro-kindle-btn" class="spawn-btn" title="Click or press [K]">[+] Add Kindling</button>
+                            <div id="intro-hint" class="intro-hint">Feed the engine.</div>
+                        </div>
+                        <div id="furnace-fuel-slot" class="drop-zone reveal-hidden">
                             <span>Drop Fuel Here<br><small>(or dbl/right-click)</small></span>
                         </div>
-                        <div id="furnace-stats">
+                        <div id="furnace-stats" class="reveal-hidden">
                             <div>Fuel: <span id="furnace-fuel">0</span></div>
                             <div>Temperature: <span id="furnace-temperature">0</span>*</div>
-                            <div>Efficiency: <span id="furnace-efficiency">0</span>%</div>
+                            <div>Efficiency: <span id="furnace-efficiency">100</span>%</div>
                         </div>
                     </div>
                 </section>
 
+                <!-- Alchemical Table (Merge Grid) -->
+                <section id="merge-section" class="reveal-hidden">
+                    <h2>Alchemical Table</h2>
+                    <div id="merge-grid"></div>
+                    <div id="spawn-controls">
+                        <button id="spawn-fuel" class="spawn-btn" title="Click or press [F]. Shift-click to fill grid.">[+] Spark (Free) [F]</button>
+                        <button id="spawn-ore" class="spawn-btn reveal-hidden" disabled title="Click or press [O]. Shift-click to spawn many.">[+] Raw Ore (10 Heat) [O]</button>
+                    </div>
+                </section>
+
                 <!-- Smelter (Tier 2) -->
-                <section id="smelter-section" class="hidden">
+                <section id="smelter-section" class="reveal-hidden">
                     <h2>The Smelter</h2>
                     <div id="smelter">
                         <div id="smelter-visual">
@@ -112,7 +120,7 @@
                 </section>
 
                 <!-- Forge (Tier 3) -->
-                <section id="forge-section" class="hidden">
+                <section id="forge-section" class="reveal-hidden">
                     <h2>The Forge</h2>
                     <div id="forge">
                         <div id="forge-visual">
@@ -136,7 +144,7 @@
                 </section>
 
                 <!-- Workshop (Tier 4) -->
-                <section id="workshop-section" class="hidden">
+                <section id="workshop-section" class="reveal-hidden">
                     <h2>The Workshop</h2>
                     <div id="workshop">
                         <div id="workshop-visual">
@@ -165,7 +173,7 @@
                 </section>
 
                 <!-- Sanctum (Tier 5 - Prestige) -->
-                <section id="sanctum-section" class="hidden">
+                <section id="sanctum-section" class="reveal-hidden">
                     <h2>The Sanctum</h2>
                     <div id="sanctum">
                         <div id="sanctum-visual">
@@ -192,13 +200,13 @@
             </div>
 
             <!-- Upgrades Panel -->
-            <section id="upgrades-section">
+            <section id="upgrades-section" class="reveal-hidden">
                 <h2>Upgrades</h2>
                 <div id="upgrade-tabs">
                     <button class="tab-btn active" data-tab="furnace-upgrades">[Furnace]</button>
-                    <button class="tab-btn hidden" data-tab="smelter-upgrades">[Smelter]</button>
-                    <button class="tab-btn hidden" data-tab="forge-upgrades">[Forge]</button>
-                    <button class="tab-btn hidden" data-tab="workshop-upgrades">[Workshop]</button>
+                    <button class="tab-btn reveal-hidden" data-tab="smelter-upgrades">[Smelter]</button>
+                    <button class="tab-btn reveal-hidden" data-tab="forge-upgrades">[Forge]</button>
+                    <button class="tab-btn reveal-hidden" data-tab="workshop-upgrades">[Workshop]</button>
                 </div>
                 <div id="upgrade-panels">
                     <div id="furnace-upgrades" class="upgrade-panel active">
@@ -218,13 +226,13 @@
         </main>
 
         <!-- Achievements -->
-        <section id="achievements-section">
+        <section id="achievements-section" class="reveal-hidden">
             <h2>Achievements <span id="achievement-count">(0/0)</span></h2>
             <div id="achievements-list"></div>
         </section>
 
         <!-- Stats -->
-        <section id="stats-section">
+        <section id="stats-section" class="reveal-hidden">
             <h2>Statistics</h2>
             <div id="stats-list">
                 <div>Total Heat Generated: <span id="stat-total-heat">0</span></div>
@@ -235,11 +243,11 @@
         </section>
 
         <!-- Footer Controls -->
-        <footer>
+        <footer class="reveal-hidden">
             <button id="save-btn">[SAVE]</button>
-            <button id="export-btn">[EXPORT]</button>
-            <button id="import-btn">[IMPORT]</button>
-            <button id="reset-btn">[RESET]</button>
+            <button id="export-btn" class="reveal-hidden">[EXPORT]</button>
+            <button id="import-btn" class="reveal-hidden">[IMPORT]</button>
+            <button id="reset-btn" class="reveal-hidden">[RESET]</button>
         </footer>
     </div>
 

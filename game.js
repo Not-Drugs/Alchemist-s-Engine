@@ -82,6 +82,27 @@ const ACHIEVEMENTS = [
 // GAME STATE
 // ============================================
 
+const REVEAL_STAGES = [
+    { id: 'firstStick',    cond: g => g.stats.kindlingAdded >= 1,  narrate: 'A stick catches. The engine stirs.' },
+    { id: 'heatMeter',     cond: g => g.stats.totalHeat >= 1,      narrate: 'A faint warmth rises from the iron.',         targets: ['#resources', '#heat-resource', '#furnace-temp'] },
+    { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#furnace-stats'] },
+    { id: 'mergeGrid',     cond: g => g.stats.totalHeat >= 25 || g.stats.kindlingAdded >= 5,
+        narrate: 'Patterns emerge in the embers. They wish to be combined.',
+        targets: ['#merge-section'],
+        onReveal: () => {
+            hideIntroControls();
+            showFurnaceDrop();
+            // Seed two Sparks so the merge mechanic is obvious
+            spawnItem('fuel', false);
+            spawnItem('fuel', false);
+        } },
+    { id: 'upgrades',      cond: g => g.stats.totalHeat >= 60,     narrate: 'The engine responds to your attention.',      targets: ['#upgrades-section'] },
+    { id: 'achievements',  cond: g => g.stats.totalMerges >= 3,    narrate: 'Your deeds are being remembered.',            targets: ['#achievements-section'] },
+    { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
+    { id: 'save',          cond: g => g.stats.totalHeat >= 200,    narrate: 'You find a way to etch this moment.',         targets: ['footer', '#save-btn'] },
+    { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#export-btn', '#import-btn', '#reset-btn'] }
+];
+
 const defaultGame = {
     resources: {
         heat: 0,
@@ -90,6 +111,7 @@ const defaultGame = {
         gears: 0,
         essence: 0
     },
+    revealed: {},
     grid: Array(GRID_SIZE).fill(null),
     furnace: {
         fuel: 0,
@@ -131,7 +153,8 @@ const defaultGame = {
         totalMerges: 0,
         highestFuelTier: 1,
         startTime: Date.now(),
-        playTime: 0
+        playTime: 0,
+        kindlingAdded: 0
     },
     philosopherStones: 0,
     prestigeCount: 0,
@@ -158,6 +181,7 @@ function init() {
     setupEventListeners();
     renderUpgrades();
     renderAchievements();
+    applyRevealedFlags();
     updateUI();
 
     // Start game loop
@@ -166,8 +190,11 @@ function init() {
     // Auto-save every 30 seconds
     setInterval(saveGame, 30000);
 
-    // Check achievements every second
-    setInterval(checkAchievements, 1000);
+    // Check achievements + progressive reveals every second
+    setInterval(() => { checkAchievements(); checkReveals(); }, 500);
+
+    // Run reveal check immediately so returning players see their state
+    checkReveals();
 }
 
 // ============================================
@@ -759,23 +786,26 @@ function unlockTier(tier) {
     game.unlockedTiers[tier] = true;
 
     // Show section
-    const section = document.getElementById(`${tier}-section`);
-    if (section) section.classList.remove('hidden');
+    revealEl(document.getElementById(`${tier}-section`));
 
     // Show resource if applicable
     if (tier === 'smelter') {
-        document.getElementById('metal-resource').classList.remove('hidden');
-        document.getElementById('spawn-ore').classList.remove('hidden');
-        document.querySelector('[data-tab="smelter-upgrades"]').classList.remove('hidden');
+        revealEl(document.getElementById('metal-resource'));
+        revealEl(document.getElementById('spawn-ore'));
+        revealEl(document.querySelector('[data-tab="smelter-upgrades"]'));
+        setNarration('The smelter glows. Stone yields to heat.');
     } else if (tier === 'forge') {
-        document.getElementById('alloy-resource').classList.remove('hidden');
-        document.querySelector('[data-tab="forge-upgrades"]').classList.remove('hidden');
+        revealEl(document.getElementById('alloy-resource'));
+        revealEl(document.querySelector('[data-tab="forge-upgrades"]'));
+        setNarration('Metal surrenders its secrets. The forge is yours.');
     } else if (tier === 'workshop') {
-        document.getElementById('gear-resource').classList.remove('hidden');
-        document.querySelector('[data-tab="workshop-upgrades"]').classList.remove('hidden');
+        revealEl(document.getElementById('gear-resource'));
+        revealEl(document.querySelector('[data-tab="workshop-upgrades"]'));
+        setNarration('The workshop hums. Machines dream of being built.');
     } else if (tier === 'sanctum') {
-        document.getElementById('essence-resource').classList.remove('hidden');
-        document.getElementById('prestige-display').classList.remove('hidden');
+        revealEl(document.getElementById('essence-resource'));
+        revealEl(document.getElementById('prestige-display'));
+        setNarration('A silence deeper than sound. The Sanctum awaits.');
     }
 
     showToast(`Unlocked: ${tier.charAt(0).toUpperCase() + tier.slice(1)}!`, 'achievement');
@@ -830,6 +860,85 @@ function updateAchievementCount() {
 }
 
 // ============================================
+// PROGRESSIVE REVEAL
+// ============================================
+
+function setNarration(text, fresh = true) {
+    const el = document.getElementById('narration');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle('fresh', fresh);
+    if (fresh) {
+        clearTimeout(el._fadeTimer);
+        el._fadeTimer = setTimeout(() => el.classList.remove('fresh'), 4500);
+    }
+}
+
+function revealTargets(selectors) {
+    if (!selectors) return;
+    for (const sel of selectors) {
+        document.querySelectorAll(sel).forEach(revealEl);
+    }
+}
+
+function revealEl(el) {
+    if (!el) return;
+    const wasHidden = el.classList.contains('reveal-hidden') || el.classList.contains('hidden');
+    el.classList.remove('reveal-hidden');
+    el.classList.remove('hidden');
+    if (wasHidden) {
+        el.classList.add('revealing');
+        setTimeout(() => el.classList.remove('revealing'), 1000);
+    }
+}
+
+function checkReveals() {
+    for (const stage of REVEAL_STAGES) {
+        if (game.revealed[stage.id]) continue;
+        if (!stage.cond(game)) continue;
+
+        game.revealed[stage.id] = true;
+        revealTargets(stage.targets);
+        if (stage.narrate) setNarration(stage.narrate);
+        if (stage.onReveal) stage.onReveal();
+    }
+}
+
+function hideIntroControls() {
+    const intro = document.getElementById('intro-controls');
+    if (intro) intro.classList.add('hidden');
+}
+
+function showFurnaceDrop() {
+    revealTargets(['#furnace-fuel-slot']);
+}
+
+// Apply an already-revealed state on load (no animation)
+function applyRevealedFlags() {
+    for (const stage of REVEAL_STAGES) {
+        if (game.revealed[stage.id] && stage.targets) {
+            for (const sel of stage.targets) {
+                document.querySelectorAll(sel).forEach(el => el.classList.remove('reveal-hidden'));
+            }
+            if (stage.id === 'mergeGrid') hideIntroControls();
+        }
+    }
+}
+
+// Adds a single kindling (tier-1 fuel) directly to the engine — used only
+// before the merge grid has been revealed.
+function feedKindling() {
+    const value = FUEL_TIERS[0].value;
+    const maxFuel = game.bonuses.furnaceCapacity;
+    game.furnace.fuel = Math.min(game.furnace.fuel + value, maxFuel);
+    game.stats.kindlingAdded++;
+    flashDropZone('furnace-fuel-slot');
+    // Set narration for the very first stick
+    if (game.stats.kindlingAdded === 1) setNarration('A stick catches. The engine stirs.');
+    else if (game.stats.kindlingAdded === 3) setNarration('The iron grows warm. Keep feeding it.');
+}
+
+// ============================================
 // UI UPDATES
 // ============================================
 
@@ -857,7 +966,9 @@ function updateUI() {
     const furnaceAscii = document.getElementById('furnace-ascii');
     if (furnaceAscii) {
         const burning = game.furnace.fuel > 0;
+        const cold = game.furnace.fuel <= 0 && game.furnace.temperature < 1 && game.stats.totalHeat === 0;
         furnaceAscii.classList.toggle('burning', burning);
+        furnaceAscii.classList.toggle('cold', cold);
         if (burning) {
             const frame = Math.floor(Date.now() / 200) % 3;
             const flames = ['  ^', ' ^^^', '^^^^^'][frame];
@@ -942,7 +1053,7 @@ function updateUI() {
 
     // Prestige display
     if (game.philosopherStones > 0 || game.unlockedTiers.sanctum) {
-        document.getElementById('prestige-display').classList.remove('hidden');
+        revealEl(document.getElementById('prestige-display'));
         document.getElementById('philosopher-stones').textContent = game.philosopherStones;
         document.getElementById('wisdom-mult').textContent = getWisdomMultiplier().toFixed(2);
     }
@@ -957,28 +1068,28 @@ function updateUI() {
     document.getElementById('stat-highest-fuel').textContent = game.stats.highestFuelTier;
     document.getElementById('stat-time-played').textContent = formatTime(game.stats.playTime);
 
-    // Show unlocked sections
+    // Show unlocked sections (idempotent; revealEl only animates once)
     if (game.unlockedTiers.smelter) {
-        document.getElementById('smelter-section').classList.remove('hidden');
-        document.getElementById('metal-resource').classList.remove('hidden');
-        document.getElementById('spawn-ore').classList.remove('hidden');
-        document.querySelector('[data-tab="smelter-upgrades"]').classList.remove('hidden');
+        revealEl(document.getElementById('smelter-section'));
+        revealEl(document.getElementById('metal-resource'));
+        revealEl(document.getElementById('spawn-ore'));
+        revealEl(document.querySelector('[data-tab="smelter-upgrades"]'));
     }
     if (game.unlockedTiers.forge) {
-        document.getElementById('forge-section').classList.remove('hidden');
-        document.getElementById('alloy-resource').classList.remove('hidden');
-        document.querySelector('[data-tab="forge-upgrades"]').classList.remove('hidden');
+        revealEl(document.getElementById('forge-section'));
+        revealEl(document.getElementById('alloy-resource'));
+        revealEl(document.querySelector('[data-tab="forge-upgrades"]'));
     }
     if (game.unlockedTiers.workshop) {
-        document.getElementById('workshop-section').classList.remove('hidden');
-        document.getElementById('gear-resource').classList.remove('hidden');
-        document.querySelector('[data-tab="workshop-upgrades"]').classList.remove('hidden');
+        revealEl(document.getElementById('workshop-section'));
+        revealEl(document.getElementById('gear-resource'));
+        revealEl(document.querySelector('[data-tab="workshop-upgrades"]'));
     }
     if (game.unlockedTiers.sanctum) {
-        document.getElementById('sanctum-section').classList.remove('hidden');
+        revealEl(document.getElementById('sanctum-section'));
     }
     if (game.unlockedTiers.essence) {
-        document.getElementById('essence-resource').classList.remove('hidden');
+        revealEl(document.getElementById('essence-resource'));
     }
 }
 
@@ -987,6 +1098,10 @@ function updateUI() {
 // ============================================
 
 function setupEventListeners() {
+    // Intro kindle button (visible before grid is revealed)
+    const intro = document.getElementById('intro-kindle-btn');
+    if (intro) intro.addEventListener('click', feedKindling);
+
     // Spawn buttons (shift-click = bulk fill)
     document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
     document.getElementById('spawn-ore').addEventListener('click', (e) => spawnOre(e.shiftKey));
@@ -998,7 +1113,8 @@ function setupEventListeners() {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
 
         const key = e.key.toLowerCase();
-        if (key === 'f') { e.preventDefault(); spawnFuel(e.shiftKey); }
+        if (key === 'k' && !game.revealed.mergeGrid) { e.preventDefault(); feedKindling(); }
+        else if (key === 'f' && game.revealed.mergeGrid) { e.preventDefault(); spawnFuel(e.shiftKey); }
         else if (key === 'o' && game.unlockedTiers.smelter) { e.preventDefault(); spawnOre(e.shiftKey); }
         else if (key === 's' && e.shiftKey) { e.preventDefault(); saveGame(); showToast('Game saved!', 'success'); }
     });
@@ -1067,6 +1183,16 @@ function loadGame() {
             game.stats = { ...defaultGame.stats, ...loaded.stats };
             game.unlockedTiers = { ...defaultGame.unlockedTiers, ...loaded.unlockedTiers };
             game.automation = { ...defaultGame.automation, ...loaded.automation };
+            game.revealed = loaded.revealed || {};
+
+            // Migration: if save predates the reveal system but the player
+            // already has progress, mark all applicable stages as revealed
+            // so they don't get bombarded with narration on load.
+            if (Object.keys(game.revealed).length === 0) {
+                for (const stage of REVEAL_STAGES) {
+                    if (stage.cond(game)) game.revealed[stage.id] = true;
+                }
+            }
 
             // Re-apply upgrades
             const purchasedUpgrades = [...game.upgrades];
@@ -1158,30 +1284,8 @@ function hardReset() {
     }
 
     localStorage.removeItem('alchemistsEngine');
-    game = JSON.parse(JSON.stringify(defaultGame));
-    game.lastUpdate = Date.now();
-
-    createGrid();
-    renderUpgrades();
-    renderAchievements();
-    updateUI();
-
-    // Hide all unlockable sections
-    document.querySelectorAll('.hidden').forEach(el => el.classList.add('hidden'));
-    document.getElementById('smelter-section').classList.add('hidden');
-    document.getElementById('forge-section').classList.add('hidden');
-    document.getElementById('workshop-section').classList.add('hidden');
-    document.getElementById('sanctum-section').classList.add('hidden');
-    document.getElementById('prestige-display').classList.add('hidden');
-    document.getElementById('metal-resource').classList.add('hidden');
-    document.getElementById('alloy-resource').classList.add('hidden');
-    document.getElementById('gear-resource').classList.add('hidden');
-    document.getElementById('essence-resource').classList.add('hidden');
-    document.getElementById('spawn-ore').classList.add('hidden');
-    document.querySelectorAll('[data-tab="smelter-upgrades"], [data-tab="forge-upgrades"], [data-tab="workshop-upgrades"]')
-        .forEach(el => el.classList.add('hidden'));
-
-    showToast('Game reset!', 'success');
+    // Reloading is the simplest way to restore the pristine progressive-reveal state.
+    location.reload();
 }
 
 // ============================================
