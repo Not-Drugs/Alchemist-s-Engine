@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alchemist's Engine</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1>ALCHEMIST'S ENGINE</h1>
+            <div id="prestige-display" class="hidden">
+                <span>Philosopher's Stones: <span id="philosopher-stones">0</span></span>
+                <span>Wisdom Multiplier: <span id="wisdom-mult">1.00</span>x</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Resource Bar -->
+            <section id="resources">
+                <div class="resource" id="heat-resource">
+                    <span class="resource-icon">[~]</span>
+                    <span class="resource-name">Heat</span>
+                    <span class="resource-value" id="heat-value">0</span>
+                    <span class="resource-rate" id="heat-rate">+0/s</span>
+                </div>
+                <div class="resource hidden" id="metal-resource">
+                    <span class="resource-icon">[#]</span>
+                    <span class="resource-name">Metal</span>
+                    <span class="resource-value" id="metal-value">0</span>
+                </div>
+                <div class="resource hidden" id="alloy-resource">
+                    <span class="resource-icon">[%]</span>
+                    <span class="resource-name">Alloy</span>
+                    <span class="resource-value" id="alloy-value">0</span>
+                </div>
+                <div class="resource hidden" id="gear-resource">
+                    <span class="resource-icon">[*]</span>
+                    <span class="resource-name">Gears</span>
+                    <span class="resource-value" id="gear-value">0</span>
+                </div>
+                <div class="resource hidden" id="essence-resource">
+                    <span class="resource-icon">[+]</span>
+                    <span class="resource-name">Essence</span>
+                    <span class="resource-value" id="essence-value">0</span>
+                </div>
+            </section>
+
+            <!-- Main Game Area -->
+            <div id="game-area">
+                <!-- Alchemical Table (Merge Grid) -->
+                <section id="merge-section">
+                    <h2>Alchemical Table</h2>
+                    <div id="merge-grid"></div>
+                    <div id="spawn-controls">
+                        <button id="spawn-fuel" class="spawn-btn">[+] Spark (Free)</button>
+                        <button id="spawn-ore" class="spawn-btn hidden" disabled>[+] Raw Ore (10 Heat)</button>
+                    </div>
+                </section>
+
+                <!-- Furnace -->
+                <section id="furnace-section">
+                    <h2>The Furnace</h2>
+                    <div id="furnace">
+                        <div id="furnace-visual">
+                            <pre id="furnace-ascii">
+    _______
+   /       \
+  |  .   .  |
+  |    _    |
+  |  '---'  |
+  |_________|
+ /___________\
+|_____________|
+            </pre>
+                            <span id="furnace-temp">0*</span>
+                        </div>
+                        <div id="furnace-fuel-slot" class="drop-zone">
+                            <span>Drop Fuel Here</span>
+                        </div>
+                        <div id="furnace-stats">
+                            <div>Fuel: <span id="furnace-fuel">0</span></div>
+                            <div>Temperature: <span id="furnace-temperature">0</span>*</div>
+                            <div>Efficiency: <span id="furnace-efficiency">0</span>%</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Smelter (Tier 2) -->
+                <section id="smelter-section" class="hidden">
+                    <h2>The Smelter</h2>
+                    <div id="smelter">
+                        <div id="smelter-visual">
+                            <pre id="smelter-ascii">
+   .---.
+  /     \
+ |  ~~~  |
+ |  ~~~  |
+  \_____/
+  |_____|
+                            </pre>
+                        </div>
+                        <div id="smelter-ore-slot" class="drop-zone">
+                            <span>Drop Ore Here</span>
+                        </div>
+                        <div id="smelter-stats">
+                            <div>Ore Queue: <span id="smelter-ore">0</span></div>
+                            <div>Progress: [<span id="smelter-progress-bar">----------</span>] <span id="smelter-progress">0</span>%</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Forge (Tier 3) -->
+                <section id="forge-section" class="hidden">
+                    <h2>The Forge</h2>
+                    <div id="forge">
+                        <div id="forge-visual">
+                            <pre id="forge-ascii">
+     /\
+    /  \
+   / /\ \
+  / /  \ \
+ / /    \ \
+/_________ \
+|___|__|___|
+                            </pre>
+                        </div>
+                        <div id="forge-controls">
+                            <button id="craft-alloy" disabled>[>] Forge Alloy (5 Metal)</button>
+                        </div>
+                        <div id="forge-stats">
+                            <div>Alloys Forged: <span id="forge-count">0</span></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Workshop (Tier 4) -->
+                <section id="workshop-section" class="hidden">
+                    <h2>The Workshop</h2>
+                    <div id="workshop">
+                        <div id="workshop-visual">
+                            <pre id="workshop-ascii">
+  ___________
+ |  _  _  _  |
+ | |_||_||_| |
+ |  _  _  _  |
+ | |_||_||_| |
+ |___________|
+   ||    ||
+                            </pre>
+                        </div>
+                        <div id="workshop-controls">
+                            <button id="craft-gear" disabled>[>] Craft Gear (3 Alloy)</button>
+                            <button id="craft-auto-sparker" disabled>[>] Auto-Sparker (10 Gears)</button>
+                            <button id="craft-auto-miner" disabled>[>] Auto-Miner (25 Gears)</button>
+                            <button id="craft-heat-amplifier" disabled>[>] Heat Amplifier (50 Gears)</button>
+                        </div>
+                        <div id="workshop-stats">
+                            <div>Auto-Sparkers: <span id="auto-sparker-count">0</span></div>
+                            <div>Auto-Miners: <span id="auto-miner-count">0</span></div>
+                            <div>Heat Amplifiers: <span id="heat-amplifier-count">0</span></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sanctum (Tier 5 - Prestige) -->
+                <section id="sanctum-section" class="hidden">
+                    <h2>The Sanctum</h2>
+                    <div id="sanctum">
+                        <div id="sanctum-visual">
+                            <pre id="sanctum-ascii">
+       *
+      /|\
+     / | \
+    /  |  \
+   /   *   \
+  /  * | *  \
+ /_____|_____\
+    |     |
+    |_____|
+                            </pre>
+                        </div>
+                        <div id="sanctum-info">
+                            <p>Channel your accumulated essence into the ultimate alchemical achievement.</p>
+                            <div>Essence Required: <span id="essence-required">1000</span></div>
+                            <div>Stones on Reset: <span id="stones-on-reset">0</span></div>
+                        </div>
+                        <button id="transmute-btn" disabled>[>>>] Transmute Philosopher's Stone [<<<]</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Upgrades Panel -->
+            <section id="upgrades-section">
+                <h2>Upgrades</h2>
+                <div id="upgrade-tabs">
+                    <button class="tab-btn active" data-tab="furnace-upgrades">[Furnace]</button>
+                    <button class="tab-btn hidden" data-tab="smelter-upgrades">[Smelter]</button>
+                    <button class="tab-btn hidden" data-tab="forge-upgrades">[Forge]</button>
+                    <button class="tab-btn hidden" data-tab="workshop-upgrades">[Workshop]</button>
+                </div>
+                <div id="upgrade-panels">
+                    <div id="furnace-upgrades" class="upgrade-panel active">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div id="smelter-upgrades" class="upgrade-panel">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div id="forge-upgrades" class="upgrade-panel">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div id="workshop-upgrades" class="upgrade-panel">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Achievements -->
+        <section id="achievements-section">
+            <h2>Achievements <span id="achievement-count">(0/0)</span></h2>
+            <div id="achievements-list"></div>
+        </section>
+
+        <!-- Stats -->
+        <section id="stats-section">
+            <h2>Statistics</h2>
+            <div id="stats-list">
+                <div>Total Heat Generated: <span id="stat-total-heat">0</span></div>
+                <div>Total Merges: <span id="stat-total-merges">0</span></div>
+                <div>Highest Fuel Tier: <span id="stat-highest-fuel">1</span></div>
+                <div>Time Played: <span id="stat-time-played">0:00:00</span></div>
+            </div>
+        </section>
+
+        <!-- Footer Controls -->
+        <footer>
+            <button id="save-btn">[SAVE]</button>
+            <button id="export-btn">[EXPORT]</button>
+            <button id="import-btn">[IMPORT]</button>
+            <button id="reset-btn">[RESET]</button>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Import Modal -->
+    <div id="import-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Import Save</h3>
+            <textarea id="import-textarea" placeholder="Paste your save data here..."></textarea>
+            <div class="modal-buttons">
+                <button id="import-confirm">[IMPORT]</button>
+                <button id="import-cancel">[CANCEL]</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
