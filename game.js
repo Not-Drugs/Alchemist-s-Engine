@@ -300,6 +300,27 @@ function flashDropZone(id) {
     setTimeout(() => el.classList.remove('pulse'), 300);
 }
 
+// Floating popup anchored to an element (shown just above it)
+function floatPopup(anchor, text, variant = '') {
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = `float-popup ${variant}`;
+    el.textContent = text;
+    el.style.left = (rect.left + rect.width / 2 + window.scrollX) + 'px';
+    el.style.top  = (rect.top  + window.scrollY) + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1050);
+}
+
+function squish(el) {
+    if (!el) return;
+    el.classList.remove('click-squish');
+    // Force reflow so the animation can restart
+    void el.offsetWidth;
+    el.classList.add('click-squish');
+}
+
 // ============================================
 // DRAG AND DROP HANDLERS
 // ============================================
@@ -370,6 +391,8 @@ function handleDrop(e) {
             if (newItem) {
                 newItem.classList.add('merge-flash');
                 setTimeout(() => newItem.classList.remove('merge-flash'), 300);
+                const mergedTierInfo = (draggedItem.type === 'fuel' ? FUEL_TIERS : ORE_TIERS)[draggedItem.tier];
+                if (mergedTierInfo) floatPopup(newItem, `+${mergedTierInfo.name}`, 'merge');
             }
 
             renderGridItem(draggedIndex);
@@ -500,6 +523,16 @@ function processFurnace(delta) {
         game.resources.heat += heat;
         game.stats.totalHeat += heat;
 
+        // Periodic floating heat number (once per second of accumulated heat)
+        game._heatAccum = (game._heatAccum || 0) + heat;
+        game._heatTimer = (game._heatTimer || 0) + delta;
+        if (game._heatTimer >= 1 && game._heatAccum >= 1) {
+            const anchor = document.getElementById('furnace-visual');
+            if (anchor) floatPopup(anchor, `+${formatNumber(game._heatAccum)} heat`, 'heat');
+            game._heatAccum = 0;
+            game._heatTimer = 0;
+        }
+
         // Update temperature (approaches fuel level)
         const targetTemp = Math.min(game.furnace.fuel * 5, 1000);
         game.furnace.temperature += (targetTemp - game.furnace.temperature) * 0.1 * delta;
@@ -507,6 +540,8 @@ function processFurnace(delta) {
         // Cool down
         game.furnace.temperature *= Math.pow(0.95, delta);
         if (game.furnace.temperature < 1) game.furnace.temperature = 0;
+        game._heatAccum = 0;
+        game._heatTimer = 0;
     }
 }
 
@@ -523,6 +558,7 @@ function processSmelter(delta) {
             game.smelter.ore = 0;
             game.smelter.progress = 0;
             showToast(`Smelted ${metalGain} metal!`, 'success');
+            floatPopup(document.getElementById('smelter-visual'), `+${formatNumber(metalGain)} metal`, 'metal');
         }
     } else if (game.furnace.temperature < 100) {
         // Can't smelt without heat
@@ -629,6 +665,7 @@ function craftAlloy() {
         game.resources.alloy += yield_;
         game.forge.count++;
         showToast(`Forged ${yield_} alloy!`, 'success');
+        floatPopup(document.getElementById('forge-visual'), `+${yield_} alloy`, 'alloy');
     }
 }
 
@@ -639,6 +676,7 @@ function craftGear() {
         const yield_ = Math.ceil(getWisdomMultiplier());
         game.resources.gears += yield_;
         showToast(`Crafted ${yield_} gear(s)!`, 'success');
+        floatPopup(document.getElementById('workshop-visual'), `+${yield_} gear`, 'gear');
     }
 }
 
@@ -932,8 +970,11 @@ function feedKindling() {
     const maxFuel = game.bonuses.furnaceCapacity;
     game.furnace.fuel = Math.min(game.furnace.fuel + value, maxFuel);
     game.stats.kindlingAdded++;
-    flashDropZone('furnace-fuel-slot');
-    // Set narration for the very first stick
+
+    const furnaceVisual = document.getElementById('furnace-visual');
+    squish(document.getElementById('intro-kindle-btn'));
+    floatPopup(furnaceVisual, '+kindling', 'heat');
+
     if (game.stats.kindlingAdded === 1) setNarration('A stick catches. The engine stirs.');
     else if (game.stats.kindlingAdded === 3) setNarration('The iron grows warm. Keep feeding it.');
 }

@@ -1075,6 +1075,45 @@ button.revealing { display: inline-block; }
     opacity: 0.6;
 }
 
+/* Floating +N popup text for juicy feedback */
+.float-popup {
+    position: absolute;
+    pointer-events: none;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: var(--text-bright);
+    text-shadow: 0 0 6px currentColor;
+    animation: floatRise 1s ease-out forwards;
+    z-index: 500;
+    white-space: nowrap;
+}
+
+.float-popup.heat { color: var(--accent-fire); }
+.float-popup.merge { color: var(--text-bright); }
+.float-popup.metal { color: var(--accent-metal); }
+.float-popup.alloy { color: var(--accent-alloy); }
+.float-popup.gear { color: var(--accent-gear); }
+.float-popup.essence { color: var(--accent-essence); }
+
+@keyframes floatRise {
+    0%   { opacity: 0; transform: translate(-50%, 0) scale(0.8); }
+    20%  { opacity: 1; transform: translate(-50%, -8px) scale(1.1); }
+    70%  { opacity: 1; transform: translate(-50%, -32px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -48px) scale(0.9); }
+}
+
+/* Engine-click squish */
+@keyframes clickSquish {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.96); }
+    100% { transform: scale(1); }
+}
+
+.click-squish {
+    animation: clickSquish 0.12s ease;
+}
+
 /* Merge Animation */
 @keyframes mergeFlash {
     0% { transform: scale(1); }
