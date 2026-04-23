@@ -222,7 +222,55 @@ function renderGridItem(index) {
     itemEl.addEventListener('dragstart', handleDragStart);
     itemEl.addEventListener('dragend', handleDragEnd);
 
+    // Quick-send: double-click sends fuel to furnace, ore to smelter
+    itemEl.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        quickSendItem(index);
+    });
+
+    // Right-click also sends to respective processor (faster than double-click)
+    itemEl.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        quickSendItem(index);
+    });
+
     cell.appendChild(itemEl);
+
+    // Tooltip for clarity
+    itemEl.title = item.type === 'fuel'
+        ? `${FUEL_TIERS[item.tier - 1].name} (${FUEL_TIERS[item.tier - 1].value} fuel) — dbl-click or right-click to burn`
+        : `${ORE_TIERS[item.tier - 1].name} (${ORE_TIERS[item.tier - 1].value} ore) — dbl-click or right-click to smelt`;
+}
+
+function quickSendItem(index) {
+    const item = game.grid[index];
+    if (!item) return;
+
+    if (item.type === 'fuel') {
+        const fuelValue = FUEL_TIERS[item.tier - 1].value;
+        const maxFuel = game.bonuses.furnaceCapacity;
+        if (game.furnace.fuel >= maxFuel) {
+            showToast('Furnace is full!', 'error');
+            return;
+        }
+        game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
+        game.grid[index] = null;
+        renderGridItem(index);
+        flashDropZone('furnace-fuel-slot');
+    } else if (item.type === 'ore' && game.unlockedTiers.smelter) {
+        const oreValue = ORE_TIERS[item.tier - 1].value;
+        game.smelter.ore += oreValue;
+        game.grid[index] = null;
+        renderGridItem(index);
+        flashDropZone('smelter-ore-slot');
+    }
+}
+
+function flashDropZone(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('pulse');
+    setTimeout(() => el.classList.remove('pulse'), 300);
 }
 
 // ============================================

@@ -1002,6 +1002,23 @@ footer button:hover {
     animation: mergeFlash 0.25s ease;
 }
 
+/* Drop-zone pulse (used by quick-send) */
+@keyframes dropPulse {
+    0% { background: var(--bg-dark); border-color: var(--text-primary); }
+    50% { background: #002800; border-color: var(--text-bright); box-shadow: 0 0 12px var(--text-primary); }
+    100% { background: var(--bg-dark); border-color: var(--border-color); }
+}
+
+.drop-zone.pulse {
+    animation: dropPulse 0.3s ease;
+}
+
+/* Fuel/ore items are easier to grab with a stronger hover cue */
+.fuel-item:hover, .ore-item:hover {
+    filter: brightness(1.4);
+    box-shadow: 0 0 6px currentColor;
+}
+
 /* Blinking cursor effect */
 @keyframes blink {
     0%, 50% { opacity: 1; }
