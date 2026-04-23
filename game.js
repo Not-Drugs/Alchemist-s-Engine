@@ -1518,10 +1518,9 @@ function setupEventListeners() {
 
     document.getElementById('reset-btn').addEventListener('click', hardReset);
 
-    // Mute toggle
-    const muteBtn = document.getElementById('mute-btn');
+    // Mute toggle (persistent corner button, always visible)
+    const muteBtn = document.getElementById('mute-corner');
     if (muteBtn) {
-        // Restore mute preference
         try { _audioEnabled = localStorage.getItem('alchemistsEngine.mute') !== '1'; } catch (e) {}
         muteBtn.textContent = _audioEnabled ? '[SOUND:ON]' : '[SOUND:OFF]';
         muteBtn.addEventListener('click', () => {

@@ -58,6 +58,27 @@ body::before {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+    position: relative;
+}
+
+.corner-btn {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    padding: 4px 10px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.7rem;
+    z-index: 10;
+    transition: all 0.15s ease;
+}
+
+.corner-btn:hover {
+    border-color: var(--text-dim);
+    color: var(--text-primary);
 }
 
 /* ASCII Box Borders */
@@ -1230,11 +1251,14 @@ button.revealing { display: inline-block; }
 
 /* CRT flicker (subtle) */
 @keyframes flicker {
-    0% { opacity: 0.97; }
-    50% { opacity: 1; }
-    100% { opacity: 0.98; }
+    0%, 100% { opacity: 1; }
+    47% { opacity: 1; }
+    48% { opacity: 0.93; }
+    49% { opacity: 1; }
+    92% { opacity: 0.97; }
+    93% { opacity: 1; }
 }
 
 #game-container {
-    animation: flicker 0.1s infinite;
+    animation: flicker 3s infinite;
 }
