@@ -1262,3 +1262,226 @@ button.revealing { display: inline-block; }
 #game-container {
     animation: flicker 3s infinite;
 }
+
+/* ============================================
+   RESPONSIVE — tablets and phones
+   ============================================ */
+
+/* Tablet / small laptop */
+@media (max-width: 900px) {
+    #game-container { padding: 12px; }
+    header h1 { font-size: 1.3rem; letter-spacing: 2px; }
+    #prestige-display { gap: 16px; font-size: 0.85rem; }
+    .resource { min-width: 110px; padding: 6px 10px; }
+    #achievements-list,
+    #stats-list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+/* Phone (portrait) — 600px and below covers 360-428 typical widths */
+@media (max-width: 600px) {
+    body { font-size: 13px; }
+
+    #game-container {
+        padding: 8px;
+        animation: none; /* flicker is cute on desktop but taxing on mobile */
+    }
+
+    /* Corner button moves out of the way on tiny screens */
+    .corner-btn {
+        top: 10px;
+        right: 10px;
+        font-size: 0.65rem;
+        padding: 6px 10px;
+    }
+
+    header {
+        padding: 10px 8px;
+        margin-bottom: 12px;
+    }
+
+    header h1 {
+        font-size: 1rem;
+        letter-spacing: 1px;
+    }
+
+    #prestige-display {
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.75rem;
+    }
+
+    /* Resource bar stacks more compactly */
+    #resources {
+        gap: 6px;
+        padding: 6px;
+        margin-bottom: 12px;
+    }
+
+    .resource {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        padding: 6px 8px;
+        gap: 6px;
+        font-size: 0.8rem;
+    }
+
+    .resource-name { font-size: 0.7rem; }
+    .resource-value { font-size: 0.9rem; }
+    .resource-rate { font-size: 0.65rem; }
+
+    section {
+        padding: 10px;
+    }
+
+    section h2 {
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    /* Game area is already single-column at <=900px; tighten it */
+    #game-area {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    /* Merge grid: 6 columns still fits on phones if cells shrink */
+    #merge-grid {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 3px;
+        padding: 6px;
+        min-height: 0;
+    }
+
+    .grid-cell {
+        font-size: 0.6rem;
+    }
+
+    .grid-cell::before { font-size: 1rem; }
+
+    .fuel-item, .ore-item {
+        font-size: 1rem;
+        width: 95%;
+        height: 95%;
+    }
+
+    .item-tier-label { font-size: 0.45rem; }
+
+    /* Spawn controls stack full-width for easy tapping */
+    #spawn-controls {
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .spawn-btn {
+        flex: 1 1 100%;
+        min-width: 0;
+        font-size: 0.8rem;
+    }
+
+    /* Furnace/smelter/forge visuals scale down */
+    #furnace-visual,
+    #furnace-fuel-slot,
+    #smelter-visual,
+    #smelter-ore-slot,
+    #forge-visual,
+    #workshop-visual,
+    #sanctum-visual { max-width: 100%; }
+
+    #furnace-ascii { font-size: 0.6rem; }
+    #smelter-ascii { font-size: 0.55rem; }
+    #forge-ascii   { font-size: 0.5rem; }
+    #workshop-ascii { font-size: 0.45rem; }
+    #sanctum-ascii  { font-size: 0.4rem; }
+
+    /* Crafting buttons full width */
+    #forge-controls,
+    #workshop-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+    }
+
+    #forge-controls button,
+    #workshop-controls button {
+        margin: 0;
+        width: 100%;
+        padding: 12px;
+        font-size: 0.8rem;
+    }
+
+    /* Upgrades */
+    #upgrade-tabs {
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+
+    .tab-btn {
+        flex: 1 1 auto;
+        padding: 8px 10px;
+        font-size: 0.75rem;
+    }
+
+    .upgrade-panel.active {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    /* Achievements/stats one column */
+    #achievements-list,
+    #stats-list {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Footer buttons wrap */
+    footer {
+        padding: 10px;
+        gap: 6px;
+    }
+
+    footer button {
+        flex: 1 1 calc(50% - 6px);
+        padding: 10px;
+        font-size: 0.8rem;
+    }
+
+    /* Toast notifications anchored bottom, narrower */
+    #toast-container {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+
+    .toast { font-size: 0.8rem; padding: 10px; }
+
+    /* Modal fits the screen */
+    .modal-content {
+        padding: 16px;
+        width: 95%;
+    }
+
+    .modal-content textarea {
+        height: 100px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Very narrow phones (<=380px) */
+@media (max-width: 380px) {
+    header h1 { font-size: 0.85rem; }
+    .resource { flex: 1 1 100%; }
+    #merge-grid { gap: 2px; padding: 4px; }
+    .grid-cell { font-size: 0.55rem; }
+    .fuel-item, .ore-item { font-size: 0.85rem; }
+}
+
+/* Phone landscape — keep compact vertical rhythm */
+@media (max-height: 500px) and (orientation: landscape) {
+    header { padding: 6px; margin-bottom: 8px; }
+    header h1 { font-size: 0.95rem; }
+    #prestige-display { flex-direction: row; gap: 12px; }
+    .narration { padding: 4px 0; }
+    #game-area { gap: 8px; }
+}
