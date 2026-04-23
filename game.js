@@ -1771,9 +1771,38 @@ function setupEventListeners() {
         if (ctx && ctx.state === 'suspended') ctx.resume();
         document.removeEventListener('click', unlockAudio);
         document.removeEventListener('keydown', unlockAudio);
+        document.removeEventListener('touchend', unlockAudio);
     };
     document.addEventListener('click', unlockAudio);
     document.addEventListener('keydown', unlockAudio);
+    document.addEventListener('touchend', unlockAudio);
+
+    // Block iOS double-tap zoom on interactive surfaces. touch-action:
+    // manipulation handles most cases, but Safari still zooms on rapid
+    // taps of non-form elements in some versions.
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 350) {
+            // Let dblclick fire on grid items but not zoom the viewport
+            if (!e.target.closest('textarea, input')) {
+                e.preventDefault();
+            }
+        }
+        lastTouchEnd = now;
+    }, { passive: false });
+
+    // Suppress iOS long-press context menu on the game surface
+    document.addEventListener('contextmenu', (e) => {
+        // Our own right-click handlers (quickSendItem) call preventDefault
+        // themselves, so this only affects long-press on non-item surfaces.
+        if (e.target.closest('.fuel-item, .ore-item')) return;
+        if (e.target.closest('textarea, input')) return;
+        e.preventDefault();
+    });
+
+    // Prevent browser gesturestart zoom (Safari)
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
 }
 
 // ============================================

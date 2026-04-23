@@ -33,6 +33,43 @@ body {
     min-height: 100vh;
     line-height: 1.4;
     font-size: 14px;
+    /* Disable pull-to-refresh and iOS elastic overscroll */
+    overscroll-behavior: none;
+    /* Remove tap highlight on iOS/Android */
+    -webkit-tap-highlight-color: transparent;
+    /* Disable text selection on game surfaces; inputs/textareas re-enable below */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* iOS long-press callout (copy/share menu) */
+    -webkit-touch-callout: none;
+}
+
+/* Re-enable text selection where editing/copying matters */
+textarea,
+input,
+.offline-lines,
+.narration {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}
+
+/* Draggable items + drop zones: disable native touch gestures so our
+   touchmove handler owns the interaction (no page scrolling while dragging). */
+.fuel-item,
+.ore-item,
+.grid-cell,
+.drop-zone {
+    touch-action: none;
+}
+
+/* Buttons should feel snappy — no double-tap zoom delay */
+button {
+    touch-action: manipulation;
 }
 
 /* Scanline effect */
