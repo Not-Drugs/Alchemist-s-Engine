@@ -76,9 +76,16 @@ body::before {
     transition: all 0.15s ease;
 }
 
-.corner-btn:hover {
-    border-color: var(--text-dim);
-    color: var(--text-primary);
+@media (hover: hover) {
+    .corner-btn:hover {
+        border-color: var(--text-dim);
+        color: var(--text-primary);
+    }
+}
+
+.corner-btn:active {
+    border-color: var(--text-primary);
+    color: var(--text-bright);
 }
 
 /* ASCII Box Borders */
@@ -250,13 +257,15 @@ section h2::after {
     font-size: 1.2rem;
 }
 
-.grid-cell:hover {
-    border-color: var(--text-primary);
-    background: var(--bg-medium);
-}
+@media (hover: hover) {
+    .grid-cell:hover {
+        border-color: var(--text-primary);
+        background: var(--bg-medium);
+    }
 
-.grid-cell:hover::before {
-    color: var(--text-dim);
+    .grid-cell:hover::before {
+        color: var(--text-dim);
+    }
 }
 
 .grid-cell.drag-over {
@@ -377,9 +386,17 @@ section h2::after {
     transition: all 0.15s ease;
 }
 
-.spawn-btn:hover:not(:disabled) {
-    border-color: var(--text-primary);
-    background: #001a00;
+@media (hover: hover) {
+    .spawn-btn:hover:not(:disabled) {
+        border-color: var(--text-primary);
+        background: #001a00;
+    }
+}
+
+.spawn-btn:active:not(:disabled) {
+    border-color: var(--text-bright);
+    background: #002800;
+    transform: scale(0.98);
 }
 
 .spawn-btn:disabled {
@@ -583,10 +600,19 @@ section h2::after {
     margin: 3px;
 }
 
-#forge-controls button:hover:not(:disabled),
-#workshop-controls button:hover:not(:disabled) {
-    border-color: var(--text-primary);
-    background: #001a00;
+@media (hover: hover) {
+    #forge-controls button:hover:not(:disabled),
+    #workshop-controls button:hover:not(:disabled) {
+        border-color: var(--text-primary);
+        background: #001a00;
+    }
+}
+
+#forge-controls button:active:not(:disabled),
+#workshop-controls button:active:not(:disabled) {
+    border-color: var(--text-bright);
+    background: #002800;
+    transform: scale(0.98);
 }
 
 #forge-controls button:disabled,
@@ -687,10 +713,18 @@ section h2::after {
     transition: all 0.2s ease;
 }
 
-#transmute-btn:hover:not(:disabled) {
+@media (hover: hover) {
+    #transmute-btn:hover:not(:disabled) {
+        background: var(--accent-prestige);
+        color: var(--bg-dark);
+        text-shadow: none;
+    }
+}
+
+#transmute-btn:active:not(:disabled) {
     background: var(--accent-prestige);
     color: var(--bg-dark);
-    text-shadow: none;
+    transform: scale(0.98);
 }
 
 #transmute-btn:disabled {
@@ -721,8 +755,14 @@ section h2::after {
     transition: all 0.15s ease;
 }
 
-.tab-btn:hover {
-    color: var(--text-primary);
+@media (hover: hover) {
+    .tab-btn:hover {
+        color: var(--text-primary);
+    }
+}
+
+.tab-btn:active {
+    color: var(--text-bright);
 }
 
 .tab-btn.active {
@@ -752,8 +792,15 @@ section h2::after {
     transition: all 0.15s ease;
 }
 
-.upgrade-item:hover:not(.purchased):not(.locked) {
-    border-color: var(--text-primary);
+@media (hover: hover) {
+    .upgrade-item:hover:not(.purchased):not(.locked) {
+        border-color: var(--text-primary);
+    }
+}
+
+.upgrade-item:active:not(.purchased):not(.locked) {
+    border-color: var(--text-bright);
+    background: #002800;
 }
 
 .upgrade-item.purchased {
@@ -890,14 +937,28 @@ footer button {
     transition: all 0.15s ease;
 }
 
-footer button:hover {
-    border-color: var(--text-primary);
-    background: #001a00;
+@media (hover: hover) {
+    footer button:hover {
+        border-color: var(--text-primary);
+        background: #001a00;
+    }
+
+    #reset-btn:hover {
+        border-color: #ff4444;
+        color: #ff4444;
+    }
 }
 
-#reset-btn:hover {
+footer button:active {
+    border-color: var(--text-bright);
+    background: #002800;
+    transform: scale(0.98);
+}
+
+#reset-btn:active {
     border-color: #ff4444;
     color: #ff4444;
+    background: #1a0000;
 }
 
 /* Toast Notifications */
@@ -1025,7 +1086,14 @@ footer button:hover {
     border-color: var(--text-primary);
 }
 
-.modal-buttons button:first-child:hover {
+@media (hover: hover) {
+    .modal-buttons button:first-child:hover {
+        background: var(--text-primary);
+        color: var(--bg-dark);
+    }
+}
+
+.modal-buttons button:first-child:active {
     background: var(--text-primary);
     color: var(--bg-dark);
 }
@@ -1113,10 +1181,19 @@ button.revealing { display: inline-block; }
     transition: all 0.15s ease;
 }
 
-#intro-kindle-btn:hover {
-    border-color: var(--text-primary);
-    background: #001a00;
-    box-shadow: 0 0 10px rgba(0,255,0,0.3);
+@media (hover: hover) {
+    #intro-kindle-btn:hover {
+        border-color: var(--text-primary);
+        background: #001a00;
+        box-shadow: 0 0 10px rgba(0,255,0,0.3);
+    }
+}
+
+#intro-kindle-btn:active {
+    border-color: var(--text-bright);
+    background: #002800;
+    box-shadow: 0 0 14px rgba(136,255,136,0.5);
+    transform: scale(0.98);
 }
 
 .intro-hint {
@@ -1232,10 +1309,12 @@ button.revealing { display: inline-block; }
     animation: dropPulse 0.3s ease;
 }
 
-/* Fuel/ore items are easier to grab with a stronger hover cue */
-.fuel-item:hover, .ore-item:hover {
-    filter: brightness(1.4);
-    box-shadow: 0 0 6px currentColor;
+/* Fuel/ore items are easier to grab with a stronger hover cue (desktop only) */
+@media (hover: hover) {
+    .fuel-item:hover, .ore-item:hover {
+        filter: brightness(1.4);
+        box-shadow: 0 0 6px currentColor;
+    }
 }
 
 /* Blinking cursor effect */
