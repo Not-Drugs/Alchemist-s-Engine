@@ -1277,6 +1277,50 @@ button.revealing { display: inline-block; }
     #stats-list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 
+/* Touch-capable devices: enforce Apple HIG 44x44 minimum for interactive elements */
+@media (hover: none) and (pointer: coarse) {
+    button,
+    .spawn-btn,
+    .tab-btn,
+    .corner-btn,
+    #forge-controls button,
+    #workshop-controls button,
+    footer button,
+    .modal-buttons button,
+    #transmute-btn,
+    #intro-kindle-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Grid cells need to be tappable — they're square so min-height is enough */
+    .grid-cell {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Drop zones are primary targets — bump padding */
+    #furnace-fuel-slot,
+    #smelter-ore-slot {
+        min-height: 56px;
+        padding: 16px;
+    }
+
+    /* Upgrade items are clickable */
+    .upgrade-item {
+        min-height: 64px;
+        padding: 14px;
+    }
+
+    /* Add breathing room between adjacent tap targets */
+    #spawn-controls { gap: 10px; }
+    #upgrade-tabs { gap: 4px; }
+    footer { gap: 10px; }
+
+    /* Corner mute button needs to be finger-sized */
+    .corner-btn { padding: 10px 14px; font-size: 0.75rem; }
+}
+
 /* Phone (portrait) — 600px and below covers 360-428 typical widths */
 @media (max-width: 600px) {
     body { font-size: 13px; }
