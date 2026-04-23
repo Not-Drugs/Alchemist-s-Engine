@@ -177,6 +177,7 @@ let draggedElement = null;
 
 function init() {
     loadGame();
+    processOfflineProgress();
     createGrid();
     setupEventListeners();
     renderUpgrades();
@@ -895,6 +896,100 @@ function checkAchievements() {
 function updateAchievementCount() {
     const count = document.getElementById('achievement-count');
     count.textContent = `(${game.achievements.length}/${ACHIEVEMENTS.length})`;
+}
+
+// ============================================
+// OFFLINE PROGRESS
+// ============================================
+
+const OFFLINE_CAP_SECONDS = 8 * 3600;      // 8 hours max
+const OFFLINE_MIN_SECONDS = 60;            // Ignore sub-minute away times
+const OFFLINE_EFFICIENCY  = 0.5;           // Offline runs at 50% efficiency
+
+function processOfflineProgress() {
+    if (!game.lastUpdate) return;
+    const now = Date.now();
+    const awaySec = Math.max(0, (now - game.lastUpdate) / 1000);
+    if (awaySec < OFFLINE_MIN_SECONDS) return;
+
+    const cappedSec = Math.min(awaySec, OFFLINE_CAP_SECONDS);
+    const eff = OFFLINE_EFFICIENCY;
+
+    const gained = { heat: 0, essence: 0, sparks: 0, ores: 0 };
+
+    // Burn existing fuel slowly while away, producing heat
+    if (game.furnace.fuel > 0) {
+        const fuelBurned = Math.min(game.furnace.fuel, cappedSec);
+        game.furnace.fuel -= fuelBurned;
+        const heatPerFuel = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier
+            * getWisdomMultiplier()
+            * (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
+        gained.heat += fuelBurned * heatPerFuel * eff;
+    }
+
+    // Auto-sparker accumulation — cap by empty cells so grid doesn't overflow
+    if (game.automation.sparkers > 0) {
+        const rate = game.automation.sparkers * 0.5 * game.bonuses.automationEfficiency * eff;
+        const emptyCells = game.grid.filter(c => c === null).length;
+        gained.sparks = Math.min(Math.floor(rate * cappedSec), emptyCells);
+        for (let i = 0; i < gained.sparks; i++) spawnItem('fuel', false);
+    }
+
+    // Auto-miner accumulation (only if smelter unlocked)
+    if (game.automation.miners > 0 && game.unlockedTiers.smelter) {
+        const rate = game.automation.miners * 0.3 * game.bonuses.automationEfficiency * eff;
+        const emptyCells = game.grid.filter(c => c === null).length;
+        gained.ores = Math.min(Math.floor(rate * cappedSec), emptyCells);
+        for (let i = 0; i < gained.ores; i++) spawnItem('ore', false);
+    }
+
+    // Passive essence (tracked on furnace temperature)
+    if (game.unlockedTiers.essence && game.furnace.temperature > 0) {
+        const essenceRate = game.furnace.temperature * 0.001 * getWisdomMultiplier() * eff;
+        gained.essence = essenceRate * cappedSec;
+        game.resources.essence += gained.essence;
+    }
+
+    game.resources.heat += gained.heat;
+    game.stats.totalHeat += gained.heat;
+    game.lastUpdate = now;
+
+    const awayLabel = formatTime(cappedSec * 1000);
+    const capped = awaySec > OFFLINE_CAP_SECONDS;
+    const lines = [];
+    lines.push(`Away for ${awayLabel}${capped ? ' (capped)' : ''}.`);
+    if (gained.heat > 0)    lines.push(`+${formatNumber(gained.heat)} heat`);
+    if (gained.essence > 0) lines.push(`+${formatNumber(gained.essence)} essence`);
+    if (gained.sparks > 0)  lines.push(`+${gained.sparks} sparks on the grid`);
+    if (gained.ores > 0)    lines.push(`+${gained.ores} ores on the grid`);
+    if (lines.length > 1) showOfflineModal(lines);
+}
+
+function showOfflineModal(lines) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal';
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Welcome Back';
+    content.appendChild(h3);
+    const list = document.createElement('div');
+    list.className = 'offline-lines';
+    for (const line of lines) {
+        const row = document.createElement('div');
+        row.textContent = `> ${line}`;
+        list.appendChild(row);
+    }
+    content.appendChild(list);
+    const btnRow = document.createElement('div');
+    btnRow.className = 'modal-buttons';
+    const btn = document.createElement('button');
+    btn.textContent = '[CONTINUE]';
+    btn.addEventListener('click', () => overlay.remove());
+    btnRow.appendChild(btn);
+    content.appendChild(btnRow);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
 }
 
 // ============================================

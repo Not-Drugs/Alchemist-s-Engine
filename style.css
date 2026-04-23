@@ -986,6 +986,19 @@ footer button:hover {
     color: var(--bg-dark);
 }
 
+.offline-lines {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    margin: 10px 0 15px;
+    line-height: 1.7;
+}
+
+.offline-lines div:first-child {
+    color: var(--text-dim);
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
 /* Utility Classes */
 .hidden {
     display: none !important;
