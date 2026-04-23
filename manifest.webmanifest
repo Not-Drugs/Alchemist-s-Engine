@@ -1,0 +1,20 @@
+{
+  "name": "Alchemist's Engine",
+  "short_name": "Alchemy",
+  "description": "An ASCII-terminal incremental merge game. Feed the engine, merge fuels, transmute essence into Philosopher's Stones.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0c0c",
+  "theme_color": "#0c0c0c",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

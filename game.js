@@ -2021,3 +2021,14 @@ function showToast(message, type = 'info') {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', init);
+
+// PWA: register the service worker so the game works offline and can be
+// installed from the browser. Runs on http(s) only — file:// and srcdoc
+// contexts skip silently.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {
+            // Offline capability is a bonus, not required. Ignore failures.
+        });
+    });
+}

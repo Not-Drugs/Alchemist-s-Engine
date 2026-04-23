@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0c0c0c"/>
+  <g fill="none" stroke="#00ff00" stroke-width="6" font-family="monospace" font-size="56" font-weight="700">
+    <!-- ASCII furnace silhouette -->
+    <text x="50%" y="30%" text-anchor="middle" fill="#88ff88" stroke="none" font-size="72" letter-spacing="4">ALCH</text>
+    <text x="50%" y="45%" text-anchor="middle" fill="#88ff88" stroke="none" font-size="72" letter-spacing="4">EMY</text>
+    <!-- Flame glyph -->
+    <text x="50%" y="75%" text-anchor="middle" fill="#ff6600" stroke="none" font-size="120">^</text>
+    <!-- Frame -->
+    <rect x="32" y="32" width="448" height="448" rx="48" stroke="#00aa00" stroke-width="8" fill="none"/>
+  </g>
+</svg>
