@@ -284,7 +284,8 @@
     <div id="import-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Import Save</h3>
-            <textarea id="import-textarea" placeholder="Paste your save data here..."></textarea>
+            <p class="modal-hint">Paste a save code below. This will overwrite your current progress.</p>
+            <textarea id="import-textarea" placeholder="Paste save code here..."></textarea>
             <div class="modal-buttons">
                 <button id="import-confirm">[IMPORT]</button>
                 <button id="import-cancel">[CANCEL]</button>
@@ -292,6 +293,21 @@
         </div>
     </div>
 
+    <!-- Export Modal -->
+    <div id="export-modal" class="modal hidden">
+        <div class="modal-content export-modal-content">
+            <h3>Export Save</h3>
+            <p class="modal-hint">Copy this save code to transfer your progress, or scan the QR from another device.</p>
+            <div id="export-qr" class="export-qr"></div>
+            <textarea id="export-textarea" readonly></textarea>
+            <div class="modal-buttons">
+                <button id="export-copy">[COPY CODE]</button>
+                <button id="export-close">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="qrcode.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

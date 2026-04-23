@@ -1788,6 +1788,11 @@ function setupEventListeners() {
         document.getElementById('import-modal').classList.add('hidden');
     });
 
+    document.getElementById('export-copy').addEventListener('click', copyExportedSave);
+    document.getElementById('export-close').addEventListener('click', () => {
+        document.getElementById('export-modal').classList.add('hidden');
+    });
+
     document.getElementById('reset-btn').addEventListener('click', hardReset);
 
     // Mute toggle (persistent corner button, always visible)
@@ -1910,28 +1915,121 @@ function loadGame() {
     }
 }
 
+// Save code format version. Bump when the game shape changes in a way that
+// requires migration. Older codes are still accepted for backward compat.
+const SAVE_VERSION = 1;
+
+function buildSavePayload() {
+    const envelope = { v: SAVE_VERSION, ts: Date.now(), game: game };
+    return btoa(unescape(encodeURIComponent(JSON.stringify(envelope))));
+}
+
+function parseSavePayload(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    let text;
+    try { text = decodeURIComponent(escape(atob(trimmed))); }
+    catch (e) {
+        try { text = atob(trimmed); }
+        catch (err) { return null; }
+    }
+
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (e) { return null; }
+
+    if (parsed && typeof parsed.v === 'number' && parsed.game) {
+        return { version: parsed.v, game: migrateSave(parsed.game, parsed.v) };
+    }
+    if (parsed && typeof parsed.resources === 'object') {
+        return { version: 0, game: parsed };
+    }
+    return null;
+}
+
+function migrateSave(g, fromVersion) {
+    // No migrations yet. When the save shape changes, add steps like:
+    //   if (fromVersion < 2) { g.newField = default; }
+    return g;
+}
+
+function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function renderQrFallback(container, message) {
+    clearChildren(container);
+    const div = document.createElement('div');
+    div.className = 'export-qr-fallback';
+    div.textContent = message;
+    container.appendChild(div);
+}
+
+function renderQrInto(container, svgString) {
+    clearChildren(container);
+    // Parse SVG string via DOMParser — safe: string is built by our own
+    // generator from a fixed template, no user-controlled HTML.
+    const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (svg && svg.nodeName.toLowerCase() === 'svg') {
+        container.appendChild(document.importNode(svg, true));
+    } else {
+        renderQrFallback(container, 'QR rendering failed.');
+    }
+}
+
 function exportGame() {
-    const saveData = btoa(JSON.stringify(game));
-    navigator.clipboard.writeText(saveData).then(() => {
-        showToast('Save copied to clipboard!', 'success');
-    }).catch(() => {
-        // Fallback
-        const textarea = document.createElement('textarea');
-        textarea.value = saveData;
-        document.body.appendChild(textarea);
+    const saveData = buildSavePayload();
+    const modal = document.getElementById('export-modal');
+    const textarea = document.getElementById('export-textarea');
+    const qrContainer = document.getElementById('export-qr');
+
+    textarea.value = saveData;
+
+    if (window.QR) {
+        const qr = window.QR.generate(saveData);
+        if (qr) {
+            renderQrInto(qrContainer, window.QR.toSvg(qr, 4, 4));
+        } else {
+            renderQrFallback(qrContainer, 'Save too large for QR — use [COPY CODE] instead.');
+        }
+    } else {
+        renderQrFallback(qrContainer, 'QR generator unavailable.');
+    }
+
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.select(), 0);
+}
+
+function copyExportedSave() {
+    const textarea = document.getElementById('export-textarea');
+    const saveData = textarea.value;
+    const done = () => showToast('Save code copied!', 'success');
+    const fallback = () => {
         textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showToast('Save copied to clipboard!', 'success');
-    });
+        try { document.execCommand('copy'); done(); }
+        catch (e) { showToast('Copy failed — select and copy manually.', 'error'); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(saveData).then(done).catch(fallback);
+    } else {
+        fallback();
+    }
 }
 
 function importGame() {
     const textarea = document.getElementById('import-textarea');
-    const data = textarea.value.trim();
+    const result = parseSavePayload(textarea.value);
+
+    if (!result) {
+        showToast('Invalid save code!', 'error');
+        return;
+    }
+
+    const decoded = result.game;
 
     try {
-        const decoded = JSON.parse(atob(data));
         game = { ...JSON.parse(JSON.stringify(defaultGame)), ...decoded };
         game.resources = { ...defaultGame.resources, ...decoded.resources };
         game.bonuses = { ...defaultGame.bonuses };
