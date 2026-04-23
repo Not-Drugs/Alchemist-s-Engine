@@ -94,7 +94,13 @@ body::before {
 #game-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    /* Respect iOS notch / Android cutouts / home-indicator.
+       On desktop the env() values resolve to 0 so padding stays at 20px. */
+    padding:
+        max(20px, env(safe-area-inset-top))
+        max(20px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom))
+        max(20px, env(safe-area-inset-left));
     position: relative;
 }
 
@@ -1442,14 +1448,18 @@ button.revealing { display: inline-block; }
     body { font-size: 13px; }
 
     #game-container {
-        padding: 8px;
+        padding:
+            max(8px, env(safe-area-inset-top))
+            max(8px, env(safe-area-inset-right))
+            max(8px, env(safe-area-inset-bottom))
+            max(8px, env(safe-area-inset-left));
         animation: none; /* flicker is cute on desktop but taxing on mobile */
     }
 
-    /* Corner button moves out of the way on tiny screens */
+    /* Corner button moves out of the way on tiny screens and avoids notches */
     .corner-btn {
-        top: 10px;
-        right: 10px;
+        top: max(10px, env(safe-area-inset-top));
+        right: max(10px, env(safe-area-inset-right));
         font-size: 0.65rem;
         padding: 6px 10px;
     }
@@ -1606,11 +1616,11 @@ button.revealing { display: inline-block; }
         font-size: 0.8rem;
     }
 
-    /* Toast notifications anchored bottom, narrower */
+    /* Toast notifications anchored bottom, narrower, clear of home indicator */
     #toast-container {
-        bottom: 10px;
-        right: 10px;
-        left: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        right: max(10px, env(safe-area-inset-right));
+        left: max(10px, env(safe-area-inset-left));
         max-width: none;
     }
 
