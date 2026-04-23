@@ -248,6 +248,18 @@ section h2::after {
     color: var(--text-primary);
 }
 
+/* Matching-tier merge hints while dragging */
+.grid-cell.merge-target {
+    border-color: var(--text-bright);
+    box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.3);
+    animation: mergePulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes mergePulse {
+    from { box-shadow: inset 0 0 6px rgba(0, 255, 0, 0.2); }
+    to   { box-shadow: inset 0 0 14px rgba(136, 255, 136, 0.5); }
+}
+
 /* Fuel and Ore Items */
 .fuel-item, .ore-item {
     width: 90%;
@@ -384,6 +396,17 @@ section h2::after {
 #furnace-ascii.burning {
     color: var(--accent-fire);
     text-shadow: 0 0 5px var(--accent-fire);
+}
+
+#furnace-ascii.roaring {
+    color: #ffaa44;
+    text-shadow: 0 0 8px var(--accent-fire), 0 0 18px var(--accent-heat);
+    animation: roaringFlicker 0.18s steps(2) infinite;
+}
+
+@keyframes roaringFlicker {
+    0%   { filter: brightness(1); }
+    100% { filter: brightness(1.25); }
 }
 
 #furnace-temp {

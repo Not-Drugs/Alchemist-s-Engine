@@ -480,6 +480,18 @@ function handleDragStart(e) {
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', draggedIndex);
+
+    // Highlight cells with matching same-tier items as valid merge targets
+    const maxTier = draggedItem.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
+    if (draggedItem.tier < maxTier) {
+        game.grid.forEach((cell, i) => {
+            if (i === draggedIndex) return;
+            if (cell && cell.type === draggedItem.type && cell.tier === draggedItem.tier) {
+                const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
+                if (el) el.classList.add('merge-target');
+            }
+        });
+    }
 }
 
 function handleDragEnd(e) {
@@ -488,8 +500,9 @@ function handleDragEnd(e) {
     draggedIndex = null;
     draggedElement = null;
 
-    // Remove all drag-over states
+    // Remove all drag-over and merge-target states
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
 }
 
 function handleDragOver(e) {
@@ -530,6 +543,13 @@ function handleDrop(e) {
             game.stats.totalMerges++;
             if (draggedItem.type === 'fuel' && draggedItem.tier + 1 > game.stats.highestFuelTier) {
                 game.stats.highestFuelTier = draggedItem.tier + 1;
+            }
+
+            // First-merge and milestone hints
+            if (game.stats.totalMerges === 1) {
+                setNarration('The substances have fused. Bigger embers burn hotter, longer.');
+            } else if (draggedItem.type === 'fuel' && draggedItem.tier + 1 === FUEL_TIERS.length) {
+                setNarration('Solite. The pinnacle of the ember path.');
             }
 
             // Flash animation + SFX + subtle shake on higher tiers
@@ -1262,22 +1282,51 @@ function updateUI() {
     document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
     document.getElementById('furnace-efficiency').textContent = Math.floor(game.bonuses.furnaceEfficiency * 100);
 
-    // Furnace ASCII animation
+    // Furnace ASCII animation — art changes with temperature
     const furnaceAscii = document.getElementById('furnace-ascii');
     if (furnaceAscii) {
         const burning = game.furnace.fuel > 0;
-        const cold = game.furnace.fuel <= 0 && game.furnace.temperature < 1 && game.stats.totalHeat === 0;
+        const temp = game.furnace.temperature;
+        const cold = !burning && temp < 1 && game.stats.totalHeat === 0;
         furnaceAscii.classList.toggle('burning', burning);
         furnaceAscii.classList.toggle('cold', cold);
-        if (burning) {
-            const frame = Math.floor(Date.now() / 200) % 3;
-            const flames = ['  ^', ' ^^^', '^^^^^'][frame];
-            const flames2 = [' ^^^', '^^^^^', '  ^'][frame];
+        furnaceAscii.classList.toggle('roaring', temp >= 400);
+
+        const t = Math.floor(Date.now() / 180);
+        if (burning && temp >= 400) {
+            // Roaring inferno
+            const a = ['*^*^*', '^*^*^', '*^^*^', '^*^^*'][t % 4];
+            const b = ['^^^^^', '*^*^*', '^*^*^', '^^*^^'][t % 4];
+            furnaceAscii.textContent = `
+    _______
+   /  ${a}  \\
+  |  ${b}  |
+  |  ${a}  |
+  |  \\_|_/  |
+  |_________|
+ /___________\\
+|_____________|`;
+        } else if (burning && temp >= 100) {
+            // Steady burn
+            const a = ['  ^  ', ' ^^^ ', '^^^^^'][t % 3];
+            const b = [' ^^^ ', '^^^^^', '  ^  '][t % 3];
             furnaceAscii.textContent = `
     _______
    /       \\
-  |  ${flames}  |
-  |  ${flames2}  |
+  |  ${a}  |
+  |  ${b}  |
+  |  '---'  |
+  |_________|
+ /___________\\
+|_____________|`;
+        } else if (burning) {
+            // Faint warmth
+            const a = ['  .  ', ' . . ', '  .  '][t % 3];
+            furnaceAscii.textContent = `
+    _______
+   /       \\
+  |  ${a}  |
+  |    _    |
   |  '---'  |
   |_________|
  /___________\\
