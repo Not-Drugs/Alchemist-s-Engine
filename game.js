@@ -1803,6 +1803,20 @@ function setupEventListeners() {
 
     // Prevent browser gesturestart zoom (Safari)
     document.addEventListener('gesturestart', (e) => e.preventDefault());
+
+    // Best-effort portrait lock. Only works in fullscreen/PWA contexts and on
+    // Android; silently no-ops on iOS Safari browsing. CSS #rotate-hint is
+    // the universal fallback for unsupported environments.
+    tryLockPortrait();
+    window.addEventListener('orientationchange', tryLockPortrait);
+}
+
+function tryLockPortrait() {
+    try {
+        if (screen.orientation && typeof screen.orientation.lock === 'function') {
+            screen.orientation.lock('portrait').catch(() => {});
+        }
+    } catch (e) { /* unsupported — rotate-hint overlay handles it */ }
 }
 
 // ============================================

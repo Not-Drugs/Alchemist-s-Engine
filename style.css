@@ -1645,3 +1645,61 @@ button.revealing { display: inline-block; }
     .narration { padding: 4px 0; }
     #game-area { gap: 8px; }
 }
+
+/* ============================================
+   ORIENTATION — prefer portrait for idle play
+   ============================================ */
+
+#rotate-hint {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg-dark);
+    z-index: 9500;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-primary);
+    font-family: inherit;
+    letter-spacing: 1px;
+}
+
+.rotate-hint-content {
+    padding: 20px;
+    max-width: 320px;
+}
+
+.rotate-icon {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    line-height: 1.1;
+    white-space: pre;
+    text-align: center;
+    margin-bottom: 16px;
+    animation: rotateHintPulse 2s ease-in-out infinite;
+    transform-origin: center;
+}
+
+.rotate-hint-sub {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 8px;
+}
+
+@keyframes rotateHintPulse {
+    0%, 100% { transform: rotate(0deg); opacity: 0.7; }
+    50%      { transform: rotate(-90deg); opacity: 1; }
+}
+
+/* Trigger rotate hint only on phone-sized viewports in landscape. Tablets
+   and desktops in landscape are fine and skip this entirely. */
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+    #rotate-hint {
+        display: flex;
+    }
+    #game-container {
+        /* Keep game mounted but hidden behind the hint so state is preserved */
+        visibility: hidden;
+    }
+}
