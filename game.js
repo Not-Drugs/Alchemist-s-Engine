@@ -88,7 +88,7 @@ const REVEAL_STAGES = [
     { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#furnace-stats'] },
     { id: 'mergeGrid',     cond: g => g.stats.totalHeat >= 25 || g.stats.kindlingAdded >= 5,
         narrate: 'Patterns emerge in the embers. They wish to be combined.',
-        targets: ['#merge-section'],
+        targets: ['#merge-section', '#burn-all-btn'],
         onReveal: () => {
             hideIntroControls();
             showFurnaceDrop();
@@ -268,6 +268,49 @@ function renderGridItem(index) {
     itemEl.title = item.type === 'fuel'
         ? `${FUEL_TIERS[item.tier - 1].name} (${FUEL_TIERS[item.tier - 1].value} fuel) — dbl-click or right-click to burn`
         : `${ORE_TIERS[item.tier - 1].name} (${ORE_TIERS[item.tier - 1].value} ore) — dbl-click or right-click to smelt`;
+}
+
+function burnAllFuel() {
+    const maxFuel = game.bonuses.furnaceCapacity;
+    let burned = 0;
+    for (let i = 0; i < game.grid.length; i++) {
+        const item = game.grid[i];
+        if (!item || item.type !== 'fuel') continue;
+        const value = FUEL_TIERS[item.tier - 1].value;
+        if (game.furnace.fuel >= maxFuel) break;
+        const added = Math.min(value, maxFuel - game.furnace.fuel);
+        game.furnace.fuel += added;
+        burned += added;
+        game.grid[i] = null;
+        renderGridItem(i);
+        if (game.furnace.fuel >= maxFuel) break;
+    }
+    if (burned > 0) {
+        flashDropZone('furnace-fuel-slot');
+        floatPopup(document.getElementById('furnace-visual'), `+${formatNumber(burned)} fuel`, 'heat');
+    } else {
+        showToast(game.furnace.fuel >= maxFuel ? 'Furnace is full!' : 'No fuel on the grid.', 'error');
+    }
+}
+
+function smeltAllOre() {
+    if (!game.unlockedTiers.smelter) return;
+    let added = 0;
+    for (let i = 0; i < game.grid.length; i++) {
+        const item = game.grid[i];
+        if (!item || item.type !== 'ore') continue;
+        const value = ORE_TIERS[item.tier - 1].value;
+        game.smelter.ore += value;
+        added += value;
+        game.grid[i] = null;
+        renderGridItem(i);
+    }
+    if (added > 0) {
+        flashDropZone('smelter-ore-slot');
+        floatPopup(document.getElementById('smelter-visual'), `+${formatNumber(added)} ore`, 'metal');
+    } else {
+        showToast('No ore on the grid.', 'error');
+    }
 }
 
 function quickSendItem(index) {
@@ -1252,8 +1295,15 @@ function setupEventListeners() {
         if (key === 'k' && !game.revealed.mergeGrid) { e.preventDefault(); feedKindling(); }
         else if (key === 'f' && game.revealed.mergeGrid) { e.preventDefault(); spawnFuel(e.shiftKey); }
         else if (key === 'o' && game.unlockedTiers.smelter) { e.preventDefault(); spawnOre(e.shiftKey); }
+        else if (key === 'b' && game.revealed.mergeGrid) { e.preventDefault(); burnAllFuel(); }
+        else if (key === 'm' && game.unlockedTiers.smelter) { e.preventDefault(); smeltAllOre(); }
         else if (key === 's' && e.shiftKey) { e.preventDefault(); saveGame(); showToast('Game saved!', 'success'); }
     });
+
+    const burnAll = document.getElementById('burn-all-btn');
+    if (burnAll) burnAll.addEventListener('click', burnAllFuel);
+    const smeltAll = document.getElementById('smelt-all-btn');
+    if (smeltAll) smeltAll.addEventListener('click', smeltAllOre);
 
     // Furnace drop zone
     setupFurnaceDropZone();
