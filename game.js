@@ -175,6 +175,20 @@ let draggedElement = null;
 // INITIALIZATION
 // ============================================
 
+let _loopIntervals = [];
+
+function startLoops() {
+    if (_loopIntervals.length) return;
+    _loopIntervals.push(setInterval(gameLoop, 100));
+    _loopIntervals.push(setInterval(saveGame, 30000));
+    _loopIntervals.push(setInterval(() => { checkAchievements(); checkReveals(); }, 500));
+}
+
+function stopLoops() {
+    for (const id of _loopIntervals) clearInterval(id);
+    _loopIntervals = [];
+}
+
 function init() {
     loadGame();
     processOfflineProgress();
@@ -185,17 +199,41 @@ function init() {
     applyRevealedFlags();
     updateUI();
 
-    // Start game loop
-    setInterval(gameLoop, 100); // 10 ticks per second
-
-    // Auto-save every 30 seconds
-    setInterval(saveGame, 30000);
-
-    // Check achievements + progressive reveals every second
-    setInterval(() => { checkAchievements(); checkReveals(); }, 500);
+    startLoops();
 
     // Run reveal check immediately so returning players see their state
     checkReveals();
+
+    // Pause simulation when the tab/app is hidden to save battery. The
+    // offline processor fast-forwards progress (at 50% efficiency) when
+    // the player returns, so the world stays consistent without burning
+    // CPU in the background.
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Nautilus WebView and some PWAs use pagehide/pageshow instead.
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
+}
+
+function handleVisibilityChange() {
+    if (document.hidden) onPageHide();
+    else onPageShow();
+}
+
+function onPageHide() {
+    if (!_loopIntervals.length) return;
+    // Freeze the clock so the next resume can compute away-time correctly.
+    game.lastUpdate = Date.now();
+    saveGame();
+    stopLoops();
+}
+
+function onPageShow() {
+    if (_loopIntervals.length) return;
+    processOfflineProgress();
+    // Reset timer after offline processing so gameLoop doesn't double-count.
+    game.lastUpdate = Date.now();
+    startLoops();
+    updateUI();
 }
 
 // ============================================
