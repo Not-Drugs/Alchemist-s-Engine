@@ -366,6 +366,109 @@ function squish(el) {
 }
 
 // ============================================
+// AUDIO (Web Audio API — no assets required)
+// ============================================
+
+let _audioCtx = null;
+let _audioEnabled = true;
+
+function getAudioCtx() {
+    if (_audioCtx) {
+        if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+        return _audioCtx;
+    }
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        _audioCtx = new Ctx();
+    } catch (e) { return null; }
+    return _audioCtx;
+}
+
+function tone(freq, duration = 0.15, type = 'triangle', volume = 0.15, attackTime = 0.005, delay = 0) {
+    if (!_audioEnabled) return;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+    gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + delay + attackTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(ctx.currentTime + delay);
+    osc.stop(ctx.currentTime + delay + duration + 0.02);
+}
+
+function sfx(kind, tier = 1) {
+    switch (kind) {
+        case 'merge':
+            // Pitch rises with tier for a sense of progress
+            tone(440 * Math.pow(1.12, tier - 1), 0.1, 'triangle', 0.12);
+            tone(660 * Math.pow(1.12, tier - 1), 0.12, 'sine', 0.08, 0.005, 0.03);
+            break;
+        case 'kindle':
+            tone(180, 0.08, 'square', 0.08);
+            break;
+        case 'feed':
+            tone(320, 0.08, 'triangle', 0.1);
+            break;
+        case 'purchase':
+            tone(523, 0.1, 'triangle', 0.12);
+            tone(784, 0.12, 'triangle', 0.1, 0.005, 0.05);
+            break;
+        case 'craft':
+            tone(392, 0.08, 'square', 0.08);
+            tone(587, 0.1, 'triangle', 0.08, 0.005, 0.04);
+            break;
+        case 'smelt':
+            tone(220, 0.2, 'sawtooth', 0.05);
+            tone(330, 0.15, 'triangle', 0.08, 0.005, 0.08);
+            break;
+        case 'achievement':
+            // Major triad arpeggio
+            tone(523, 0.12, 'triangle', 0.12);
+            tone(659, 0.12, 'triangle', 0.12, 0.005, 0.08);
+            tone(784, 0.2, 'triangle', 0.14, 0.005, 0.16);
+            break;
+        case 'reveal':
+            tone(294, 0.15, 'sine', 0.1);
+            tone(440, 0.2, 'sine', 0.12, 0.005, 0.08);
+            break;
+        case 'prestige':
+            tone(130, 0.4, 'sawtooth', 0.1);
+            tone(260, 0.4, 'triangle', 0.12, 0.005, 0.1);
+            tone(523, 0.6, 'sine', 0.14, 0.005, 0.2);
+            break;
+        case 'error':
+            tone(150, 0.1, 'square', 0.1);
+            break;
+    }
+}
+
+// ============================================
+// SCREEN EFFECTS
+// ============================================
+
+function screenShake(intensity = 'small') {
+    const el = document.getElementById('game-container');
+    if (!el) return;
+    el.classList.remove('shake-small', 'shake-big');
+    void el.offsetWidth;
+    el.classList.add(intensity === 'big' ? 'shake-big' : 'shake-small');
+    setTimeout(() => el.classList.remove('shake-small', 'shake-big'), 600);
+}
+
+function screenFlash(color = 'var(--accent-essence)') {
+    const flash = document.createElement('div');
+    flash.className = 'screen-flash';
+    flash.style.background = color;
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 400);
+}
+
+// ============================================
 // DRAG AND DROP HANDLERS
 // ============================================
 
@@ -429,15 +532,19 @@ function handleDrop(e) {
                 game.stats.highestFuelTier = draggedItem.tier + 1;
             }
 
-            // Flash animation
+            // Flash animation + SFX + subtle shake on higher tiers
             renderGridItem(targetIndex);
             const newItem = document.querySelector(`.grid-cell[data-index="${targetIndex}"] > div`);
+            const newTier = draggedItem.tier + 1;
             if (newItem) {
                 newItem.classList.add('merge-flash');
                 setTimeout(() => newItem.classList.remove('merge-flash'), 300);
                 const mergedTierInfo = (draggedItem.type === 'fuel' ? FUEL_TIERS : ORE_TIERS)[draggedItem.tier];
                 if (mergedTierInfo) floatPopup(newItem, `+${mergedTierInfo.name}`, 'merge');
             }
+            sfx('merge', newTier);
+            if (newTier >= 4) screenShake('small');
+            if (newTier >= 6) screenFlash('var(--accent-fire)');
 
             renderGridItem(draggedIndex);
         }
@@ -603,6 +710,7 @@ function processSmelter(delta) {
             game.smelter.progress = 0;
             showToast(`Smelted ${metalGain} metal!`, 'success');
             floatPopup(document.getElementById('smelter-visual'), `+${formatNumber(metalGain)} metal`, 'metal');
+            sfx('smelt');
         }
     } else if (game.furnace.temperature < 100) {
         // Can't smelt without heat
@@ -710,6 +818,7 @@ function craftAlloy() {
         game.forge.count++;
         showToast(`Forged ${yield_} alloy!`, 'success');
         floatPopup(document.getElementById('forge-visual'), `+${yield_} alloy`, 'alloy');
+        sfx('craft');
     }
 }
 
@@ -721,6 +830,7 @@ function craftGear() {
         game.resources.gears += yield_;
         showToast(`Crafted ${yield_} gear(s)!`, 'success');
         floatPopup(document.getElementById('workshop-visual'), `+${yield_} gear`, 'gear');
+        sfx('craft');
     }
 }
 
@@ -803,6 +913,9 @@ function prestige() {
     updateUI();
 
     showToast(`Transmuted ${stones} Philosopher's Stone(s)!`, 'achievement');
+    sfx('prestige');
+    screenFlash('var(--accent-prestige)');
+    screenShake('big');
     saveGame();
 }
 
@@ -862,6 +975,7 @@ function purchaseUpgrade(upgrade) {
     renderUpgrades();
     updateUI();
     showToast(`Purchased ${upgrade.name}!`, 'success');
+    sfx('purchase');
 }
 
 function unlockTier(tier) {
@@ -891,6 +1005,8 @@ function unlockTier(tier) {
     }
 
     showToast(`Unlocked: ${tier.charAt(0).toUpperCase() + tier.slice(1)}!`, 'achievement');
+    sfx('reveal');
+    screenFlash('var(--text-primary)');
 }
 
 // ============================================
@@ -928,6 +1044,8 @@ function checkAchievements() {
             game.achievements.push(ach.id);
             newAchievements = true;
             showToast(`Achievement: ${ach.name}!`, 'achievement');
+            sfx('achievement');
+            screenFlash('var(--accent-essence)');
         }
     }
 
@@ -1077,6 +1195,8 @@ function checkReveals() {
         revealTargets(stage.targets);
         if (stage.narrate) setNarration(stage.narrate);
         if (stage.onReveal) stage.onReveal();
+        // Soft chime only for substantial reveals (ones with visible targets)
+        if (stage.targets && stage.targets.length) sfx('reveal');
     }
 }
 
@@ -1112,6 +1232,7 @@ function feedKindling() {
     const furnaceVisual = document.getElementById('furnace-visual');
     squish(document.getElementById('intro-kindle-btn'));
     floatPopup(furnaceVisual, '+kindling', 'heat');
+    sfx('kindle');
 
     if (game.stats.kindlingAdded === 1) setNarration('A stick catches. The engine stirs.');
     else if (game.stats.kindlingAdded === 3) setNarration('The iron grows warm. Keep feeding it.');
@@ -1347,6 +1468,30 @@ function setupEventListeners() {
     });
 
     document.getElementById('reset-btn').addEventListener('click', hardReset);
+
+    // Mute toggle
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) {
+        // Restore mute preference
+        try { _audioEnabled = localStorage.getItem('alchemistsEngine.mute') !== '1'; } catch (e) {}
+        muteBtn.textContent = _audioEnabled ? '[SOUND:ON]' : '[SOUND:OFF]';
+        muteBtn.addEventListener('click', () => {
+            _audioEnabled = !_audioEnabled;
+            muteBtn.textContent = _audioEnabled ? '[SOUND:ON]' : '[SOUND:OFF]';
+            try { localStorage.setItem('alchemistsEngine.mute', _audioEnabled ? '0' : '1'); } catch (e) {}
+            if (_audioEnabled) sfx('kindle');
+        });
+    }
+
+    // Resume audio context on first user gesture (browser autoplay policy)
+    const unlockAudio = () => {
+        const ctx = getAudioCtx();
+        if (ctx && ctx.state === 'suspended') ctx.resume();
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
 }
 
 // ============================================
