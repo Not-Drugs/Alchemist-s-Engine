@@ -246,9 +246,12 @@ function renderGridItem(index) {
     tierLabel.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].name : ORE_TIERS[item.tier - 1].name;
     itemEl.appendChild(tierLabel);
 
-    // Drag events
+    // Drag events (desktop HTML5 drag API)
     itemEl.addEventListener('dragstart', handleDragStart);
     itemEl.addEventListener('dragend', handleDragEnd);
+
+    // Touch-based drag for mobile (parallels desktop drag)
+    itemEl.addEventListener('touchstart', handleTouchStart, { passive: false });
 
     // Quick-send: double-click sends fuel to furnace, ore to smelter
     itemEl.addEventListener('dblclick', (e) => {
@@ -576,6 +579,237 @@ function handleDrop(e) {
         renderGridItem(draggedIndex);
     }
     // If items don't match and cell isn't empty, do nothing (swap could be added)
+}
+
+// ============================================
+// TOUCH DRAG (mobile) — mirrors desktop drag API
+// ============================================
+
+let touchDragState = null; // { ghost, startX, startY, lastTarget, moved, longPressTimer }
+const TOUCH_MOVE_THRESHOLD = 6; // px before a touch is considered a drag
+
+function handleTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    const itemEl = e.currentTarget;
+    const index = parseInt(itemEl.dataset.index);
+    const item = game.grid[index];
+    if (!item) return;
+
+    // Defer drag initiation: if the user taps quickly, dblclick/contextmenu
+    // handlers still fire. Only start the drag once they actually move.
+    const t = e.touches[0];
+    touchDragState = {
+        itemEl,
+        index,
+        item,
+        startX: t.clientX,
+        startY: t.clientY,
+        moved: false,
+        ghost: null,
+        lastTarget: null
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+}
+
+function beginTouchDrag() {
+    if (!touchDragState || touchDragState.moved) return;
+    const { itemEl, index, item } = touchDragState;
+
+    draggedIndex = index;
+    draggedItem = item;
+    draggedElement = itemEl;
+
+    itemEl.classList.add('dragging');
+
+    // Ghost element follows the finger
+    const rect = itemEl.getBoundingClientRect();
+    const ghost = itemEl.cloneNode(true);
+    ghost.classList.add('touch-ghost');
+    ghost.style.position = 'fixed';
+    ghost.style.left = rect.left + 'px';
+    ghost.style.top = rect.top + 'px';
+    ghost.style.width = rect.width + 'px';
+    ghost.style.height = rect.height + 'px';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.zIndex = '9998';
+    ghost.style.opacity = '0.85';
+    ghost.style.transform = 'scale(1.15)';
+    document.body.appendChild(ghost);
+    touchDragState.ghost = ghost;
+    touchDragState.moved = true;
+
+    // Highlight same-tier merge targets (same as handleDragStart)
+    const maxTier = item.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
+    if (item.tier < maxTier) {
+        game.grid.forEach((cell, i) => {
+            if (i === index) return;
+            if (cell && cell.type === item.type && cell.tier === item.tier) {
+                const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
+                if (el) el.classList.add('merge-target');
+            }
+        });
+    }
+}
+
+function handleTouchMove(e) {
+    if (!touchDragState || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchDragState.startX;
+    const dy = t.clientY - touchDragState.startY;
+
+    if (!touchDragState.moved) {
+        if (Math.hypot(dx, dy) < TOUCH_MOVE_THRESHOLD) return;
+        beginTouchDrag();
+    }
+
+    // Prevent page scroll while dragging
+    e.preventDefault();
+
+    const ghost = touchDragState.ghost;
+    if (ghost) {
+        ghost.style.left = (t.clientX - ghost.offsetWidth / 2) + 'px';
+        ghost.style.top = (t.clientY - ghost.offsetHeight / 2) + 'px';
+    }
+
+    // Hit-test under the finger (temporarily hide ghost so it isn't picked)
+    if (ghost) ghost.style.display = 'none';
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    if (ghost) ghost.style.display = '';
+
+    const target = under && under.closest('.grid-cell, .drop-zone');
+
+    if (touchDragState.lastTarget && touchDragState.lastTarget !== target) {
+        touchDragState.lastTarget.classList.remove('drag-over');
+    }
+    if (target && target !== touchDragState.lastTarget) {
+        // Only highlight drop zones that accept this item type
+        if (target.classList.contains('drop-zone')) {
+            const accepts = (target.id === 'furnace-fuel-slot' && draggedItem.type === 'fuel') ||
+                            (target.id === 'smelter-ore-slot'   && draggedItem.type === 'ore');
+            if (accepts) target.classList.add('drag-over');
+        } else {
+            target.classList.add('drag-over');
+        }
+    }
+    touchDragState.lastTarget = target;
+}
+
+function handleTouchEnd(e) {
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleTouchEnd);
+    document.removeEventListener('touchcancel', handleTouchEnd);
+
+    if (!touchDragState) return;
+
+    // If the user never crossed the drag threshold, let tap/dblclick run — bail.
+    if (!touchDragState.moved) {
+        touchDragState = null;
+        return;
+    }
+
+    e.preventDefault();
+
+    const ghost = touchDragState.ghost;
+    const changedTouch = (e.changedTouches && e.changedTouches[0]) || null;
+    let target = null;
+    if (changedTouch) {
+        if (ghost) ghost.style.display = 'none';
+        const under = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+        target = under && under.closest('.grid-cell, .drop-zone');
+    }
+
+    if (target) {
+        if (target.classList.contains('drop-zone')) {
+            dispatchTouchDropOnZone(target);
+        } else {
+            dispatchTouchDropOnGrid(target);
+        }
+    }
+
+    // Cleanup
+    if (ghost) ghost.remove();
+    if (touchDragState.itemEl) touchDragState.itemEl.classList.remove('dragging');
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
+
+    draggedItem = null;
+    draggedIndex = null;
+    draggedElement = null;
+    touchDragState = null;
+}
+
+function dispatchTouchDropOnGrid(cell) {
+    const targetIndex = parseInt(cell.dataset.index);
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+    const targetItem = game.grid[targetIndex];
+
+    if (targetItem &&
+        targetItem.type === draggedItem.type &&
+        targetItem.tier === draggedItem.tier) {
+        const maxTier = draggedItem.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
+        if (draggedItem.tier < maxTier) {
+            game.grid[draggedIndex] = null;
+            game.grid[targetIndex] = { type: draggedItem.type, tier: draggedItem.tier + 1 };
+
+            game.stats.totalMerges++;
+            if (draggedItem.type === 'fuel' && draggedItem.tier + 1 > game.stats.highestFuelTier) {
+                game.stats.highestFuelTier = draggedItem.tier + 1;
+            }
+
+            if (game.stats.totalMerges === 1) {
+                setNarration('The substances have fused. Bigger embers burn hotter, longer.');
+            } else if (draggedItem.type === 'fuel' && draggedItem.tier + 1 === FUEL_TIERS.length) {
+                setNarration('Solite. The pinnacle of the ember path.');
+            }
+
+            renderGridItem(targetIndex);
+            const newItem = document.querySelector(`.grid-cell[data-index="${targetIndex}"] > div`);
+            const newTier = draggedItem.tier + 1;
+            if (newItem) {
+                newItem.classList.add('merge-flash');
+                setTimeout(() => newItem.classList.remove('merge-flash'), 300);
+                const mergedTierInfo = (draggedItem.type === 'fuel' ? FUEL_TIERS : ORE_TIERS)[draggedItem.tier];
+                if (mergedTierInfo) floatPopup(newItem, `+${mergedTierInfo.name}`, 'merge');
+            }
+            sfx('merge', newTier);
+            if (newTier >= 4) screenShake('small');
+            if (newTier >= 6) screenFlash('var(--accent-fire)');
+
+            renderGridItem(draggedIndex);
+        }
+    } else if (!targetItem) {
+        game.grid[targetIndex] = draggedItem;
+        game.grid[draggedIndex] = null;
+        renderGridItem(targetIndex);
+        renderGridItem(draggedIndex);
+    }
+}
+
+function dispatchTouchDropOnZone(zone) {
+    if (zone.id === 'furnace-fuel-slot' && draggedItem.type === 'fuel') {
+        const fuelValue = FUEL_TIERS[draggedItem.tier - 1].value;
+        const maxFuel = game.bonuses.furnaceCapacity;
+        if (game.furnace.fuel < maxFuel) {
+            game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
+            game.grid[draggedIndex] = null;
+            renderGridItem(draggedIndex);
+            flashDropZone('furnace-fuel-slot');
+            showToast(`Added ${FUEL_TIERS[draggedItem.tier - 1].name} to furnace!`);
+        } else {
+            showToast('Furnace is full!', 'error');
+        }
+    } else if (zone.id === 'smelter-ore-slot' && draggedItem.type === 'ore' && game.unlockedTiers.smelter) {
+        const oreValue = ORE_TIERS[draggedItem.tier - 1].value;
+        game.smelter.ore += oreValue;
+        game.grid[draggedIndex] = null;
+        renderGridItem(draggedIndex);
+        flashDropZone('smelter-ore-slot');
+        showToast(`Added ${ORE_TIERS[draggedItem.tier - 1].name} to smelter!`);
+    }
 }
 
 // ============================================
