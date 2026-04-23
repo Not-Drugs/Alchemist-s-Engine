@@ -554,19 +554,40 @@ function spawnItem(type, showMessage = true) {
     return true;
 }
 
-function spawnFuel() {
-    spawnItem('fuel');
+function spawnFuel(bulk = false) {
+    if (!bulk) {
+        spawnItem('fuel');
+        return;
+    }
+    // Bulk spawn: fill every empty cell
+    let count = 0;
+    while (spawnItem('fuel', false)) count++;
+    if (count === 0) showToast('Grid is full!', 'error');
+    else showToast(`Spawned ${count} sparks!`, 'success');
 }
 
-function spawnOre() {
+function spawnOre(bulk = false) {
     const cost = 10;
-    if (game.resources.heat >= cost) {
-        if (spawnItem('ore')) {
-            game.resources.heat -= cost;
+    if (!bulk) {
+        if (game.resources.heat >= cost) {
+            if (spawnItem('ore')) game.resources.heat -= cost;
+        } else {
+            showToast('Not enough heat!', 'error');
         }
-    } else {
-        showToast('Not enough heat!', 'error');
+        return;
     }
+    // Bulk: spawn as many as heat + empty cells allow
+    let count = 0;
+    while (game.resources.heat >= cost) {
+        const emptyIndex = game.grid.findIndex(c => c === null);
+        if (emptyIndex === -1) break;
+        if (spawnItem('ore', false)) {
+            game.resources.heat -= cost;
+            count++;
+        } else break;
+    }
+    if (count === 0) showToast('No room or not enough heat!', 'error');
+    else showToast(`Spawned ${count} ore!`, 'success');
 }
 
 // ============================================
@@ -966,9 +987,21 @@ function updateUI() {
 // ============================================
 
 function setupEventListeners() {
-    // Spawn buttons
-    document.getElementById('spawn-fuel').addEventListener('click', spawnFuel);
-    document.getElementById('spawn-ore').addEventListener('click', spawnOre);
+    // Spawn buttons (shift-click = bulk fill)
+    document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
+    document.getElementById('spawn-ore').addEventListener('click', (e) => spawnOre(e.shiftKey));
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger when typing in textarea/input
+        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        const key = e.key.toLowerCase();
+        if (key === 'f') { e.preventDefault(); spawnFuel(e.shiftKey); }
+        else if (key === 'o' && game.unlockedTiers.smelter) { e.preventDefault(); spawnOre(e.shiftKey); }
+        else if (key === 's' && e.shiftKey) { e.preventDefault(); saveGame(); showToast('Game saved!', 'success'); }
+    });
 
     // Furnace drop zone
     setupFurnaceDropZone();
