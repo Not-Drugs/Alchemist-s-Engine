@@ -103,7 +103,7 @@ const REVEAL_STAGES = [
     { id: 'achievements',  cond: g => g.stats.totalMerges >= 3,    narrate: 'Your deeds are being remembered.',            targets: ['#achievements-section'] },
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
     { id: 'save',          cond: g => g.stats.totalHeat >= 200,    narrate: 'You find a way to etch this moment.',         targets: ['footer', '#save-btn'] },
-    { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#export-btn', '#import-btn', '#reset-btn'] }
+    { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#settings-savedata', '#export-btn', '#import-btn', '#reset-btn'] }
 ];
 
 const defaultGame = {
@@ -422,6 +422,7 @@ function squish(el) {
 
 let _audioCtx = null;
 let _audioEnabled = true;
+let _volume = 0.8;
 
 function getAudioCtx() {
     if (_audioCtx) {
@@ -444,8 +445,9 @@ function tone(freq, duration = 0.15, type = 'triangle', volume = 0.15, attackTim
     const gain = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+    const peak = Math.max(0.0001, volume * _volume);
     gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + delay + attackTime);
+    gain.gain.linearRampToValueAtTime(peak, ctx.currentTime + delay + attackTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
     osc.connect(gain).connect(ctx.destination);
     osc.start(ctx.currentTime + delay);
@@ -1964,14 +1966,53 @@ function setupEventListeners() {
 
     document.getElementById('reset-btn').addEventListener('click', hardReset);
 
-    // Mute toggle (persistent corner button, always visible)
-    const muteBtn = document.getElementById('mute-corner');
-    if (muteBtn) {
-        try { _audioEnabled = localStorage.getItem('alchemistsEngine.mute') !== '1'; } catch (e) {}
-        muteBtn.textContent = _audioEnabled ? '[SOUND:ON]' : '[SOUND:OFF]';
-        muteBtn.addEventListener('click', () => {
+    // Settings modal — persistent corner button, always visible
+    try {
+        _audioEnabled = localStorage.getItem('alchemistsEngine.mute') !== '1';
+        const savedVol = parseFloat(localStorage.getItem('alchemistsEngine.volume'));
+        if (!isNaN(savedVol)) _volume = Math.max(0, Math.min(1, savedVol));
+    } catch (e) {}
+
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const volumeSlider = document.getElementById('volume-slider');
+    const volumeDisplay = document.getElementById('volume-display');
+    const soundToggle = document.getElementById('sound-toggle');
+    const settingsClose = document.getElementById('settings-close');
+
+    function refreshSettingsUI() {
+        const pct = Math.round(_volume * 100);
+        if (volumeSlider) volumeSlider.value = pct;
+        if (volumeDisplay) volumeDisplay.textContent = `${pct}%`;
+        if (soundToggle) soundToggle.textContent = _audioEnabled ? '[ON]' : '[OFF]';
+    }
+    refreshSettingsUI();
+
+    if (settingsBtn && settingsModal) {
+        settingsBtn.addEventListener('click', () => {
+            refreshSettingsUI();
+            settingsModal.classList.remove('hidden');
+        });
+    }
+    if (settingsClose && settingsModal) {
+        settingsClose.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+    }
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', () => {
+            _volume = Math.max(0, Math.min(1, parseInt(volumeSlider.value, 10) / 100));
+            if (volumeDisplay) volumeDisplay.textContent = `${Math.round(_volume * 100)}%`;
+            try { localStorage.setItem('alchemistsEngine.volume', String(_volume)); } catch (e) {}
+        });
+        volumeSlider.addEventListener('change', () => {
+            if (_audioEnabled && _volume > 0) sfx('kindle');
+        });
+    }
+    if (soundToggle) {
+        soundToggle.addEventListener('click', () => {
             _audioEnabled = !_audioEnabled;
-            muteBtn.textContent = _audioEnabled ? '[SOUND:ON]' : '[SOUND:OFF]';
+            soundToggle.textContent = _audioEnabled ? '[ON]' : '[OFF]';
             try { localStorage.setItem('alchemistsEngine.mute', _audioEnabled ? '0' : '1'); } catch (e) {}
             if (_audioEnabled) sfx('kindle');
         });
