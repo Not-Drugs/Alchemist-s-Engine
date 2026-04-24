@@ -147,3 +147,18 @@ desktop and mobile; installable as a PWA.
 - More prestige layers
 - Richer SFX library (currently 9 synthesized sounds)
 - Cloud save sync (currently portable save codes only)
+
+## Workflow Rules
+
+These are standing instructions from the repo owner:
+
+- **Always update `CLAUDE.md` before committing** when the change affects
+  mechanics, structure, or workflow. Keep this file a faithful mirror of
+  the live game.
+- **Atomic commits.** One logical change per commit. Prefer several small
+  commits to one large one.
+- **Work on `main` by default.** Only use a separate branch if explicitly
+  told to.
+- **Always push after a commit** so the GitHub Pages deploy stays current.
+- Bump `CACHE` in `service-worker.js` whenever any shell file changes so
+  PWA installs pick up the update on next load.
