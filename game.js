@@ -34,6 +34,9 @@ const UPGRADES = {
         { id: 'capacity2', name: 'Deep Hearth', desc: 'Furnace holds +500 fuel', cost: 500, costType: 'heat', requires: 'capacity1', effect: () => { game.bonuses.furnaceCapacity += 500; } },
         { id: 'heatMult1', name: 'Heat Resonance', desc: '2x heat generation', cost: 2000, costType: 'heat', effect: () => { game.bonuses.heatMultiplier *= 2; } },
         { id: 'heatMult2', name: 'Thermal Mastery', desc: '2x heat generation', cost: 10000, costType: 'heat', requires: 'heatMult1', effect: () => { game.bonuses.heatMultiplier *= 2; } },
+        { id: 'heatRetention1', name: 'Thermal Mortar', desc: 'Heat decays 60% slower when idle', cost: 300, costType: 'heat', effect: () => { game.bonuses.heatDecayRate = 0.002; } },
+        { id: 'heatRetention2', name: 'Sealed Crucible', desc: 'Heat no longer decays when idle', cost: 3000, costType: 'heat', requires: 'heatRetention1', effect: () => { game.bonuses.heatDecayRate = 0; } },
+        { id: 'heatRetention3', name: 'Ember Heart', desc: 'Generate +0.5 heat/s while idle', cost: 30000, costType: 'heat', requires: 'heatRetention2', effect: () => { game.bonuses.heatPassiveGen = 0.5; } },
         { id: 'unlockSmelter', name: 'Unlock Smelter', desc: 'Enables ore processing', cost: 500, costType: 'heat', effect: () => { unlockTier('smelter'); } }
     ],
     smelter: [
@@ -109,7 +112,8 @@ const defaultGame = {
         metal: 0,
         alloy: 0,
         gears: 0,
-        essence: 0
+        essence: 0,
+        sticks: 0
     },
     revealed: {},
     grid: Array(GRID_SIZE).fill(null),
@@ -146,7 +150,9 @@ const defaultGame = {
         metalYield: 1,
         forgeSpeed: 1,
         alloyYield: 1,
-        automationEfficiency: 1
+        automationEfficiency: 1,
+        heatDecayRate: 0.005,
+        heatPassiveGen: 0
     },
     stats: {
         totalHeat: 0,
@@ -154,7 +160,8 @@ const defaultGame = {
         highestFuelTier: 1,
         startTime: Date.now(),
         playTime: 0,
-        kindlingAdded: 0
+        kindlingAdded: 0,
+        sticksGathered: 0
     },
     philosopherStones: 0,
     prestigeCount: 0,
@@ -225,6 +232,9 @@ function onPageHide() {
     game.lastUpdate = Date.now();
     saveGame();
     stopLoops();
+    // Abort in-flight stick gathering so background tab throttling doesn't
+    // leave the button stuck in a half-gathered state on return.
+    cancelStickGather(/*deliver=*/false);
 }
 
 function onPageShow() {
@@ -985,6 +995,22 @@ function processFurnace(delta) {
         if (game.furnace.temperature < 1) game.furnace.temperature = 0;
         game._heatAccum = 0;
         game._heatTimer = 0;
+
+        // Heat decay while idle. Exponential so large stockpiles aren't
+        // wiped but early-game pressure to keep burning is real.
+        const decayRate = game.bonuses.heatDecayRate || 0;
+        if (decayRate > 0 && game.resources.heat > 0) {
+            game.resources.heat *= Math.pow(1 - decayRate, delta);
+            if (game.resources.heat < 0.01) game.resources.heat = 0;
+        }
+
+        // Passive heat generation (Ember Heart upgrade) — only while idle.
+        const passiveGen = game.bonuses.heatPassiveGen || 0;
+        if (passiveGen > 0) {
+            const gen = passiveGen * delta * getWisdomMultiplier();
+            game.resources.heat += gen;
+            game.stats.totalHeat += gen;
+        }
     }
 }
 
@@ -1061,16 +1087,37 @@ function spawnItem(type, showMessage = true) {
     return true;
 }
 
+const SPARK_HEAT_COST = 1;
+
 function spawnFuel(bulk = false) {
     if (!bulk) {
-        spawnItem('fuel');
+        if (game.resources.heat < SPARK_HEAT_COST) {
+            showToast('Not enough heat — gather sticks to rekindle.', 'error');
+            sfx('error');
+            return;
+        }
+        if (spawnItem('fuel')) {
+            game.resources.heat -= SPARK_HEAT_COST;
+        }
         return;
     }
-    // Bulk spawn: fill every empty cell
+    // Bulk spawn: spark until heat or cells run out
     let count = 0;
-    while (spawnItem('fuel', false)) count++;
-    if (count === 0) showToast('Grid is full!', 'error');
-    else showToast(`Spawned ${count} sparks!`, 'success');
+    while (game.resources.heat >= SPARK_HEAT_COST) {
+        const emptyIndex = game.grid.findIndex(c => c === null);
+        if (emptyIndex === -1) break;
+        if (spawnItem('fuel', false)) {
+            game.resources.heat -= SPARK_HEAT_COST;
+            count++;
+        } else break;
+    }
+    if (count === 0) {
+        showToast(game.resources.heat < SPARK_HEAT_COST
+            ? 'Not enough heat — gather sticks.'
+            : 'Grid is full!', 'error');
+    } else {
+        showToast(`Spawned ${count} sparks!`, 'success');
+    }
 }
 
 function spawnOre(bulk = false) {
@@ -1493,8 +1540,8 @@ function checkReveals() {
 }
 
 function hideIntroControls() {
-    const intro = document.getElementById('intro-controls');
-    if (intro) intro.classList.add('hidden');
+    // No-op kept for compatibility with older reveal stages. The stick
+    // gather controls are now permanent so there is nothing to hide.
 }
 
 function showFurnaceDrop() {
@@ -1513,21 +1560,108 @@ function applyRevealedFlags() {
     }
 }
 
-// Adds a single kindling (tier-1 fuel) directly to the engine — used only
-// before the merge grid has been revealed.
-function feedKindling() {
-    const value = FUEL_TIERS[0].value;
-    const maxFuel = game.bonuses.furnaceCapacity;
-    game.furnace.fuel = Math.min(game.furnace.fuel + value, maxFuel);
-    game.stats.kindlingAdded++;
+// Stick gathering — always-available manual labor. Gathering takes
+// STICK_GATHER_MS so it feels like real work (as opposed to the engine's
+// automated flows). A progress bar fills the button while gathering; the
+// stick counts as a free resource you can stockpile and feed to the engine.
+const STICK_GATHER_MS = 3000;
+let stickGatherState = null;
 
-    const furnaceVisual = document.getElementById('furnace-visual');
-    squish(document.getElementById('intro-kindle-btn'));
-    floatPopup(furnaceVisual, '+kindling', 'heat');
+function startStickGather() {
+    if (stickGatherState) return;
+    const btn = document.getElementById('gather-stick-btn');
+    if (!btn) return;
+    const fill = btn.querySelector('.stick-btn-fill');
+
+    btn.classList.add('gathering');
+    btn.disabled = true;
+    if (fill) fill.style.width = '0%';
+
+    const startTime = Date.now();
+    const intervalId = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, (elapsed / STICK_GATHER_MS) * 100);
+        if (fill) fill.style.width = pct + '%';
+    }, 50);
+    const timeoutId = setTimeout(() => {
+        completeStickGather();
+    }, STICK_GATHER_MS);
+
+    stickGatherState = { intervalId, timeoutId };
+}
+
+function completeStickGather() {
+    cancelStickGather(/*deliver=*/true);
+}
+
+function cancelStickGather(deliver = false) {
+    if (!stickGatherState) return;
+    clearInterval(stickGatherState.intervalId);
+    clearTimeout(stickGatherState.timeoutId);
+    stickGatherState = null;
+
+    const btn = document.getElementById('gather-stick-btn');
+    if (btn) {
+        btn.classList.remove('gathering');
+        btn.disabled = false;
+        const fill = btn.querySelector('.stick-btn-fill');
+        if (fill) fill.style.width = '0%';
+    }
+
+    if (!deliver) return;
+
+    game.resources.sticks = (game.resources.sticks || 0) + 1;
+    game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
+
+    const btnEl = document.getElementById('gather-stick-btn');
+    squish(btnEl);
+    if (btnEl) floatPopup(btnEl, '+stick', 'heat');
     sfx('kindle');
 
-    if (game.stats.kindlingAdded === 1) setNarration('A stick catches. The engine stirs.');
-    else if (game.stats.kindlingAdded === 3) setNarration('The iron grows warm. Keep feeding it.');
+    if (game.stats.sticksGathered === 1) {
+        setNarration('A stick gathered. Feed it to the engine to kindle heat.');
+    }
+    updateUI();
+    checkReveals();
+}
+
+// Consume stored sticks, converting each into 1 fuel in the furnace.
+function feedStick(bulk = false) {
+    if ((game.resources.sticks || 0) <= 0) {
+        showToast('No sticks to feed — gather some first.', 'error');
+        return;
+    }
+    const maxFuel = game.bonuses.furnaceCapacity;
+    if (game.furnace.fuel >= maxFuel) {
+        showToast('Furnace is full!', 'error');
+        return;
+    }
+
+    let fed = 0;
+    const limit = bulk ? Math.min(game.resources.sticks, maxFuel - game.furnace.fuel) : 1;
+    for (let i = 0; i < limit; i++) {
+        if (game.furnace.fuel >= maxFuel) break;
+        if (game.resources.sticks <= 0) break;
+        game.furnace.fuel += 1;
+        game.resources.sticks -= 1;
+        game.stats.kindlingAdded++;
+        fed++;
+    }
+
+    if (fed > 0) {
+        const furnaceVisual = document.getElementById('furnace-visual');
+        floatPopup(furnaceVisual, fed === 1 ? '+stick' : `+${fed} sticks`, 'heat');
+        flashDropZone('furnace-fuel-slot');
+        sfx('feed');
+
+        // The 'firstStick' reveal stage fires the first-stick narration.
+        // Later beats live here.
+        if (game.stats.kindlingAdded === 3) {
+            setNarration('The iron grows warm. Keep feeding it.');
+        }
+    }
+    updateUI();
+    checkReveals();
 }
 
 // ============================================
@@ -1683,6 +1817,19 @@ function updateUI() {
     const spawnOreBtn = document.getElementById('spawn-ore');
     spawnOreBtn.disabled = game.resources.heat < 10;
 
+    // Spawn fuel (spark) button — costs SPARK_HEAT_COST heat per click.
+    const spawnFuelBtn = document.getElementById('spawn-fuel');
+    if (spawnFuelBtn) spawnFuelBtn.disabled = game.resources.heat < SPARK_HEAT_COST;
+
+    // Stick counter and feed button
+    const stickCountEl = document.getElementById('stick-count');
+    if (stickCountEl) stickCountEl.textContent = game.resources.sticks || 0;
+    const feedStickBtn = document.getElementById('feed-stick-btn');
+    if (feedStickBtn) {
+        const canFeed = (game.resources.sticks || 0) > 0 && game.furnace.fuel < game.bonuses.furnaceCapacity;
+        feedStickBtn.disabled = !canFeed;
+    }
+
     // Stats
     document.getElementById('stat-total-heat').textContent = formatNumber(Math.floor(game.stats.totalHeat));
     document.getElementById('stat-total-merges').textContent = formatNumber(game.stats.totalMerges);
@@ -1719,9 +1866,12 @@ function updateUI() {
 // ============================================
 
 function setupEventListeners() {
-    // Intro kindle button (visible before grid is revealed)
-    const intro = document.getElementById('intro-kindle-btn');
-    if (intro) intro.addEventListener('click', feedKindling);
+    // Stick gather button — always visible. Starts a 3s gather; completion
+    // delivers one stick to the resource pool.
+    const gatherBtn = document.getElementById('gather-stick-btn');
+    if (gatherBtn) gatherBtn.addEventListener('click', startStickGather);
+    const feedBtn = document.getElementById('feed-stick-btn');
+    if (feedBtn) feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
 
     // Spawn buttons (shift-click = bulk fill)
     document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
@@ -1734,7 +1884,8 @@ function setupEventListeners() {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
 
         const key = e.key.toLowerCase();
-        if (key === 'k' && !game.revealed.mergeGrid) { e.preventDefault(); feedKindling(); }
+        if (key === 'k') { e.preventDefault(); startStickGather(); }
+        else if (key === 'j') { e.preventDefault(); feedStick(e.shiftKey); }
         else if (key === 'f' && game.revealed.mergeGrid) { e.preventDefault(); spawnFuel(e.shiftKey); }
         else if (key === 'o' && game.unlockedTiers.smelter) { e.preventDefault(); spawnOre(e.shiftKey); }
         else if (key === 'b' && game.revealed.mergeGrid) { e.preventDefault(); burnAllFuel(); }

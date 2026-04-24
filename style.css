@@ -1242,44 +1242,85 @@ button.revealing { display: inline-block; }
     text-shadow: 0 0 6px var(--text-primary);
 }
 
-/* Intro controls: prominent Kindling button when world is empty */
-#intro-controls {
+/* Stick controls: always-available manual-labor panel. Gather fills a
+   progress bar inside the button; Feed moves one (or all) sticks into
+   the furnace as fuel. */
+#stick-controls {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
     width: 100%;
+    margin-top: 8px;
 }
 
-#intro-controls.hidden { display: none; }
-
-#intro-kindle-btn {
-    width: 100%;
-    max-width: 220px;
-    padding: 14px 18px;
-    font-size: 0.95rem;
-    background: var(--bg-dark);
-    border: 1px solid var(--text-dim);
+#stick-count-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.85rem;
     color: var(--text-primary);
-    cursor: pointer;
-    font-family: inherit;
-    letter-spacing: 2px;
-    transition: all 0.15s ease;
+    letter-spacing: 1px;
+}
+
+#stick-count-row .stick-glyph {
+    color: var(--text-dim);
+}
+
+#stick-count-row #stick-count {
+    color: var(--text-bright);
+    min-width: 1.5ch;
+    text-align: left;
+}
+
+#gather-stick-btn,
+#feed-stick-btn {
+    width: 100%;
+    max-width: 240px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+}
+
+.stick-btn {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.stick-btn .stick-btn-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(0,160,60,0.28), rgba(136,255,136,0.32));
+    box-shadow: inset 0 0 10px rgba(136,255,136,0.25);
+    pointer-events: none;
+    z-index: 0;
+    transition: width 60ms linear;
+}
+
+.stick-btn .stick-btn-label {
+    position: relative;
+    z-index: 1;
+}
+
+.stick-btn.gathering {
+    cursor: progress;
+    opacity: 1 !important;
+    color: var(--text-bright);
+    border-color: var(--text-primary);
+    box-shadow: 0 0 8px rgba(0,255,0,0.2);
 }
 
 @media (hover: hover) {
-    #intro-kindle-btn:hover {
+    #gather-stick-btn:hover:not(:disabled),
+    #feed-stick-btn:hover:not(:disabled) {
         border-color: var(--text-primary);
         background: #001a00;
         box-shadow: 0 0 10px rgba(0,255,0,0.3);
     }
-}
-
-#intro-kindle-btn:active {
-    border-color: var(--text-bright);
-    background: #002800;
-    box-shadow: 0 0 14px rgba(136,255,136,0.5);
-    transform: scale(0.98);
 }
 
 .intro-hint {
@@ -1287,6 +1328,7 @@ button.revealing { display: inline-block; }
     color: var(--text-dim);
     font-style: italic;
     letter-spacing: 1px;
+    text-align: center;
 }
 
 /* The cold engine — dim by default, warms as temperature rises */
@@ -1453,7 +1495,8 @@ button.revealing { display: inline-block; }
     footer button,
     .modal-buttons button,
     #transmute-btn,
-    #intro-kindle-btn {
+    #gather-stick-btn,
+    #feed-stick-btn {
         min-height: 44px;
         min-width: 44px;
     }

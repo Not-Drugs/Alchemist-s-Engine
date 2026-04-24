@@ -33,6 +33,15 @@ desktop and mobile; installable as a PWA.
 
 ## Game Mechanics Overview
 
+### Bootstrap Loop (pre-grid, always available)
+
+- **Gather Stick** — 3-second progress-bar action that yields 1 stick. Always
+  visible; the slow-but-free lifeline when heat runs out.
+- **Feed Stick** — consumes 1 stick, adds 1 fuel to the furnace. Shift-click
+  to feed every stored stick at once.
+- Sticks are a counted resource (`game.resources.sticks`), not a grid item.
+- Keyboard shortcuts: `[K]` gather, `[J]` feed (shift+J for all).
+
 ### Progression Tiers
 
 1. **Alchemical Table + Furnace** (Starting)
@@ -40,6 +49,8 @@ desktop and mobile; installable as a PWA.
    - 8 fuel tiers: Spark → Ember → Kindling → Coal → Charite → Blazite → Infernite → Solite
    - Each merge triples fuel value
    - Drop fuel into furnace to generate Heat
+   - **Sparks cost 1 heat each** — the merge system runs on the heat the
+     engine has produced. Auto-Sparkers (automation) bypass the heat cost.
 
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat
@@ -62,11 +73,27 @@ desktop and mobile; installable as a PWA.
    - Prestige: spend 1000+ Essence to transmute Philosopher's Stones
    - Each stone gives +25% to all production permanently
 
+### Heat Decay (idle)
+
+Heat is no longer a permanent accumulator. When the furnace is idle
+(`game.furnace.fuel === 0`), `game.resources.heat` decays exponentially:
+
+- Base rate: `0.5% / sec` (`game.bonuses.heatDecayRate = 0.005`)
+- Runs only in the foreground game loop; offline processing does NOT apply
+  decay (the 8-hour cap + 50% efficiency are enough friction).
+- Three furnace upgrades form the retention ladder:
+  - **Thermal Mortar** (300 heat) — sets decay rate to `0.002` (60% slower)
+  - **Sealed Crucible** (3000 heat, requires Mortar) — sets decay rate to `0`
+  - **Ember Heart** (30000 heat, requires Crucible) — `heatPassiveGen = 0.5`
+    heat/sec while idle (multiplied by wisdom)
+
 ### Key Game Constants (game.js)
 
 - `FUEL_TIERS` - 8 tiers, values triple (1, 3, 9, 27, 81, 243, 729, 2187)
 - `ORE_TIERS` - 5 tiers, same tripling pattern
 - `GRID_SIZE` - 24 cells (6x4)
+- `SPARK_HEAT_COST` - 1 (heat consumed per manual spark)
+- `STICK_GATHER_MS` - 3000 (manual stick-gather duration)
 - `UPGRADES` - Object with furnace/smelter/forge/workshop upgrade arrays
 - `ACHIEVEMENTS` - 18 achievements with ASCII icons
 - `SAVE_VERSION` - Integer version of the save-code envelope format

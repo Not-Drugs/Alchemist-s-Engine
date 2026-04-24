@@ -77,10 +77,20 @@
             </pre>
                             <span id="furnace-temp" class="reveal-hidden">0*</span>
                         </div>
-                        <!-- Intro controls: single button to feed kindling directly -->
-                        <div id="intro-controls">
-                            <button id="intro-kindle-btn" class="spawn-btn" title="Click or press [K]">[+] Add Kindling</button>
-                            <div id="intro-hint" class="intro-hint">Feed the engine.</div>
+                        <!-- Hand-labor: always-available slow lifeline. Gather a stick,
+                             then feed it into the engine as a separate step. -->
+                        <div id="stick-controls">
+                            <div id="stick-count-row">
+                                <span class="stick-glyph">[/]</span>
+                                <span class="stick-count-label">Sticks:</span>
+                                <span id="stick-count">0</span>
+                            </div>
+                            <button id="gather-stick-btn" class="spawn-btn stick-btn" title="Gather a stick by hand (3s). [K]">
+                                <span class="stick-btn-fill"></span>
+                                <span class="stick-btn-label">[/] Gather Stick [K]</span>
+                            </button>
+                            <button id="feed-stick-btn" class="spawn-btn" disabled title="Feed one stick into the engine. Shift-click to feed all.">[&gt;] Feed Stick</button>
+                            <div class="intro-hint">Slow labor. Keeps the engine alive when heat runs out.</div>
                         </div>
                         <div id="furnace-fuel-slot" class="drop-zone reveal-hidden">
                             <span>Drop Fuel Here<br><small>(or dbl/right-click)</small></span>
@@ -99,7 +109,7 @@
                     <h2>Alchemical Table</h2>
                     <div id="merge-grid"></div>
                     <div id="spawn-controls">
-                        <button id="spawn-fuel" class="spawn-btn" title="Click or press [F]. Shift-click to fill grid.">[+] Spark (Free) [F]</button>
+                        <button id="spawn-fuel" class="spawn-btn" title="Click or press [F]. Shift-click to fill grid. Costs 1 heat per spark.">[+] Spark (1 Heat) [F]</button>
                         <button id="spawn-ore" class="spawn-btn reveal-hidden" disabled title="Click or press [O]. Shift-click to spawn many.">[+] Raw Ore (10 Heat) [O]</button>
                     </div>
                 </section>
