@@ -1,7 +1,38 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -c game.js)"
+      "Edit",
+      "Write",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(python *)",
+      "Bash(pip *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(cat *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(echo *)",
+      "Bash(cd *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push --force-with-lease*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git clean -d*)",
+      "Bash(git branch -D*)",
+      "Bash(git rebase*)",
+      "Bash(git commit --amend*)",
+      "Bash(git worktree remove --force*)",
+      "Bash(git checkout .*)",
+      "Bash(git restore .*)",
+      "Bash(git restore --source*)"
     ]
   }
 }
