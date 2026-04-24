@@ -544,6 +544,19 @@ section h2::after {
     color: var(--text-primary);
 }
 
+.fuel-readout {
+    letter-spacing: 0;
+}
+
+#furnace-fuel-bar {
+    color: var(--accent-fire);
+    letter-spacing: -1px;
+}
+
+#furnace-fuel-time {
+    color: var(--text-dim) !important;
+}
+
 /* Smelter */
 #smelter {
     display: flex;

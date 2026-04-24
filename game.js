@@ -1683,7 +1683,25 @@ function updateUI() {
     document.getElementById('heat-rate').textContent = `+${formatNumber(heatRate)}/s`;
 
     // Furnace
-    document.getElementById('furnace-fuel').textContent = formatNumber(Math.floor(game.furnace.fuel));
+    const fuelNow = Math.max(0, game.furnace.fuel);
+    const fuelCap = Math.max(1, game.bonuses.furnaceCapacity);
+    document.getElementById('furnace-fuel').textContent = formatNumber(Math.floor(fuelNow));
+    document.getElementById('furnace-fuel-max').textContent = formatNumber(Math.floor(fuelCap));
+    const fuelBarWidth = 14;
+    const fuelFilled = Math.min(fuelBarWidth, Math.floor((fuelNow / fuelCap) * fuelBarWidth));
+    document.getElementById('furnace-fuel-bar').textContent =
+        '[' + '▓'.repeat(fuelFilled) + '░'.repeat(fuelBarWidth - fuelFilled) + ']';
+    const fuelTimeEl = document.getElementById('furnace-fuel-time');
+    if (fuelNow <= 0) {
+        fuelTimeEl.textContent = 'idle';
+    } else {
+        const secs = Math.ceil(fuelNow);
+        let label;
+        if (secs < 60) label = `${secs}s left`;
+        else if (secs < 3600) label = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} left`;
+        else label = `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}m left`;
+        fuelTimeEl.textContent = `· ${label}`;
+    }
     document.getElementById('furnace-temperature').textContent = formatNumber(Math.floor(game.furnace.temperature));
     document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
     document.getElementById('furnace-efficiency').textContent = Math.floor(game.bonuses.furnaceEfficiency * 100);
