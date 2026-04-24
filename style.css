@@ -426,7 +426,7 @@ section h2::after {
     cursor: pointer;
     font-family: inherit;
     font-size: 0.85rem;
-    transition: all 0.15s ease;
+    transition: transform 0.06s ease, border-color 0.06s ease;
 }
 
 @media (hover: hover) {
@@ -548,8 +548,17 @@ section h2::after {
     letter-spacing: 0;
 }
 
+.fuel-readout-main {
+    white-space: nowrap;
+}
+
 #furnace-fuel-bar {
     color: var(--accent-fire);
+    letter-spacing: -1px;
+}
+
+#smelter-progress-bar {
+    color: var(--accent-metal);
     letter-spacing: -1px;
 }
 
@@ -644,6 +653,15 @@ section h2::after {
     text-align: center;
 }
 
+#forge-controls,
+#workshop-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+}
+
 #forge-controls button, #workshop-controls button {
     padding: 8px 15px;
     background: var(--bg-dark);
@@ -652,8 +670,7 @@ section h2::after {
     cursor: pointer;
     font-family: inherit;
     font-size: 0.8rem;
-    transition: all 0.15s ease;
-    margin: 3px;
+    transition: transform 0.06s ease, border-color 0.06s ease;
 }
 
 @media (hover: hover) {
@@ -708,12 +725,6 @@ section h2::after {
     line-height: 1.1;
     color: var(--text-dim);
     text-align: center;
-}
-
-#workshop-controls {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
 }
 
 /* Sanctum */
@@ -978,8 +989,9 @@ footer {
     justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
-    padding: 15px;
-    border: 1px solid var(--box-char);
+    padding: 8px 15px;
+    border: 1px solid var(--border-color);
+    margin-top: 4px;
 }
 
 footer button {
@@ -1204,7 +1216,7 @@ footer button:active {
 
 .settings-section {
     padding: 6px 0 12px;
-    border-bottom: 1px dashed var(--border-color);
+    border-bottom: 1px solid rgba(0, 136, 0, 0.18);
     margin-bottom: 12px;
 }
 

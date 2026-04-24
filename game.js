@@ -416,6 +416,35 @@ function squish(el) {
     el.classList.add('click-squish');
 }
 
+// Press-and-hold auto-repeat. After a short hold delay, fires fn() at a fast
+// cadence until the user releases. The native click handler still fires once
+// on initial press, so a single tap behaves identically to before.
+function attachHoldToFire(btn, fn, holdDelay = 250, repeatMs = 80) {
+    if (!btn) return;
+    let timeoutId = null;
+    let intervalId = null;
+    const stop = () => {
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    };
+    const start = () => {
+        if (btn.disabled) return;
+        stop();
+        timeoutId = setTimeout(() => {
+            intervalId = setInterval(() => {
+                if (btn.disabled) { stop(); return; }
+                fn();
+            }, repeatMs);
+        }, holdDelay);
+    };
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+    btn.addEventListener('touchstart', start, { passive: true });
+    btn.addEventListener('touchend', stop);
+    btn.addEventListener('touchcancel', stop);
+}
+
 // ============================================
 // AUDIO (Web Audio API — no assets required)
 // ============================================
@@ -1775,12 +1804,12 @@ function updateUI() {
         document.getElementById('smelter-ore').textContent = formatNumber(Math.floor(game.smelter.ore));
         document.getElementById('smelter-progress').textContent = Math.floor(game.smelter.progress);
 
-        // ASCII progress bar
+        // ASCII progress bar (matches fuel meter style — 14-char ▓░)
         const progressBar = document.getElementById('smelter-progress-bar');
         if (progressBar) {
-            const filled = Math.floor(game.smelter.progress / 10);
-            const empty = 10 - filled;
-            progressBar.textContent = '='.repeat(filled) + '-'.repeat(empty);
+            const barWidth = 14;
+            const filled = Math.min(barWidth, Math.floor((game.smelter.progress / 100) * barWidth));
+            progressBar.textContent = '▓'.repeat(filled) + '░'.repeat(barWidth - filled);
         }
 
         // Smelter ASCII animation
@@ -1893,9 +1922,13 @@ function setupEventListeners() {
     const feedBtn = document.getElementById('feed-stick-btn');
     if (feedBtn) feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
 
-    // Spawn buttons (shift-click = bulk fill)
-    document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
-    document.getElementById('spawn-ore').addEventListener('click', (e) => spawnOre(e.shiftKey));
+    // Spawn buttons (shift-click = bulk fill, hold = auto-repeat)
+    const spawnFuelBtn = document.getElementById('spawn-fuel');
+    const spawnOreBtn = document.getElementById('spawn-ore');
+    spawnFuelBtn.addEventListener('click', (e) => spawnFuel(e.shiftKey));
+    spawnOreBtn.addEventListener('click', (e) => spawnOre(e.shiftKey));
+    attachHoldToFire(spawnFuelBtn, () => spawnFuel(false));
+    attachHoldToFire(spawnOreBtn, () => spawnOre(false));
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
