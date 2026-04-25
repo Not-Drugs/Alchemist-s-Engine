@@ -190,6 +190,10 @@ Heat is no longer a permanent accumulator. When the furnace is idle
 - More prestige layers
 - Richer SFX library (currently 9 synthesized sounds)
 - Cloud save sync (currently portable save codes only)
+- **Click-automation upgrades** — gate hold-to-fire / auto-click on
+  spark, feed-stick, ore, and craft buttons behind upgrades (e.g. a
+  workshop "Tireless Hands" line). Manual clicking stays the default
+  early-game work; automation is something the player earns.
 
 ## Workflow Rules
 

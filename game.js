@@ -423,35 +423,6 @@ function squish(el) {
     el.classList.add('click-squish');
 }
 
-// Press-and-hold auto-repeat. After a short hold delay, fires fn() at a fast
-// cadence until the user releases. The native click handler still fires once
-// on initial press, so a single tap behaves identically to before.
-function attachHoldToFire(btn, fn, holdDelay = 150, repeatMs = 50) {
-    if (!btn) return;
-    let timeoutId = null;
-    let intervalId = null;
-    const stop = () => {
-        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
-        if (intervalId) { clearInterval(intervalId); intervalId = null; }
-    };
-    const start = () => {
-        if (btn.disabled) return;
-        stop();
-        timeoutId = setTimeout(() => {
-            intervalId = setInterval(() => {
-                if (btn.disabled) { stop(); return; }
-                fn();
-            }, repeatMs);
-        }, holdDelay);
-    };
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('mouseup', stop);
-    btn.addEventListener('mouseleave', stop);
-    btn.addEventListener('touchstart', start, { passive: true });
-    btn.addEventListener('touchend', stop);
-    btn.addEventListener('touchcancel', stop);
-}
-
 // ============================================
 // AUDIO (Web Audio API — no assets required)
 // ============================================
@@ -1942,20 +1913,13 @@ function setupEventListeners() {
     // delivers one stick to the resource pool.
     const gatherBtn = document.getElementById('gather-stick-btn');
     if (gatherBtn) gatherBtn.addEventListener('click', startStickGather);
-    // Feed-stick: tap = 1 stick (or shift-tap = all), hold = auto-repeat
+    // Feed-stick: tap = 1 stick, shift-tap = feed all
     const feedBtn = document.getElementById('feed-stick-btn');
-    if (feedBtn) {
-        feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
-        attachHoldToFire(feedBtn, () => feedStick(false));
-    }
+    if (feedBtn) feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
 
-    // Spawn buttons (shift-click = bulk fill, hold = auto-repeat)
-    const spawnFuelBtn = document.getElementById('spawn-fuel');
-    const spawnOreBtn = document.getElementById('spawn-ore');
-    spawnFuelBtn.addEventListener('click', (e) => spawnFuel(e.shiftKey));
-    spawnOreBtn.addEventListener('click', (e) => spawnOre(e.shiftKey));
-    attachHoldToFire(spawnFuelBtn, () => spawnFuel(false));
-    attachHoldToFire(spawnOreBtn, () => spawnOre(false));
+    // Spawn buttons (shift-click = bulk fill)
+    document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
+    document.getElementById('spawn-ore').addEventListener('click', (e) => spawnOre(e.shiftKey));
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
