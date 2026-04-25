@@ -27,6 +27,9 @@ const GRID_SIZE = 24; // 6x4 grid
 
 const UPGRADES = {
     furnace: [
+        { id: 'stickBundle',    name: 'Stick Bundle',    desc: 'Gather 2 sticks per click',         cost: 10,  costType: 'sticks', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 2); } },
+        { id: 'whittlingKnife', name: 'Whittling Knife', desc: 'Gather sticks 25% faster',          cost: 40,  costType: 'sticks', requires: 'stickBundle', effect: () => { game.bonuses.stickGatherSpeed = 1.25; } },
+        { id: 'stickCache',     name: 'Stick Cache',     desc: 'Gather 3 sticks per click',         cost: 200, costType: 'sticks', requires: 'stickBundle', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 3); } },
         { id: 'efficiency1', name: 'Better Bellows', desc: '+25% furnace efficiency', cost: 50, costType: 'heat', effect: () => { game.bonuses.furnaceEfficiency += 0.25; } },
         { id: 'efficiency2', name: 'Insulated Walls', desc: '+25% furnace efficiency', cost: 200, costType: 'heat', requires: 'efficiency1', effect: () => { game.bonuses.furnaceEfficiency += 0.25; } },
         { id: 'efficiency3', name: 'Arcane Vents', desc: '+50% furnace efficiency', cost: 1000, costType: 'heat', requires: 'efficiency2', effect: () => { game.bonuses.furnaceEfficiency += 0.5; } },
@@ -89,8 +92,9 @@ const REVEAL_STAGES = [
     { id: 'firstStick',    cond: g => g.stats.kindlingAdded >= 1,  narrate: 'A stick catches. The engine stirs.' },
     { id: 'heatMeter',     cond: g => g.stats.totalHeat >= 1,      narrate: 'A faint warmth rises from the iron.',         targets: ['#resources', '#heat-resource', '#furnace-temp'] },
     { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#furnace-stats'] },
-    { id: 'mergeGrid',     cond: g => g.stats.totalHeat >= 25 || g.stats.kindlingAdded >= 5,
-        narrate: 'Patterns emerge in the embers. They wish to be combined.',
+    { id: 'upgrades',      cond: g => g.stats.kindlingAdded >= 3,  narrate: 'The engine responds to your attention. Tools take shape.', targets: ['#upgrades-section'] },
+    { id: 'mergeGrid',     cond: g => g.stats.kindlingAdded >= 20,
+        narrate: 'The engine has tasted enough kindling. It shows you what more it can do.',
         targets: ['#merge-section', '#burn-all-btn'],
         onReveal: () => {
             hideIntroControls();
@@ -99,7 +103,6 @@ const REVEAL_STAGES = [
             spawnItem('fuel', false);
             spawnItem('fuel', false);
         } },
-    { id: 'upgrades',      cond: g => g.stats.totalHeat >= 60,     narrate: 'The engine responds to your attention.',      targets: ['#upgrades-section'] },
     { id: 'achievements',  cond: g => g.stats.totalMerges >= 3,    narrate: 'Your deeds are being remembered.',            targets: ['#achievements-section'] },
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
     { id: 'save',          cond: g => g.stats.totalHeat >= 200,    narrate: 'You find a way to etch this moment.',         targets: ['footer', '#save-btn'] },
@@ -152,7 +155,9 @@ const defaultGame = {
         alloyYield: 1,
         automationEfficiency: 1,
         heatDecayRate: 0.005,
-        heatPassiveGen: 0
+        heatPassiveGen: 0,
+        sticksPerGather: 1,
+        stickGatherSpeed: 1
     },
     stats: {
         totalHeat: 0,
@@ -1609,15 +1614,16 @@ function startStickGather() {
     btn.disabled = true;
     if (fill) fill.style.width = '0%';
 
+    const duration = STICK_GATHER_MS / (game.bonuses.stickGatherSpeed || 1);
     const startTime = Date.now();
     const intervalId = setInterval(() => {
         const elapsed = Date.now() - startTime;
-        const pct = Math.min(100, (elapsed / STICK_GATHER_MS) * 100);
+        const pct = Math.min(100, (elapsed / duration) * 100);
         if (fill) fill.style.width = pct + '%';
     }, 50);
     const timeoutId = setTimeout(() => {
         completeStickGather();
-    }, STICK_GATHER_MS);
+    }, duration);
 
     stickGatherState = { intervalId, timeoutId };
 }
@@ -1642,15 +1648,17 @@ function cancelStickGather(deliver = false) {
 
     if (!deliver) return;
 
-    game.resources.sticks = (game.resources.sticks || 0) + 1;
-    game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
+    const sticksToAdd = Math.max(1, Math.floor(game.bonuses.sticksPerGather || 1));
+    const prevGathered = game.stats.sticksGathered || 0;
+    game.resources.sticks = (game.resources.sticks || 0) + sticksToAdd;
+    game.stats.sticksGathered = prevGathered + sticksToAdd;
 
     const btnEl = document.getElementById('gather-stick-btn');
     squish(btnEl);
-    if (btnEl) floatPopup(btnEl, '+stick', 'heat');
+    if (btnEl) floatPopup(btnEl, sticksToAdd === 1 ? '+stick' : `+${sticksToAdd} sticks`, 'heat');
     sfx('kindle');
 
-    if (game.stats.sticksGathered === 1) {
+    if (prevGathered === 0) {
         setNarration('A stick gathered. Feed it to the engine to kindle heat.');
     }
     updateUI();

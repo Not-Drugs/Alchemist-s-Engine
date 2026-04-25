@@ -33,18 +33,33 @@ desktop and mobile; installable as a PWA.
 
 ## Game Mechanics Overview
 
-### Bootstrap Loop (pre-grid, always available)
+### Stick Phase (opening — kindlingAdded < 20)
 
-- **Gather Stick** — 3-second progress-bar action that yields 1 stick. Always
-  visible; the slow-but-free lifeline when heat runs out.
-- **Feed Stick** — consumes 1 stick, adds 3 fuel to the furnace (≈3
-  seconds of burn). Shift-click to feed every stored stick at once.
+The game opens as a manual labor loop. The merge grid, sparks, and the rest
+of the engine are hidden until the player has fed enough sticks (`kindlingAdded
+>= 20`).
+
+- **Gather Stick** — 3-second progress-bar action that yields
+  `bonuses.sticksPerGather` sticks (default 1). Always visible.
+- **Feed Stick** — consumes 1 stick, adds `STICK_FUEL_VALUE` (3) fuel to the
+  furnace. Shift-click to feed every stored stick at once.
 - Sticks are a counted resource (`game.resources.sticks`), not a grid item.
 - Keyboard shortcuts: `[K]` gather, `[J]` feed (shift+J for all).
 
+**Stick upgrades** (Furnace tab, costType `'sticks'`, top of list — appear
+once the Upgrades panel reveals at `kindlingAdded >= 3`):
+
+- **Stick Bundle** (10 sticks) — `sticksPerGather = 2`
+- **Whittling Knife** (40 sticks, requires Bundle) — `stickGatherSpeed = 1.25`
+  (gather time becomes `STICK_GATHER_MS / stickGatherSpeed` ≈ 2.4s)
+- **Stick Cache** (200 sticks, requires Bundle) — `sticksPerGather = 3`
+
+The merge grid reveal at `kindlingAdded >= 20` ends the stick phase and
+seeds two Sparks on the grid as a tutorial nudge.
+
 ### Progression Tiers
 
-1. **Alchemical Table + Furnace** (Starting)
+1. **Alchemical Table + Furnace** (Unlocks at `kindlingAdded >= 20`)
    - 6x4 drag-and-drop merge grid
    - 8 fuel tiers: Spark → Ember → Kindling → Coal → Charite → Blazite → Infernite → Solite
    - Each merge triples fuel value
