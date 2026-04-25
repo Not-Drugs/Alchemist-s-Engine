@@ -107,7 +107,7 @@ const REVEAL_STAGES = [
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
     { id: 'save',          cond: g => g.stats.totalHeat >= 200,    narrate: 'You find a way to etch this moment.',         targets: ['footer', '#save-btn'] },
-    { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#settings-savedata', '#export-btn', '#import-btn', '#reset-btn'] }
+    { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#settings-savedata', '#export-btn', '#import-btn'] }
 ];
 
 const defaultGame = {
