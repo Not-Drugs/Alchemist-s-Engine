@@ -37,8 +37,8 @@ desktop and mobile; installable as a PWA.
 
 - **Gather Stick** — 3-second progress-bar action that yields 1 stick. Always
   visible; the slow-but-free lifeline when heat runs out.
-- **Feed Stick** — consumes 1 stick, adds 1 fuel to the furnace. Shift-click
-  to feed every stored stick at once.
+- **Feed Stick** — consumes 1 stick, adds 3 fuel to the furnace (≈3
+  seconds of burn). Shift-click to feed every stored stick at once.
 - Sticks are a counted resource (`game.resources.sticks`), not a grid item.
 - Keyboard shortcuts: `[K]` gather, `[J]` feed (shift+J for all).
 
@@ -94,6 +94,7 @@ Heat is no longer a permanent accumulator. When the furnace is idle
 - `GRID_SIZE` - 24 cells (6x4)
 - `SPARK_HEAT_COST` - 1 (heat consumed per manual spark)
 - `STICK_GATHER_MS` - 3000 (manual stick-gather duration)
+- `STICK_FUEL_VALUE` - 3 (fuel granted per stick fed; ≈3s of burn)
 - `UPGRADES` - Object with furnace/smelter/forge/workshop upgrade arrays
 - `ACHIEVEMENTS` - 18 achievements with ASCII icons
 - `SAVE_VERSION` - Integer version of the save-code envelope format

@@ -1596,6 +1596,7 @@ function applyRevealedFlags() {
 // automated flows). A progress bar fills the button while gathering; the
 // stick counts as a free resource you can stockpile and feed to the engine.
 const STICK_GATHER_MS = 3000;
+const STICK_FUEL_VALUE = 3; // each stick = 3 fuel = 3 seconds of burn
 let stickGatherState = null;
 
 function startStickGather() {
@@ -1656,7 +1657,7 @@ function cancelStickGather(deliver = false) {
     checkReveals();
 }
 
-// Consume stored sticks, converting each into 1 fuel in the furnace.
+// Consume stored sticks, converting each into STICK_FUEL_VALUE fuel.
 function feedStick(bulk = false) {
     if ((game.resources.sticks || 0) <= 0) {
         showToast('No sticks to feed — gather some first.', 'error');
@@ -1669,11 +1670,12 @@ function feedStick(bulk = false) {
     }
 
     let fed = 0;
-    const limit = bulk ? Math.min(game.resources.sticks, maxFuel - game.furnace.fuel) : 1;
+    const limit = bulk ? game.resources.sticks : 1;
     for (let i = 0; i < limit; i++) {
         if (game.furnace.fuel >= maxFuel) break;
         if (game.resources.sticks <= 0) break;
-        game.furnace.fuel += 1;
+        const added = Math.min(STICK_FUEL_VALUE, maxFuel - game.furnace.fuel);
+        game.furnace.fuel += added;
         game.resources.sticks -= 1;
         game.stats.kindlingAdded++;
         fed++;
