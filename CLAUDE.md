@@ -1,7 +1,12 @@
 # Alchemist's Engine
 
-An incremental/idle merge game with an ASCII terminal aesthetic. Playable on
-desktop and mobile; installable as a PWA.
+An incremental/idle merge game with an ASCII terminal aesthetic.
+
+**Primary target: mobile** (touch-first, installable as a PWA). The page also
+runs in desktop browsers, but design decisions favor the mobile experience
+— no keyboard shortcuts, touch-sized controls, portrait layout, drag-and-drop
+that mirrors HTML5 drag for mouse users. When something has to choose, choose
+the touch interaction.
 
 ## Project Structure
 
@@ -42,9 +47,8 @@ of the engine are hidden until the player has fed enough sticks (`kindlingAdded
 - **Gather Stick** — 3-second progress-bar action that yields
   `bonuses.sticksPerGather` sticks (default 1). Always visible.
 - **Feed Stick** — consumes 1 stick, adds `STICK_FUEL_VALUE` (3) fuel to the
-  furnace. Shift-click to feed every stored stick at once.
+  furnace. Shift-click (desktop) feeds every stored stick at once.
 - Sticks are a counted resource (`game.resources.sticks`), not a grid item.
-- Keyboard shortcuts: `[K]` gather, `[J]` feed (shift+J for all).
 
 **Stick upgrades** (Furnace tab, costType `'sticks'`, top of list — appear
 once the Upgrades panel reveals at `kindlingAdded >= 3`):

@@ -1921,23 +1921,7 @@ function setupEventListeners() {
     document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
     document.getElementById('spawn-ore').addEventListener('click', (e) => spawnOre(e.shiftKey));
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        // Don't trigger when typing in textarea/input
-        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-        const key = e.key.toLowerCase();
-        if (key === 'k') { e.preventDefault(); startStickGather(); }
-        else if (key === 'j') { e.preventDefault(); feedStick(e.shiftKey); }
-        else if (key === 'f' && game.revealed.mergeGrid) { e.preventDefault(); spawnFuel(e.shiftKey); }
-        else if (key === 'o' && game.unlockedTiers.smelter) { e.preventDefault(); spawnOre(e.shiftKey); }
-        else if (key === 'b' && game.revealed.mergeGrid) { e.preventDefault(); burnAllFuel(); }
-        else if (key === 'm' && game.unlockedTiers.smelter) { e.preventDefault(); smeltAllOre(); }
-        else if (key === 's' && e.shiftKey) { e.preventDefault(); saveGame(); showToast('Game saved!', 'success'); }
-    });
-
-    const burnAll = document.getElementById('burn-all-btn');
+const burnAll = document.getElementById('burn-all-btn');
     if (burnAll) burnAll.addEventListener('click', burnAllFuel);
     const smeltAll = document.getElementById('smelt-all-btn');
     if (smeltAll) smeltAll.addEventListener('click', smeltAllOre);

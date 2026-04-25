@@ -85,9 +85,9 @@
                                 <span class="stick-count-label">Sticks:</span>
                                 <span id="stick-count">0</span>
                             </div>
-                            <button id="gather-stick-btn" class="spawn-btn stick-btn" title="Gather a stick by hand (3s). [K]">
+                            <button id="gather-stick-btn" class="spawn-btn stick-btn" title="Gather a stick by hand (3s).">
                                 <span class="stick-btn-fill"></span>
-                                <span class="stick-btn-label">[/] Gather Stick [K]</span>
+                                <span class="stick-btn-label">[/] Gather Stick</span>
                             </button>
                             <button id="feed-stick-btn" class="spawn-btn" disabled title="Feed one stick into the engine. Shift-click to feed all.">[&gt;] Feed Stick</button>
                             <div class="intro-hint">Slow labor. Keeps the engine alive when heat runs out.</div>
@@ -95,7 +95,7 @@
                         <div id="furnace-fuel-slot" class="drop-zone reveal-hidden">
                             <span>Drop Fuel Here<br><small>(or dbl/right-click)</small></span>
                         </div>
-                        <button id="burn-all-btn" class="spawn-btn reveal-hidden" title="Dump all fuel from the grid into the engine. [B]">[»] Burn All Fuel [B]</button>
+                        <button id="burn-all-btn" class="spawn-btn reveal-hidden" title="Dump all fuel from the grid into the engine.">[»] Burn All Fuel</button>
                         <div id="furnace-stats" class="reveal-hidden">
                             <div class="fuel-readout"><span class="fuel-readout-main">Fuel: <span id="furnace-fuel-bar">[&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</span> <span id="furnace-fuel">0</span> / <span id="furnace-fuel-max">100</span></span> <span id="furnace-fuel-time" class="fuel-time">idle</span></div>
                             <div>Temperature: <span id="furnace-temperature">0</span>*</div>
@@ -109,8 +109,8 @@
                     <h2>Alchemical Table</h2>
                     <div id="merge-grid"></div>
                     <div id="spawn-controls">
-                        <button id="spawn-fuel" class="spawn-btn" title="Click or press [F]. Shift-click to fill grid. Costs 1 heat per spark.">[+] Spark (1 Heat) [F]</button>
-                        <button id="spawn-ore" class="spawn-btn reveal-hidden" disabled title="Click or press [O]. Shift-click to spawn many.">[+] Raw Ore (10 Heat) [O]</button>
+                        <button id="spawn-fuel" class="spawn-btn" title="Tap to spark a fuel. Costs 1 heat per spark.">[+] Spark (1 Heat)</button>
+                        <button id="spawn-ore" class="spawn-btn reveal-hidden" disabled title="Tap to spawn raw ore.">[+] Raw Ore (10 Heat)</button>
                     </div>
                 </section>
 
@@ -131,7 +131,7 @@
                         <div id="smelter-ore-slot" class="drop-zone">
                             <span>Drop Ore Here<br><small>(or dbl/right-click)</small></span>
                         </div>
-                        <button id="smelt-all-btn" class="spawn-btn" title="Queue all ore from the grid into the smelter. [M]">[»] Smelt All Ore [M]</button>
+                        <button id="smelt-all-btn" class="spawn-btn" title="Queue all ore from the grid into the smelter.">[»] Smelt All Ore</button>
                         <div id="smelter-stats">
                             <div>Ore Queue: <span id="smelter-ore">0</span></div>
                             <div>Progress: [<span id="smelter-progress-bar">&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;</span>] <span id="smelter-progress">0</span>%</div>
