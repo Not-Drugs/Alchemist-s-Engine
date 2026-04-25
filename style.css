@@ -10,9 +10,11 @@
     /* Temporary white-line theme for testing. Engine effects, sparks, fuel
        tiers, ore tiers, and resource accents below stay colored. To restore
        the green CRT look, swap text-primary back to #00ff00, text-dim to
-       #008800, text-bright to #88ff88, and box-char to #00aa00. */
-    --text-primary: #dddddd;
-    --text-dim: #888888;
+       #008800, text-bright to #88ff88, and box-char to #00aa00.
+       All text is white for readability; disabled buttons rely on
+       opacity: 0.4 to read as unavailable. */
+    --text-primary: #ffffff;
+    --text-dim: #ffffff;
     --text-bright: #ffffff;
     --accent-fire: #ff6600;
     --accent-heat: #ff4400;
@@ -21,7 +23,7 @@
     --accent-gear: #88aa44;
     --accent-essence: #ffcc00;
     --accent-prestige: #ff00ff;
-    --box-char: #aaaaaa;
+    --box-char: #ffffff;
 }
 
 * {
