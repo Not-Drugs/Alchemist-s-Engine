@@ -1229,6 +1229,56 @@ footer button:active {
     display: none !important;
 }
 
+/* Intro story modal — atmospheric awakening beat shown on first load. */
+.intro-modal-content {
+    max-width: 480px;
+    text-align: center;
+    padding: 32px 28px 24px;
+}
+.intro-modal-content .modal-buttons {
+    justify-content: center;
+    margin-top: 24px;
+}
+.intro-line {
+    margin-bottom: 14px;
+    color: var(--text-primary);
+    font-style: italic;
+    line-height: 1.6;
+}
+.intro-line-emphasis {
+    color: var(--accent-fire);
+    font-style: normal;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 22px 0;
+}
+.intro-prompt {
+    color: var(--text-bright);
+    font-style: normal;
+    margin-top: 22px;
+    margin-bottom: 0;
+}
+#intro-dismiss {
+    padding: 10px 24px;
+    background: var(--bg-dark);
+    border: 1px solid var(--accent-fire);
+    color: var(--accent-fire);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    letter-spacing: 1px;
+}
+@media (hover: hover) {
+    #intro-dismiss:hover {
+        background: var(--accent-fire);
+        color: var(--bg-dark);
+    }
+}
+#intro-dismiss:active {
+    background: var(--accent-fire);
+    color: var(--bg-dark);
+}
+
 /* Settings Modal */
 .settings-modal-content {
     max-width: 420px;

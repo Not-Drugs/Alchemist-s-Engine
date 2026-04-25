@@ -171,6 +171,7 @@ const defaultGame = {
     },
     philosopherStones: 0,
     prestigeCount: 0,
+    introSeen: false,
     lastUpdate: Date.now()
 };
 
@@ -2091,6 +2092,27 @@ function setupEventListeners() {
         });
     }
 
+    // Intro modal — first-load awakening beat. Honors the Story Prompts
+    // toggle: if the player has narrations off, the intro is silently
+    // marked seen so it doesn't ambush them on a future re-enable.
+    const introModal = document.getElementById('intro-modal');
+    const introDismiss = document.getElementById('intro-dismiss');
+    if (introModal && introDismiss) {
+        introDismiss.addEventListener('click', () => {
+            introModal.classList.add('hidden');
+            game.introSeen = true;
+            saveGame();
+        });
+        if (!game.introSeen) {
+            if (_narrationsEnabled) {
+                introModal.classList.remove('hidden');
+            } else {
+                game.introSeen = true;
+                saveGame();
+            }
+        }
+    }
+
     // Resume audio context on first user gesture (browser autoplay policy)
     const unlockAudio = () => {
         const ctx = getAudioCtx();
@@ -2177,6 +2199,18 @@ function loadGame() {
                 for (const stage of REVEAL_STAGES) {
                     if (stage.cond(game)) game.revealed[stage.id] = true;
                 }
+            }
+
+            // Migration: existing players who've already started shouldn't see
+            // the intro modal again. Any sign of progress means they've passed
+            // the awakening. Only a truly fresh save (or a Clear → reload)
+            // should trigger it.
+            if (!game.introSeen && (
+                (game.stats.totalHeat || 0) > 0 ||
+                (game.stats.sticksGathered || 0) > 0 ||
+                (game.stats.kindlingAdded || 0) > 0
+            )) {
+                game.introSeen = true;
             }
 
             // Re-apply upgrades
