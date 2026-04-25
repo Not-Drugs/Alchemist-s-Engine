@@ -426,7 +426,7 @@ function squish(el) {
 // Press-and-hold auto-repeat. After a short hold delay, fires fn() at a fast
 // cadence until the user releases. The native click handler still fires once
 // on initial press, so a single tap behaves identically to before.
-function attachHoldToFire(btn, fn, holdDelay = 250, repeatMs = 80) {
+function attachHoldToFire(btn, fn, holdDelay = 150, repeatMs = 50) {
     if (!btn) return;
     let timeoutId = null;
     let intervalId = null;
@@ -1942,8 +1942,12 @@ function setupEventListeners() {
     // delivers one stick to the resource pool.
     const gatherBtn = document.getElementById('gather-stick-btn');
     if (gatherBtn) gatherBtn.addEventListener('click', startStickGather);
+    // Feed-stick: tap = 1 stick (or shift-tap = all), hold = auto-repeat
     const feedBtn = document.getElementById('feed-stick-btn');
-    if (feedBtn) feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
+    if (feedBtn) {
+        feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
+        attachHoldToFire(feedBtn, () => feedStick(false));
+    }
 
     // Spawn buttons (shift-click = bulk fill, hold = auto-repeat)
     const spawnFuelBtn = document.getElementById('spawn-fuel');
