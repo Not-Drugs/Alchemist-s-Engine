@@ -103,7 +103,8 @@ const REVEAL_STAGES = [
             spawnItem('fuel', false);
             spawnItem('fuel', false);
         } },
-    { id: 'achievements',  cond: g => g.stats.totalMerges >= 3,    narrate: 'Your deeds are being remembered.',            targets: ['#achievements-section'] },
+    // Achievements stage intentionally omitted while the achievements UI is
+    // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
     { id: 'save',          cond: g => g.stats.totalHeat >= 200,    narrate: 'You find a way to etch this moment.',         targets: ['footer', '#save-btn'] },
     { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#settings-savedata', '#export-btn', '#import-btn', '#reset-btn'] }
@@ -1388,7 +1389,13 @@ function unlockTier(tier) {
 // ACHIEVEMENTS
 // ============================================
 
+// Feature flag: while we flesh out the stick phase, the achievements UI is
+// hidden — toasts, flashes, the section itself. Data still accumulates so
+// flipping this back to true picks up the player's existing progress.
+const SHOW_ACHIEVEMENTS_UI = false;
+
 function renderAchievements() {
+    if (!SHOW_ACHIEVEMENTS_UI) return;
     const list = document.getElementById('achievements-list');
     list.innerHTML = '';
 
@@ -1418,13 +1425,15 @@ function checkAchievements() {
         if (!game.achievements.includes(ach.id) && ach.check()) {
             game.achievements.push(ach.id);
             newAchievements = true;
-            showToast(`Achievement: ${ach.name}!`, 'achievement');
-            sfx('achievement');
-            screenFlash('var(--accent-essence)');
+            if (SHOW_ACHIEVEMENTS_UI) {
+                showToast(`Achievement: ${ach.name}!`, 'achievement');
+                sfx('achievement');
+                screenFlash('var(--accent-essence)');
+            }
         }
     }
 
-    if (newAchievements) {
+    if (newAchievements && SHOW_ACHIEVEMENTS_UI) {
         renderAchievements();
     }
 }

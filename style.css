@@ -7,9 +7,13 @@
     --bg-medium: #111111;
     --bg-light: #1a1a1a;
     --border-color: #333;
-    --text-primary: #00ff00;
-    --text-dim: #008800;
-    --text-bright: #88ff88;
+    /* Temporary white-line theme for testing. Engine effects, sparks, fuel
+       tiers, ore tiers, and resource accents below stay colored. To restore
+       the green CRT look, swap text-primary back to #00ff00, text-dim to
+       #008800, text-bright to #88ff88, and box-char to #00aa00. */
+    --text-primary: #dddddd;
+    --text-dim: #888888;
+    --text-bright: #ffffff;
     --accent-fire: #ff6600;
     --accent-heat: #ff4400;
     --accent-metal: #6688aa;
@@ -17,7 +21,7 @@
     --accent-gear: #88aa44;
     --accent-essence: #ffcc00;
     --accent-prestige: #ff00ff;
-    --box-char: #00aa00;
+    --box-char: #aaaaaa;
 }
 
 * {
@@ -1207,6 +1211,13 @@ footer button:active {
 .modal-buttons button:first-child:active {
     background: var(--text-primary);
     color: var(--bg-dark);
+}
+
+/* Achievements UI is hidden via SHOW_ACHIEVEMENTS_UI in game.js while we
+   flesh out the stick phase. This rule covers existing saves whose
+   reveal-hidden class was already removed. */
+#achievements-section {
+    display: none !important;
 }
 
 /* Settings Modal */
