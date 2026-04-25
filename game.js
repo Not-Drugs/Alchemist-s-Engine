@@ -1541,7 +1541,10 @@ function showOfflineModal(lines) {
 // PROGRESSIVE REVEAL
 // ============================================
 
+let _narrationsEnabled = true;
+
 function setNarration(text, fresh = true) {
+    if (!_narrationsEnabled) return;
     const el = document.getElementById('narration');
     if (!el) return;
     el.textContent = text;
@@ -2023,6 +2026,7 @@ function setupEventListeners() {
         _audioEnabled = localStorage.getItem('alchemistsEngine.mute') !== '1';
         const savedVol = parseFloat(localStorage.getItem('alchemistsEngine.volume'));
         if (!isNaN(savedVol)) _volume = Math.max(0, Math.min(1, savedVol));
+        _narrationsEnabled = localStorage.getItem('alchemistsEngine.narrations') !== '0';
     } catch (e) {}
 
     const settingsBtn = document.getElementById('settings-btn');
@@ -2030,13 +2034,22 @@ function setupEventListeners() {
     const volumeSlider = document.getElementById('volume-slider');
     const volumeDisplay = document.getElementById('volume-display');
     const soundToggle = document.getElementById('sound-toggle');
+    const narrationToggle = document.getElementById('narration-toggle');
     const settingsClose = document.getElementById('settings-close');
+    const narrationEl = document.getElementById('narration');
+
+    function applyNarrationVisibility() {
+        if (!narrationEl) return;
+        narrationEl.classList.toggle('narration-hidden', !_narrationsEnabled);
+    }
+    applyNarrationVisibility();
 
     function refreshSettingsUI() {
         const pct = Math.round(_volume * 100);
         if (volumeSlider) volumeSlider.value = pct;
         if (volumeDisplay) volumeDisplay.textContent = `${pct}%`;
         if (soundToggle) soundToggle.textContent = _audioEnabled ? '[ON]' : '[OFF]';
+        if (narrationToggle) narrationToggle.textContent = _narrationsEnabled ? '[ON]' : '[OFF]';
     }
     refreshSettingsUI();
 
@@ -2067,6 +2080,14 @@ function setupEventListeners() {
             soundToggle.textContent = _audioEnabled ? '[ON]' : '[OFF]';
             try { localStorage.setItem('alchemistsEngine.mute', _audioEnabled ? '0' : '1'); } catch (e) {}
             if (_audioEnabled) sfx('kindle');
+        });
+    }
+    if (narrationToggle) {
+        narrationToggle.addEventListener('click', () => {
+            _narrationsEnabled = !_narrationsEnabled;
+            narrationToggle.textContent = _narrationsEnabled ? '[ON]' : '[OFF]';
+            try { localStorage.setItem('alchemistsEngine.narrations', _narrationsEnabled ? '1' : '0'); } catch (e) {}
+            applyNarrationVisibility();
         });
     }
 
@@ -2128,7 +2149,10 @@ function tryLockPortrait() {
 // SAVE/LOAD
 // ============================================
 
+let _resetting = false;
+
 function saveGame() {
+    if (_resetting) return;
     localStorage.setItem('alchemistsEngine', JSON.stringify(game));
 }
 
@@ -2337,6 +2361,11 @@ function hardReset() {
         return;
     }
 
+    // Block any save attempts that fire during the unload window — pagehide
+    // and visibilitychange both call saveGame and would otherwise re-write
+    // the state we just cleared.
+    _resetting = true;
+    stopLoops();
     localStorage.removeItem('alchemistsEngine');
     // Reloading is the simplest way to restore the pristine progressive-reveal state.
     location.reload();

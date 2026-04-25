@@ -1220,6 +1220,13 @@ footer button:active {
     display: none !important;
 }
 
+/* Story prompts toggle (Settings → Story Prompts) hides the narration line
+   without removing it from the DOM, so flipping it back on resumes
+   immediately. */
+.narration-hidden {
+    display: none !important;
+}
+
 /* Settings Modal */
 .settings-modal-content {
     max-width: 420px;
