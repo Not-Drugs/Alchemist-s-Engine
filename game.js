@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v41';
+const APP_VERSION = 'v42';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -1700,35 +1700,89 @@ function prestige() {
 // blank space if that item has already been picked). Items don't
 // respawn yet — this is a proof of concept for the picture-as-the-UI
 // approach, not a balanced location.
-// The scene uses strict 12-char "slots" per tree so every trunk lines up
-// at the same column down each tree's 6 lines. Two variants alternate
-// for visual variety: A has split upper branches (\\|//) and lower
-// branches (_/|\\_, /|\\); B has a narrower top, a broken-trunk X mid,
-// and a stubby _|_ ring of dead branches. Row 1 is ABAB, row 2 is BABA
-// so the grove looks ragged rather than gridded. Items live in three
-// ground rows below the ~ line.
-const GROVE_SCENE = [
-    '                                                ',
-    '   \\\\|//        \\|/        \\\\|//        \\|/     ',
-    '    \\|/          |          \\|/          |      ',
-    '     |           X           |           X      ',
-    '   _/|\\_        _|_        _/|\\_        _|_     ',
-    '    /|\\         /|\\         /|\\         /|\\      ',
-    '     |           |           |           |      ',
-    '                                                ',
-    '    \\|/        \\\\|//        \\|/        \\\\|//    ',
-    '     |          \\|/          |          \\|/     ',
-    '     X           |           X           |      ',
-    '    _|_        _/|\\_        _|_        _/|\\_    ',
-    '    /|\\         /|\\         /|\\         /|\\      ',
-    '     |           |           |           |      ',
-    '                                                ',
-    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
-    '                                                ',
-    '   $   $       $    #         $    $            ',
-    '        $              $    #     $             ',
-    '             $                  $               '
+// The grove scene is composed in four depth layers — background (distant
+// silhouettes), midground (small trees), foreground (large asymmetric
+// dead trees), and ground (textured debris) — plus the items rows.
+// Each layer is rendered with its own CSS class so we can dim the
+// distant ones via opacity, suggesting depth.
+//
+// Tree primitives are defined as 12-char or 8-char fixed-width slots
+// with the trunk pinned to a known column, so they can be concatenated
+// at runtime to build a row of trees with consistent trunk alignment.
+//
+// Foreground trees come in two asymmetric variants (A' left-heavy
+// upper / right-heavy lower; B' the mirror). Inspired by the gnarled
+// dead-tree references in _research/ascii-trees/INDEX.md (notably
+// ejm and Sam Blumenstein); originals authored to match the energy.
+
+// Foreground tree variant A' — 8 lines, 12 chars wide, trunk at col 5.
+// Asymmetry: 3 left + 1 right upper, narrowing to bare; then 0+2 and
+// 1+3 right-heavy lower branches.
+const FORE_TREE_A = [
+    '  \\\\\\|/     ',
+    '   \\\\|/     ',
+    '    \\|      ',
+    '     |      ',
+    '     |\\\\    ',
+    '    /|\\\\\\   ',
+    '     |      ',
+    '     |      '
 ];
+// Foreground tree variant B' — mirror of A'. Right-heavy upper /
+// left-heavy lower, so when alternated with A' the grove tilts both
+// ways and reads as windblown.
+const FORE_TREE_B = [
+    '    /|\\\\\\   ',
+    '    /|\\\\    ',
+    '     |\\     ',
+    '     |      ',
+    '   \\\\|      ',
+    '  \\\\\\|\\     ',
+    '     |      ',
+    '     |      '
+];
+// Midground tree — 5 lines, 8 chars wide, trunk at col 3. Simple
+// silhouette, repeated 6× for the midground row.
+const MID_TREE = [
+    '  \\|/   ',
+    '   |    ',
+    '  /|\\   ',
+    '   |    ',
+    '   |    '
+];
+
+function buildLayer(treeMap, pattern) {
+    const numLines = treeMap[pattern[0]].length;
+    const lines = [];
+    for (let i = 0; i < numLines; i++) {
+        let line = '';
+        for (const key of pattern) line += treeMap[key][i];
+        lines.push(line);
+    }
+    return lines;
+}
+
+const GROVE_SCENE = {
+    // Distant treeline — 2 lines of `*` silhouettes spaced across.
+    background: [
+        '   *     *     *     *     *     *     *     *  ',
+        '   |     |     |     |     |     |     |     |  '
+    ],
+    // Midground — 6 small trees in a row.
+    midground: buildLayer({ M: MID_TREE }, ['M', 'M', 'M', 'M', 'M', 'M']),
+    // Foreground — 4 large asymmetric trees, ABAB tilt pattern.
+    foreground: buildLayer({ A: FORE_TREE_A, B: FORE_TREE_B }, ['A', 'B', 'A', 'B']),
+    // Ground — alternating debris pattern instead of a flat horizon.
+    ground: [
+        '. , . , . , . , . , . , . , . , . , . , . , . , '
+    ],
+    // Items — three rows of $ (stick) and # (stone) placeholders.
+    items: [
+        '   $   $       $    #         $    $            ',
+        '        $              $    #     $             ',
+        '             $                  $               '
+    ]
+};
 // One entry per `$` in GROVE_SCENE, in left-to-right / top-to-bottom order.
 const GROVE_ITEMS = [
     { type: 'stick' },  // row 1, pos 1
@@ -1762,36 +1816,49 @@ function renderGrove() {
     const collected = game.locations.grove.collected;
     let itemIdx = 0;
 
-    GROVE_SCENE.forEach((line) => {
-        const row = document.createElement('div');
-        row.className = 'grove-row';
-        for (const ch of line) {
-            if (ch === '$') {
-                const id = itemIdx++;
-                if (collected.includes(id)) {
-                    row.appendChild(document.createTextNode(' '));
+    // Each layer renders with its own depth class (.grove-far / -mid /
+    // -near / -ground / -items) so CSS can fade distant rows for the
+    // 3D-ish "treeline behind treeline" effect.
+    const layers = [
+        { className: 'grove-far',    lines: GROVE_SCENE.background },
+        { className: 'grove-mid',    lines: GROVE_SCENE.midground  },
+        { className: 'grove-near',   lines: GROVE_SCENE.foreground },
+        { className: 'grove-ground', lines: GROVE_SCENE.ground     },
+        { className: 'grove-items',  lines: GROVE_SCENE.items      }
+    ];
+
+    layers.forEach((layer) => {
+        layer.lines.forEach((line) => {
+            const row = document.createElement('div');
+            row.className = `grove-row ${layer.className}`;
+            for (const ch of line) {
+                if (ch === '$') {
+                    const id = itemIdx++;
+                    if (collected.includes(id)) {
+                        row.appendChild(document.createTextNode(' '));
+                    } else {
+                        const item = GROVE_ITEMS[id];
+                        const btn = document.createElement('span');
+                        btn.className = `grove-item grove-${item.type}`;
+                        btn.setAttribute('role', 'button');
+                        btn.tabIndex = 0;
+                        btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
+                        btn.textContent = item.type === 'stick' ? '/' : '#';
+                        btn.addEventListener('click', () => collectGroveItem(id));
+                        btn.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                collectGroveItem(id);
+                            }
+                        });
+                        row.appendChild(btn);
+                    }
                 } else {
-                    const item = GROVE_ITEMS[id];
-                    const btn = document.createElement('span');
-                    btn.className = `grove-item grove-${item.type}`;
-                    btn.setAttribute('role', 'button');
-                    btn.tabIndex = 0;
-                    btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
-                    btn.textContent = item.type === 'stick' ? '/' : '#';
-                    btn.addEventListener('click', () => collectGroveItem(id));
-                    btn.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            collectGroveItem(id);
-                        }
-                    });
-                    row.appendChild(btn);
+                    row.appendChild(document.createTextNode(ch));
                 }
-            } else {
-                row.appendChild(document.createTextNode(ch));
             }
-        }
-        scene.appendChild(row);
+            scene.appendChild(row);
+        });
     });
 
     const allCollected = collected.length >= GROVE_ITEMS.length;

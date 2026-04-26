@@ -484,6 +484,33 @@ section h2::after {
     letter-spacing: 0;
 }
 
+/* Depth tinting — distant layers fade so the eye reads near/far. The
+   foreground (.grove-near) stays full-opacity; midground softens; the
+   background silhouettes recede the most. */
+.grove-row.grove-far {
+    opacity: 0.35;
+    line-height: 1.1;
+}
+
+.grove-row.grove-mid {
+    opacity: 0.6;
+    line-height: 1.15;
+}
+
+.grove-row.grove-near {
+    opacity: 1;
+}
+
+.grove-row.grove-ground {
+    opacity: 0.55;
+    margin: 6px 0 4px;
+}
+
+.grove-row.grove-items {
+    opacity: 1;
+    line-height: 1.4;
+}
+
 /* Phone tweaks: tighten the title block so the scene gets more
    vertical real estate, keep font scaling via clamp on the scene
    itself rather than hard sizes here. */
