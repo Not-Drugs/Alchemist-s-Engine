@@ -1,7 +1,7 @@
 // Alchemist's Engine — minimal offline-first service worker
 // Cache-first for the tiny shell, network-first for everything else.
 
-const CACHE = 'alchemists-engine-v23';
+const CACHE = 'alchemists-engine-v24';
 const SHELL = [
     './',
     './index.html',
@@ -12,18 +12,34 @@ const SHELL = [
     './icon.svg'
 ];
 
+// Force a fresh fetch for every shell file at install time so the SW cache
+// can't silently inherit stale HTTP-cached copies (the bug that pinned
+// users to v22 even after multiple reloads).
 self.addEventListener('install', (e) => {
     e.waitUntil(
-        caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())
+        caches.open(CACHE)
+            .then((c) => c.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' }))))
+            .then(() => self.skipWaiting())
     );
 });
 
+// On activate: clear old caches, claim existing tabs, and — if this was
+// an upgrade (not a first install) — tell every controlled tab to reload
+// so the new shell takes effect immediately.
 self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys()
-            .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-            .then(() => self.clients.claim())
-    );
+    e.waitUntil((async () => {
+        const keys = await caches.keys();
+        const stale = keys.filter((k) => k !== CACHE);
+        const isUpgrade = stale.length > 0;
+        await Promise.all(stale.map((k) => caches.delete(k)));
+        await self.clients.claim();
+        if (isUpgrade) {
+            const clients = await self.clients.matchAll({ includeUncontrolled: true });
+            for (const client of clients) {
+                client.postMessage({ type: 'sw-updated', version: CACHE });
+            }
+        }
+    })());
 });
 
 self.addEventListener('fetch', (e) => {

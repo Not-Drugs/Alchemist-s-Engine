@@ -157,13 +157,16 @@ Heat is no longer a permanent accumulator. When the furnace is idle
 - Fuel items: `*`, `**`, `~`, `#`, `##`, `^`, `^^`, `@`
 - Ore items: `o`, `O`, `0`, `()`, `<>`
 - Resource icons: `[~]` Heat, `[#]` Metal, `[%]` Alloy, `[*]` Gears, `[+]` Essence
-- Buttons: `[SAVE]`, `[+] Spark`, `[>] Forge Alloy`
+- Buttons: `[+] Spark`, `[>] Forge Alloy`
 - Animated ASCII art for furnace flames and smelter waves
 
 ### Save System
 
 - Auto-saves every 30 seconds to localStorage under key `alchemistsEngine`
 - Also saves on `visibilitychange → hidden` (mobile background / tab switch)
+- No manual SAVE button — the auto-save covers tab close, app background,
+  and SW upgrade reload. The export/import modal handles cross-device
+  transfer.
 - **Export**: opens a modal showing the save as text + a scannable QR code
 - **Import**: paste a save code to restore state on another device
 - Save codes use a versioned envelope `{ v, ts, game }` (base64 UTF-8 JSON)

@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v23';
+const APP_VERSION = 'v24';
 
 const UPGRADES = {
     furnace: [
@@ -109,7 +109,6 @@ const REVEAL_STAGES = [
     // Achievements stage intentionally omitted while the achievements UI is
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
-    { id: 'save',          cond: g => g.stats.totalHeat >= 200,    narrate: 'You find a way to etch this moment.',         targets: ['footer', '#save-btn'] },
     { id: 'reset',         cond: g => g.unlockedTiers.forge,       targets: ['#settings-savedata', '#export-btn', '#import-btn'] }
 ];
 
@@ -2215,12 +2214,10 @@ const burnAll = document.getElementById('burn-all-btn');
         });
     });
 
-    // Save/Load
-    document.getElementById('save-btn').addEventListener('click', () => {
-        saveGame();
-        showToast('Game saved!', 'success');
-    });
-
+    // Save: auto-save runs every 30s and on visibilitychange (page hidden /
+    // app backgrounded). The manual SAVE button was removed since it added
+    // noise to the footer without protecting against any case the
+    // auto-save doesn't already cover.
     document.getElementById('export-btn').addEventListener('click', exportGame);
     document.getElementById('import-btn').addEventListener('click', () => {
         document.getElementById('import-modal').classList.remove('hidden');
@@ -2667,10 +2664,22 @@ document.addEventListener('DOMContentLoaded', init);
 // PWA: register the service worker so the game works offline and can be
 // installed from the browser. Runs on http(s) only — file:// and srcdoc
 // contexts skip silently.
+//
+// updateViaCache: 'none' tells the browser to never serve the
+// service-worker.js file from HTTP cache, so each page load picks up new
+// SW versions immediately. Combined with the post-activate sw-updated
+// message below, deploys propagate to existing tabs in a single reload.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(() => {
+        navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).catch(() => {
             // Offline capability is a bonus, not required. Ignore failures.
         });
+    });
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'sw-updated') {
+            // New SW activated — capture state, then reload onto fresh shell.
+            try { saveGame(); } catch (_) {}
+            location.reload();
+        }
     });
 }
