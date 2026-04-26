@@ -101,8 +101,16 @@
                 <section id="merge-section" class="reveal-hidden">
                     <h2>Alchemical Table</h2>
                     <div id="merge-grid"></div>
+                    <div id="unlocks-area">
+                        <div id="unlock-spark" class="unlock-slot drop-zone">
+                            <div class="unlock-label">Drop a <strong>Blazite</strong> to forge<br>[+] Spark</div>
+                        </div>
+                        <div id="unlock-burn-all" class="unlock-slot drop-zone">
+                            <div class="unlock-label">Drop an <strong>Infernite</strong> to forge<br>[&raquo;] Burn All Fuel</div>
+                        </div>
+                    </div>
                     <div id="spawn-controls">
-                        <button id="spawn-fuel" class="spawn-btn" title="Tap to spark a fuel. Costs 1 heat per spark.">[+] Spark (1 Heat)</button>
+                        <button id="spawn-fuel" class="spawn-btn reveal-hidden" title="Tap to spark a fuel. Costs 1 heat per spark.">[+] Spark (1 Heat)</button>
                         <button id="spawn-ore" class="spawn-btn reveal-hidden" disabled title="Tap to spawn raw ore.">[+] Raw Ore (10 Heat)</button>
                     </div>
                 </section>

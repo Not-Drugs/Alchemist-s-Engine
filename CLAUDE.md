@@ -104,6 +104,20 @@ seeds two Sparks on the grid as a tutorial nudge.
        timer fires, the hold is abandoned and the browser handles the
        gesture as scroll. On hold completion the device gives a short
        vibration cue (when supported) and the drag commits.
+   - **Press-and-hold on grid items (touch only).** Same pattern at the
+     grid: `handleTouchStart` arms a 200ms hold (`GRID_HOLD_MS`).
+     Quick swipes scroll the page; a deliberate hold commits to a
+     drag. Single taps fall through to native click/dblclick so the
+     existing double-tap quick-send behavior is preserved.
+   - **Convenience-button gating.** The `[+] Spark` spawner and
+     `[»] Burn All Fuel` button are hidden by default. Two unlock
+     slots in the merge section accept a sacrificed item to forge each:
+     drop a **Blazite (tier 6)** to unlock Spark, drop an **Infernite
+     (tier 7)** to unlock Burn All. Unlock state is recorded in
+     `game.upgrades` (under `'sparkUnlock'` and `'burnAllUnlock'`)
+     and replayed on load via `applyUnlocksFromSave()`. Manual
+     drag-from-engine and drag-fuel-to-engine remain available
+     pre-unlock so the player isn't blocked.
 
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat

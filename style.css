@@ -66,12 +66,12 @@ input,
 
 /* Draggable items + drop zones: disable native touch gestures so our
    touchmove handler owns the interaction (no page scrolling while dragging). */
-.fuel-item,
-.ore-item,
-.grid-cell,
-.drop-zone {
-    touch-action: none;
-}
+/* All grid surfaces leave touch-action at the default so swipes through
+   the merge area can scroll the page. The JS touch handlers use a 200ms
+   press-and-hold timer (handleTouchStart) before claiming the gesture as
+   a drag — this matches the engine's hold pattern. preventDefault only
+   gets called once the hold has committed, so quick taps and swipes
+   pass through to native scroll/dblclick handling. */
 
 /* Buttons should feel snappy — no double-tap zoom delay */
 button {
@@ -533,6 +533,38 @@ section h2::after {
 
 #furnace-visual.pulse {
     animation: dropPulse 0.3s ease;
+}
+
+/* Unlock slots — drop a specific high-tier fuel item to forge a
+   convenience button. Distinct accent color (essence yellow) so they
+   read as "milestone unlock" rather than a regular drop zone. */
+#unlocks-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0 8px;
+}
+
+.unlock-slot {
+    border: 1px dashed var(--accent-essence);
+    background: rgba(255, 204, 0, 0.04);
+    color: var(--text-primary);
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    transition: all 0.15s ease;
+}
+
+.unlock-slot strong {
+    color: var(--accent-fire);
+    font-weight: bold;
+}
+
+.unlock-slot.drag-over {
+    border-style: solid;
+    border-color: var(--text-bright);
+    background: rgba(255, 204, 0, 0.18);
 }
 
 #furnace-ascii.burning {

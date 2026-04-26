@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v24';
+const APP_VERSION = 'v25';
 
 const UPGRADES = {
     furnace: [
@@ -99,7 +99,7 @@ const REVEAL_STAGES = [
     { id: 'upgrades',      cond: g => g.stats.kindlingAdded >= 3,  narrate: 'The engine responds to your attention. Tools take shape.', targets: ['#upgrades-section'] },
     { id: 'mergeGrid',     cond: g => g.stats.kindlingAdded >= 20,
         narrate: 'The engine has tasted enough kindling. It shows you what more it can do.',
-        targets: ['#merge-section', '#burn-all-btn'],
+        targets: ['#merge-section'],
         onReveal: () => {
             hideIntroControls();
             // Seed two Sparks so the merge mechanic is obvious
@@ -213,6 +213,7 @@ function init() {
     renderUpgrades();
     renderAchievements();
     applyRevealedFlags();
+    applyUnlocksFromSave();
     const versionTag = document.getElementById('version-tag');
     if (versionTag) versionTag.textContent = APP_VERSION;
     updateUI();
@@ -745,6 +746,47 @@ function handleDrop(e) {
 let touchDragState = null; // { ghost, startX, startY, lastTarget, moved, longPressTimer }
 const TOUCH_MOVE_THRESHOLD = 6; // px before a touch is considered a drag
 
+// Press-and-hold to start dragging a grid item — same pattern as the engine.
+// Without this, every touch on an item locks the page (touch-action: none on
+// items would mean a swipe over the merge grid blocked the page from
+// scrolling). With this, a quick swipe scrolls the page; only a deliberate
+// hold commits to a drag. Quick taps still fire native click/dblclick so
+// double-tap quick-send keeps working.
+let _gridHoldState = null;
+const GRID_HOLD_MS = 200;
+const GRID_HOLD_MOVE_TOLERANCE = 8;
+
+function clearGridHoldState() {
+    if (!_gridHoldState) return;
+    clearTimeout(_gridHoldState.timer);
+    document.removeEventListener('touchmove', _gridHoldState.onMove);
+    document.removeEventListener('touchend', _gridHoldState.onEnd);
+    document.removeEventListener('touchcancel', _gridHoldState.onEnd);
+    if (_gridHoldState.itemEl) _gridHoldState.itemEl.classList.remove('charging');
+    _gridHoldState = null;
+}
+
+function commitGridDrag(itemEl, index, item, startX, startY) {
+    clearGridHoldState();
+    if (navigator.vibrate) {
+        try { navigator.vibrate(15); } catch (_) {}
+    }
+    touchDragState = {
+        itemEl,
+        index,
+        item,
+        startX,
+        startY,
+        moved: false,
+        ghost: null,
+        lastTarget: null
+    };
+    beginTouchDrag();
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+}
+
 function handleTouchStart(e) {
     if (e.touches.length !== 1) return;
     const itemEl = e.currentTarget;
@@ -752,23 +794,31 @@ function handleTouchStart(e) {
     const item = game.grid[index];
     if (!item) return;
 
-    // Defer drag initiation: if the user taps quickly, dblclick/contextmenu
-    // handlers still fire. Only start the drag once they actually move.
-    const t = e.touches[0];
-    touchDragState = {
-        itemEl,
-        index,
-        item,
-        startX: t.clientX,
-        startY: t.clientY,
-        moved: false,
-        ghost: null,
-        lastTarget: null
-    };
+    if (_gridHoldState) clearGridHoldState();
 
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd, { passive: false });
-    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+    const t = e.touches[0];
+    const startX = t.clientX;
+    const startY = t.clientY;
+
+    const onMove = (me) => {
+        if (!_gridHoldState) return;
+        const mt = me.touches[0];
+        if (!mt) return;
+        const dx = mt.clientX - startX;
+        const dy = mt.clientY - startY;
+        if (Math.hypot(dx, dy) > GRID_HOLD_MOVE_TOLERANCE) {
+            clearGridHoldState();
+        }
+    };
+    const onEnd = () => clearGridHoldState();
+
+    const timer = setTimeout(() => commitGridDrag(itemEl, index, item, startX, startY), GRID_HOLD_MS);
+    _gridHoldState = { timer, onMove, onEnd, itemEl };
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+
+    itemEl.classList.add('charging');
 }
 
 function beginTouchDrag() {
@@ -920,7 +970,11 @@ function handleEngineTouchStart(e) {
     const timer = setTimeout(() => commitEngineDrag(startX, startY, itemEl), ENGINE_HOLD_MS);
 
     _engineHoldState = { timer, onMove, onEnd };
-    document.addEventListener('touchmove', onMove, { passive: true });
+    // passive: false so the browser knows the page may control the gesture.
+    // Without this, iOS Safari can commit to scroll on the first touchmove
+    // and ignore the post-commit preventDefault — the "first spark didn't
+    // disable scroll" bug.
+    document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('touchend', onEnd);
     document.addEventListener('touchcancel', onEnd);
 
@@ -1096,12 +1150,92 @@ function dispatchTouchDropOnZone(zone) {
         renderGridItem(draggedIndex);
         flashDropZone('smelter-ore-slot');
         showToast(`Added ${ORE_TIERS[draggedItem.tier - 1].name} to smelter!`);
+        return;
+    }
+
+    // Unlock slots: drop a specific high-tier fuel to forge a convenience button
+    const unlockCfg = UNLOCK_SLOTS.find(s => s.slotId === zone.id);
+    if (unlockCfg && unlockAcceptsDrag(unlockCfg)) {
+        consumeItemAndUnlock(unlockCfg);
     }
 }
 
 // ============================================
 // FURNACE DROP ZONE
 // ============================================
+
+// ============================================
+// UNLOCK SLOTS — Spark + Burn-All gated behind merge milestones
+// ============================================
+//
+// Two convenience buttons (the [+] Spark spawner and the [»] Burn All
+// fuel dump) are hidden by default. To unlock each, the player drops a
+// specific high-tier fuel item onto its slot in the Alchemical Table:
+//   - Drop a Blazite (tier 6) → unlocks [+] Spark
+//   - Drop an Infernite (tier 7) → unlocks [»] Burn All Fuel
+// The dropped item is consumed. Unlock state lives in `game.upgrades`
+// (under 'sparkUnlock' / 'burnAllUnlock') so it persists with the save.
+
+const UNLOCK_SLOTS = [
+    { slotId: 'unlock-spark',    upgradeId: 'sparkUnlock',    requiredTier: 6, label: '[+] Spark',         buttonId: 'spawn-fuel'  },
+    { slotId: 'unlock-burn-all', upgradeId: 'burnAllUnlock', requiredTier: 7, label: '[»] Burn All Fuel', buttonId: 'burn-all-btn' }
+];
+
+function unlockAcceptsDrag(slotConfig) {
+    return draggedItem
+        && draggedItem.type === 'fuel'
+        && draggedItem.tier === slotConfig.requiredTier
+        && !draggedItem.fromEngine;
+}
+
+function applyUnlock(upgradeId) {
+    const cfg = UNLOCK_SLOTS.find(s => s.upgradeId === upgradeId);
+    if (!cfg) return;
+    const slot = document.getElementById(cfg.slotId);
+    if (slot) slot.style.display = 'none';
+    const btn = document.getElementById(cfg.buttonId);
+    if (btn) btn.classList.remove('reveal-hidden');
+}
+
+function consumeItemAndUnlock(slotConfig) {
+    if (game.upgrades.includes(slotConfig.upgradeId)) return;
+    if (draggedIndex === null || draggedIndex < 0) return;
+
+    game.grid[draggedIndex] = null;
+    renderGridItem(draggedIndex);
+    game.upgrades.push(slotConfig.upgradeId);
+    applyUnlock(slotConfig.upgradeId);
+
+    showToast(`${slotConfig.label} unlocked!`, 'success');
+    sfx('purchase');
+    saveGame();
+    updateUI();
+}
+
+function setupUnlockSlots() {
+    UNLOCK_SLOTS.forEach((cfg) => {
+        const slot = document.getElementById(cfg.slotId);
+        if (!slot) return;
+        slot.addEventListener('dragover', (e) => {
+            if (unlockAcceptsDrag(cfg)) {
+                e.preventDefault();
+                slot.classList.add('drag-over');
+            }
+        });
+        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+        slot.addEventListener('drop', (e) => {
+            e.preventDefault();
+            slot.classList.remove('drag-over');
+            if (unlockAcceptsDrag(cfg)) consumeItemAndUnlock(cfg);
+        });
+    });
+}
+
+function applyUnlocksFromSave() {
+    UNLOCK_SLOTS.forEach((cfg) => {
+        if (game.upgrades.includes(cfg.upgradeId)) applyUnlock(cfg.upgradeId);
+    });
+}
 
 // The engine ASCII art (#furnace-ascii) is the fuel drop target — drop fuel
 // items dragged from the grid directly onto the engine to feed the
@@ -2178,6 +2312,7 @@ const burnAll = document.getElementById('burn-all-btn');
     // Furnace drop zone
     setupFurnaceDropZone();
     setupSmelterDropZone();
+    setupUnlockSlots();
 
     // Engine as a drag SOURCE: drag a Spark out of the furnace onto the grid.
     // Bound to #furnace-ascii (the small ASCII pre) rather than the whole
