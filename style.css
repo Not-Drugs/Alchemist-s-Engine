@@ -617,6 +617,38 @@ section h2::after {
     color: var(--accent-heat);
 }
 
+/* First-spark prompt — twinkling star/gem inside the engine, shown after
+   Phase 1 ends until the player draws their first spark from the engine.
+   Pure visual cue; non-interactive (the press-and-hold drag still goes
+   through the engine ASCII underneath). */
+.engine-prompt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.4rem;
+    color: #ffffff;
+    text-shadow:
+        0 0 6px rgba(255, 255, 255, 0.95),
+        0 0 14px rgba(255, 220, 200, 0.7),
+        0 0 24px rgba(255, 200, 120, 0.4);
+    animation: engineTwinkle 1.6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 5;
+    line-height: 1;
+}
+
+@keyframes engineTwinkle {
+    0%, 100% {
+        opacity: 0.45;
+        transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.15) rotate(45deg);
+    }
+}
+
 .drop-zone.drag-over {
     border-color: var(--text-primary);
     border-style: solid;

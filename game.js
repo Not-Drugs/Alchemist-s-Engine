@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v33';
+const APP_VERSION = 'v34';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -181,7 +181,8 @@ const defaultGame = {
         playTime: 0,
         kindlingAdded: 0,
         sticksGathered: 0,
-        peakHeat: 0
+        peakHeat: 0,
+        firstEngineSpark: false
     },
     philosopherStones: 0,
     prestigeCount: 0,
@@ -668,6 +669,7 @@ function engineDropOnCell(targetIndex) {
         game.resources.heat -= SPARK_HEAT_COST;
         renderGridItem(targetIndex);
         sfx('kindle');
+        game.stats.firstEngineSpark = true;
         updateUI();
         return;
     }
@@ -691,6 +693,7 @@ function engineDropOnCell(targetIndex) {
             if (tierInfo) floatPopup(newItem, `+${tierInfo.name}`, 'merge');
         }
         sfx('merge', newTier);
+        game.stats.firstEngineSpark = true;
         updateUI();
         return;
     }
@@ -2138,6 +2141,17 @@ function updateUI() {
     }
     document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
 
+    // First-spark prompt: a twinkling glyph appears inside the engine the
+    // moment Phase 1 ends, drawing the eye to the engine so the player
+    // knows to press-and-hold for their first spark. Vanishes for good
+    // once any spark is successfully drawn.
+    const enginePromptEl = document.getElementById('engine-prompt');
+    if (enginePromptEl) {
+        const showPrompt = (game.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET
+            && !game.stats.firstEngineSpark;
+        enginePromptEl.classList.toggle('hidden', !showPrompt);
+    }
+
     // Furnace ASCII animation — art changes with temperature.
     const furnaceAscii = document.getElementById('furnace-ascii');
     if (furnaceAscii) {
@@ -2593,6 +2607,12 @@ function loadGame() {
             // the target so they don't see the soot UI.
             if ((game.stats.peakHeat || 0) < PHASE_1_HEAT_TARGET && game.revealed.mergeGrid) {
                 game.stats.peakHeat = PHASE_1_HEAT_TARGET;
+            }
+
+            // Migration: firstEngineSpark is a new stat. Players already
+            // past Phase 1 don't need the tutorial twinkle.
+            if (!game.stats.firstEngineSpark && game.revealed.mergeGrid) {
+                game.stats.firstEngineSpark = true;
             }
 
             // Re-apply upgrades
