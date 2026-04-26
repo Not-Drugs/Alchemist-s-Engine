@@ -216,6 +216,20 @@ Heat is no longer a permanent accumulator. When the furnace is idle
   burn deliver less heat until the furnace warms. Don't change
   without re-tuning the early economy; the current numbers are
   balanced around the flat-rate assumption.
+- **Environment / terraforming + buildings.** Reframe the game's
+  setting: the player has woken in a magically blighted landscape
+  and the engine's heat/output is what they use to slowly heal it.
+  Each tier or milestone could unlock a piece of terrain that's
+  currently dead — soil that becomes grass, a frozen river that
+  thaws, a stand of charred trees that regrows — and let the player
+  place buildings on the reclaimed land (shelter, well, kiln,
+  greenhouse, etc.) that produce passive bonuses or new resources.
+  This becomes the spatial/visible meta-layer on top of the existing
+  engine/merge/prestige loop, giving heat a destination beyond pure
+  numbers. Open questions when revisiting: tile-based map vs. a
+  scrolling diorama of ASCII vignettes, whether buildings cost heat/
+  alloy/essence/something new, and whether terraforming progress
+  persists through prestige (probably yes — it's the meta layer).
 
 ## Workflow Rules
 
