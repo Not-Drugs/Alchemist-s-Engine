@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v35';
+const APP_VERSION = 'v36';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -604,6 +604,15 @@ function canDragSparkFromEngine() {
 }
 
 function handleEngineDragStart(e) {
+    // Mobile browsers can fire a synthetic HTML5 dragstart from their own
+    // long-press a few hundred ms after our touch drag has already
+    // committed. If we let it run, it sets engine-dragging on the ASCII
+    // and the :has() rule pulls the orange highlight off the grid and
+    // back onto the engine block. Bail before any state changes.
+    if (touchDragState) {
+        e.preventDefault();
+        return;
+    }
     if (!game.revealed.mergeGrid) {
         e.preventDefault();
         return;
