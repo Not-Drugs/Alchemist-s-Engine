@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v27';
+const APP_VERSION = 'v28';
 
 const UPGRADES = {
     furnace: [
@@ -2047,11 +2047,31 @@ function updateUI() {
     document.getElementById('gear-value').textContent = formatNumber(Math.floor(game.resources.gears));
     document.getElementById('essence-value').textContent = formatNumber(Math.floor(game.resources.essence));
 
-    // Heat rate
-    const heatRate = game.furnace.fuel > 0 ?
-        10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier * getWisdomMultiplier() *
-        (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency) : 0;
-    document.getElementById('heat-rate').textContent = `+${formatNumber(heatRate)}/s`;
+    // Heat rate — shows generation while burning, decay while idle. Decay
+    // is approximate (heat * decayRate is the instantaneous derivative of
+    // the exponential decay used in processFurnace).
+    const heatRateEl = document.getElementById('heat-rate');
+    if (game.furnace.fuel > 0) {
+        const heatRate = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier * getWisdomMultiplier() *
+            (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
+        heatRateEl.textContent = `+${formatNumber(heatRate)}/s`;
+        heatRateEl.classList.remove('decaying');
+    } else {
+        const decayRate = game.bonuses.heatDecayRate || 0;
+        const passiveGen = game.bonuses.heatPassiveGen || 0;
+        const decayPerSec = decayRate * game.resources.heat;
+        const netRate = passiveGen - decayPerSec;
+        if (netRate > 0.01) {
+            heatRateEl.textContent = `+${formatNumber(netRate)}/s`;
+            heatRateEl.classList.remove('decaying');
+        } else if (decayPerSec > 0.01) {
+            heatRateEl.textContent = `-${formatNumber(decayPerSec)}/s`;
+            heatRateEl.classList.add('decaying');
+        } else {
+            heatRateEl.textContent = `+0/s`;
+            heatRateEl.classList.remove('decaying');
+        }
+    }
 
     // Furnace
     const fuelNow = Math.max(0, game.furnace.fuel);

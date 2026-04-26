@@ -369,6 +369,12 @@ section h2::after {
     opacity: 0.5;
 }
 
+/* Heat rate goes red when the engine's idle and heat is bleeding off,
+   so the "engine is dying" state is unmistakable in the resource bar. */
+.resource-rate.decaying {
+    color: var(--accent-heat);
+}
+
 /* ITEM-VALUE-BADGE — temporary debug overlay showing fuel/ore value
    in the top-right corner of each tile. Remove the .item-value rule
    here and the matching span in renderGridItem (game.js) to drop it. */
