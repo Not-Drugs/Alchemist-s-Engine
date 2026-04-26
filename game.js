@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v26';
+const APP_VERSION = 'v27';
 
 const UPGRADES = {
     furnace: [
@@ -305,6 +305,13 @@ function renderGridItem(index) {
     tierLabel.className = 'item-tier-label';
     tierLabel.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].name : ORE_TIERS[item.tier - 1].name;
     itemEl.appendChild(tierLabel);
+
+    // Value badge — temporary debug aid showing how much fuel/ore the tile
+    // is worth. Search "ITEM-VALUE-BADGE" in style.css + game.js to remove.
+    const valueBadge = document.createElement('span');
+    valueBadge.className = 'item-value';
+    valueBadge.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].value : ORE_TIERS[item.tier - 1].value;
+    itemEl.appendChild(valueBadge);
 
     // Drag events (desktop HTML5 drag API)
     itemEl.addEventListener('dragstart', handleDragStart);

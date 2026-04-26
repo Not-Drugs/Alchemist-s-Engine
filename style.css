@@ -352,6 +352,7 @@ section h2::after {
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    position: relative;
     font-size: 1.2rem;
     transition: transform 0.1s ease;
     position: relative;
@@ -366,6 +367,21 @@ section h2::after {
 
 .fuel-item.dragging, .ore-item.dragging {
     opacity: 0.5;
+}
+
+/* ITEM-VALUE-BADGE — temporary debug overlay showing fuel/ore value
+   in the top-right corner of each tile. Remove the .item-value rule
+   here and the matching span in renderGridItem (game.js) to drop it. */
+.item-value {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.55rem;
+    font-weight: normal;
+    color: var(--text-dim);
+    opacity: 0.7;
+    pointer-events: none;
+    line-height: 1;
 }
 
 /* Fuel Tiers - ASCII symbols */
