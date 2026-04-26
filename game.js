@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v22';
+const APP_VERSION = 'v23';
 
 const UPGRADES = {
     furnace: [
@@ -841,29 +841,93 @@ function beginTouchDrag() {
 }
 
 // Touch entry point for "drag a Spark out of the engine" flow.
-function handleEngineTouchStart(e) {
-    if (e.touches.length !== 1) return;
-    if (!game.revealed.mergeGrid) return;
+//
+// Uses press-and-hold rather than immediate drag so a quick swipe over the
+// engine reads as page scroll, not a drag. The flow:
+//   1. Touch starts → start a 300ms hold timer + a small movement watcher.
+//   2. If finger moves > ENGINE_HOLD_MOVE_TOLERANCE before the timer fires,
+//      the hold is abandoned (no preventDefault — browser scrolls normally).
+//   3. If 300ms passes with the finger still mostly stationary, commit to
+//      a drag: vibrate, set touchDragState, and hand off to the standard
+//      touchmove/touchend handlers (which DO preventDefault to block scroll).
+let _engineHoldState = null;
+const ENGINE_HOLD_MS = 300;
+const ENGINE_HOLD_MOVE_TOLERANCE = 8; // px
+
+function clearEngineHoldState() {
+    if (!_engineHoldState) return;
+    clearTimeout(_engineHoldState.timer);
+    document.removeEventListener('touchmove', _engineHoldState.onMove);
+    document.removeEventListener('touchend', _engineHoldState.onEnd);
+    document.removeEventListener('touchcancel', _engineHoldState.onEnd);
+    const ascii = document.getElementById('furnace-ascii');
+    if (ascii) ascii.classList.remove('engine-charging');
+    _engineHoldState = null;
+}
+
+function commitEngineDrag(startX, startY, itemEl) {
+    clearEngineHoldState();
     if (game.resources.heat < SPARK_HEAT_COST) {
         showToast('Not enough heat — gather sticks to rekindle.', 'error');
         return;
     }
+    if (navigator.vibrate) {
+        try { navigator.vibrate(25); } catch (_) {}
+    }
 
-    const t = e.touches[0];
     touchDragState = {
-        itemEl: e.currentTarget,
+        itemEl,
         index: -1,
         item: { type: 'fuel', tier: 1, fromEngine: true },
-        startX: t.clientX,
-        startY: t.clientY,
+        startX,
+        startY,
         moved: false,
         ghost: null,
         lastTarget: null
     };
+    // Begin the visible drag immediately — the user is already holding.
+    beginTouchDrag();
 
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: false });
     document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+}
+
+function handleEngineTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    if (!game.revealed.mergeGrid) return;
+    if (game.resources.heat < SPARK_HEAT_COST) return; // silent — quick taps shouldn't toast
+
+    if (_engineHoldState) clearEngineHoldState();
+
+    const t = e.touches[0];
+    const startX = t.clientX;
+    const startY = t.clientY;
+    const itemEl = e.currentTarget;
+
+    const onMove = (me) => {
+        if (!_engineHoldState) return;
+        const mt = me.touches[0];
+        if (!mt) return;
+        const dx = mt.clientX - startX;
+        const dy = mt.clientY - startY;
+        if (Math.hypot(dx, dy) > ENGINE_HOLD_MOVE_TOLERANCE) {
+            // Movement before the hold completed — treat as scroll attempt.
+            clearEngineHoldState();
+        }
+    };
+    const onEnd = () => clearEngineHoldState();
+
+    const timer = setTimeout(() => commitEngineDrag(startX, startY, itemEl), ENGINE_HOLD_MS);
+
+    _engineHoldState = { timer, onMove, onEnd };
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+
+    // Visual cue: the engine border ramps to fire-orange over the hold
+    // duration so the user can see they're priming a drag.
+    itemEl.classList.add('engine-charging');
 }
 
 function handleTouchMove(e) {

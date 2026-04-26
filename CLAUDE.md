@@ -95,6 +95,15 @@ seeds two Sparks on the grid as a tutorial nudge.
        feedback (drag-over highlight, pulse) is bubbled up to
        `#furnace-visual` via CSS `:has()` so the cue is more visible
        than highlighting just the small ASCII region.
+     - **Press-and-hold to start a spark drag (touch only).** The
+       `handleEngineTouchStart` flow uses a 300ms hold timer — quick
+       swipes through the engine area scroll the page normally, only a
+       deliberate hold arms the drag. The engine border ramps to
+       fire-orange via `.engine-charging` during the hold; if the
+       finger moves past `ENGINE_HOLD_MOVE_TOLERANCE` (8px) before the
+       timer fires, the hold is abandoned and the browser handles the
+       gesture as scroll. On hold completion the device gives a short
+       vibration cue (when supported) and the drag commits.
 
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat

@@ -474,8 +474,9 @@ section h2::after {
 }
 
 /* The ASCII pre is the small interactive surface — drag source for sparks
-   and drop target for fuel. Limiting touch handling here keeps the temp
-   badge and fuel readout out of the drag/scroll conflict zone. */
+   (via long-press) and drop target for fuel. Touch-action stays at the
+   default `auto` so quick swipes scroll the page; the long-press timer
+   in handleEngineTouchStart is what arms the drag. */
 #furnace-ascii {
     white-space: pre;
     font-size: 0.7rem;
@@ -486,7 +487,6 @@ section h2::after {
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    touch-action: none;
     border-radius: 2px;
     transition: background 0.15s ease;
 }
@@ -510,6 +510,25 @@ section h2::after {
 #furnace-visual:has(#furnace-ascii.engine-dragging) {
     border-color: var(--accent-fire);
     box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
+}
+
+/* Press-and-hold "charging" — the border ramps to fire-orange over the
+   ENGINE_HOLD_MS window so the user sees the drag priming. If the hold
+   is cancelled (finger moved → scroll), the class is removed and the
+   border snaps back. */
+#furnace-visual:has(#furnace-ascii.engine-charging) {
+    animation: engineCharging 0.3s ease forwards;
+}
+
+@keyframes engineCharging {
+    from {
+        border-color: var(--border-color);
+        box-shadow: none;
+    }
+    to {
+        border-color: var(--accent-fire);
+        box-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
+    }
 }
 
 #furnace-visual.pulse {
