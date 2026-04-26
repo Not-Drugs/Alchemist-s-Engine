@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v38';
+const APP_VERSION = 'v39';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -1700,23 +1700,46 @@ function prestige() {
 // blank space if that item has already been picked). Items don't
 // respawn yet — this is a proof of concept for the picture-as-the-UI
 // approach, not a balanced location.
+// Each tree is 6 lines tall with split upper branches (\\|//), a narrow
+// trunk, and lower branches (_/|\\_, /|\\). Two variants alternate so
+// the grove doesn't read as copy-paste — variant B has a broken-trunk
+// "X" for character. Items live in the ground rows below the ~~~ line.
 const GROVE_SCENE = [
-    '    *         *         *   ',
-    '   /|\\       /|\\       /|\\  ',
-    '  / | \\     / | \\     / | \\ ',
-    '    |         |         |   ',
-    '                            ',
-    '  $     $         $     $   ',
-    '       $               $    '
+    '                                                                ',
+    '    \\\\|//         \\|/          \\\\|//         \\|/             ',
+    '     \\|/            |             \\|/            |              ',
+    '      |             X              |             X              ',
+    '    _/|\\_         _|_           _/|\\_         _|_              ',
+    '     /|\\          /|\\            /|\\          /|\\               ',
+    '      |             |              |             |              ',
+    '                                                                ',
+    '   \\|/           \\\\|//         \\|/           \\\\|//           ',
+    '    |              \\|/            |              \\|/            ',
+    '    X               |              X               |             ',
+    '   _|_            _/|\\_          _|_            _/|\\_           ',
+    '   /|\\             /|\\           /|\\             /|\\            ',
+    '    |               |              |               |             ',
+    '                                                                ',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ',
+    '                                                                ',
+    '   $   $       $    #         $    $                            ',
+    '        $              $              #     $                  ',
+    '             $                  $                               '
 ];
 // One entry per `$` in GROVE_SCENE, in left-to-right / top-to-bottom order.
 const GROVE_ITEMS = [
-    { type: 'stick' },
-    { type: 'stick' },
-    { type: 'stone' },
-    { type: 'stick' },
-    { type: 'stick' },
-    { type: 'stick' }
+    { type: 'stick' },  // row 1, pos 1
+    { type: 'stick' },  // row 1, pos 2
+    { type: 'stick' },  // row 1, pos 3
+    { type: 'stone' },  // row 1, pos 4
+    { type: 'stick' },  // row 1, pos 5
+    { type: 'stick' },  // row 1, pos 6
+    { type: 'stick' },  // row 2, pos 1
+    { type: 'stick' },  // row 2, pos 2
+    { type: 'stone' },  // row 2, pos 3
+    { type: 'stick' },  // row 2, pos 4
+    { type: 'stick' },  // row 3, pos 1
+    { type: 'stick' }   // row 3, pos 2
 ];
 
 function ensureGroveState() {
@@ -2626,6 +2649,22 @@ const burnAll = document.getElementById('burn-all-btn');
         phase2Dismiss.addEventListener('click', () => {
             const modal = document.getElementById('phase2-modal');
             if (modal) modal.classList.add('hidden');
+        });
+    }
+
+    // Dead Grove: teaser card opens the fullscreen scene; [Leave] closes.
+    const groveEnter = document.getElementById('grove-enter');
+    const groveLeave = document.getElementById('grove-leave');
+    const groveModal = document.getElementById('grove-modal');
+    if (groveEnter && groveModal) {
+        groveEnter.addEventListener('click', () => {
+            groveModal.classList.remove('hidden');
+            renderGrove();
+        });
+    }
+    if (groveLeave && groveModal) {
+        groveLeave.addEventListener('click', () => {
+            groveModal.classList.add('hidden');
         });
     }
 
