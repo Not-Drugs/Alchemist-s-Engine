@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v25';
+const APP_VERSION = 'v26';
 
 const UPGRADES = {
     furnace: [
@@ -746,47 +746,11 @@ function handleDrop(e) {
 let touchDragState = null; // { ghost, startX, startY, lastTarget, moved, longPressTimer }
 const TOUCH_MOVE_THRESHOLD = 6; // px before a touch is considered a drag
 
-// Press-and-hold to start dragging a grid item — same pattern as the engine.
-// Without this, every touch on an item locks the page (touch-action: none on
-// items would mean a swipe over the merge grid blocked the page from
-// scrolling). With this, a quick swipe scrolls the page; only a deliberate
-// hold commits to a drag. Quick taps still fire native click/dblclick so
-// double-tap quick-send keeps working.
-let _gridHoldState = null;
-const GRID_HOLD_MS = 200;
-const GRID_HOLD_MOVE_TOLERANCE = 8;
-
-function clearGridHoldState() {
-    if (!_gridHoldState) return;
-    clearTimeout(_gridHoldState.timer);
-    document.removeEventListener('touchmove', _gridHoldState.onMove);
-    document.removeEventListener('touchend', _gridHoldState.onEnd);
-    document.removeEventListener('touchcancel', _gridHoldState.onEnd);
-    if (_gridHoldState.itemEl) _gridHoldState.itemEl.classList.remove('charging');
-    _gridHoldState = null;
-}
-
-function commitGridDrag(itemEl, index, item, startX, startY) {
-    clearGridHoldState();
-    if (navigator.vibrate) {
-        try { navigator.vibrate(15); } catch (_) {}
-    }
-    touchDragState = {
-        itemEl,
-        index,
-        item,
-        startX,
-        startY,
-        moved: false,
-        ghost: null,
-        lastTarget: null
-    };
-    beginTouchDrag();
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd, { passive: false });
-    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
-}
-
+// Grid items use immediate drag (no hold) so merging stays snappy. The
+// items themselves keep `touch-action: none` so quick swipes on them
+// engage the drag without browser scroll competing. Empty grid cells and
+// the area around the table keep `touch-action: auto`, so users scroll
+// the page by swiping anywhere that isn't a draggable item.
 function handleTouchStart(e) {
     if (e.touches.length !== 1) return;
     const itemEl = e.currentTarget;
@@ -794,31 +758,21 @@ function handleTouchStart(e) {
     const item = game.grid[index];
     if (!item) return;
 
-    if (_gridHoldState) clearGridHoldState();
-
     const t = e.touches[0];
-    const startX = t.clientX;
-    const startY = t.clientY;
-
-    const onMove = (me) => {
-        if (!_gridHoldState) return;
-        const mt = me.touches[0];
-        if (!mt) return;
-        const dx = mt.clientX - startX;
-        const dy = mt.clientY - startY;
-        if (Math.hypot(dx, dy) > GRID_HOLD_MOVE_TOLERANCE) {
-            clearGridHoldState();
-        }
+    touchDragState = {
+        itemEl,
+        index,
+        item,
+        startX: t.clientX,
+        startY: t.clientY,
+        moved: false,
+        ghost: null,
+        lastTarget: null
     };
-    const onEnd = () => clearGridHoldState();
 
-    const timer = setTimeout(() => commitGridDrag(itemEl, index, item, startX, startY), GRID_HOLD_MS);
-    _gridHoldState = { timer, onMove, onEnd, itemEl };
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('touchend', onEnd);
-    document.addEventListener('touchcancel', onEnd);
-
-    itemEl.classList.add('charging');
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 }
 
 function beginTouchDrag() {

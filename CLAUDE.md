@@ -104,11 +104,13 @@ seeds two Sparks on the grid as a tutorial nudge.
        timer fires, the hold is abandoned and the browser handles the
        gesture as scroll. On hold completion the device gives a short
        vibration cue (when supported) and the drag commits.
-   - **Press-and-hold on grid items (touch only).** Same pattern at the
-     grid: `handleTouchStart` arms a 200ms hold (`GRID_HOLD_MS`).
-     Quick swipes scroll the page; a deliberate hold commits to a
-     drag. Single taps fall through to native click/dblclick so the
-     existing double-tap quick-send behavior is preserved.
+   - **Grid item drag is immediate (no hold).** `touch-action: none`
+     is scoped to `.fuel-item` / `.ore-item` only. Touching a fuel
+     tile commits to a drag instantly — no merge slowdown — while
+     empty grid cells and drop zones keep the default `touch-action`
+     so swipes over them scroll the page natively. On a partially-
+     full grid the empty cells provide a scroll path; outside the
+     grid (margins, other sections) is always scrollable.
    - **Convenience-button gating.** The `[+] Spark` spawner and
      `[»] Burn All Fuel` button are hidden by default. Two unlock
      slots in the merge section accept a sacrificed item to forge each:

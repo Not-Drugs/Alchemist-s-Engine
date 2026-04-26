@@ -66,12 +66,15 @@ input,
 
 /* Draggable items + drop zones: disable native touch gestures so our
    touchmove handler owns the interaction (no page scrolling while dragging). */
-/* All grid surfaces leave touch-action at the default so swipes through
-   the merge area can scroll the page. The JS touch handlers use a 200ms
-   press-and-hold timer (handleTouchStart) before claiming the gesture as
-   a drag — this matches the engine's hold pattern. preventDefault only
-   gets called once the hold has committed, so quick taps and swipes
-   pass through to native scroll/dblclick handling. */
+/* Items themselves block scroll so a touch landing on a fuel/ore tile
+   commits to a drag immediately — no hold delay, no merge slowdown.
+   Empty grid cells and drop zones keep the default touch-action so the
+   user can scroll the page by swiping anywhere that isn't a draggable
+   item. On a partially-full grid that's nearly always reachable. */
+.fuel-item,
+.ore-item {
+    touch-action: none;
+}
 
 /* Buttons should feel snappy — no double-tap zoom delay */
 button {
