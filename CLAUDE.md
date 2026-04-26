@@ -312,6 +312,32 @@ Heat is no longer a permanent accumulator. When the furnace is idle
   alloy/essence/something new, and whether terraforming progress
   persists through prestige (probably yes — it's the meta layer).
 
+## Clean Room Protocol — Reference Material
+
+When taking inspiration from other open-source incremental games (Candy Box
+2, A Dark Room, etc.) we observe a strict separation: **read for patterns,
+implement in our own voice. Never copy code verbatim.**
+
+- Upstream source is downloaded into `_research/<source-name>/repo/` (e.g.
+  `_research/candybox2/repo/`, `_research/a-dark-room/repo/`).
+- The entire `_research/` directory is gitignored, so cloned repos stay
+  on the developer's machine and never enter our git history or shipped
+  build.
+- Use shallow clones (`git clone --depth 1 …`) — we only need the latest
+  state to read.
+- Analysis we write *ourselves* (notes, lessons, pattern summaries) lives
+  in `docs/inspiration-notes.md` and is freely committable. That file is
+  our own words, not copied prose.
+- Both Candy Box 2 (GPLv3) and A Dark Room (MPL 2.0) are reciprocal
+  licenses. Direct code copy would force our project to inherit those
+  obligations. Reading and reimplementing is fine; copying is not.
+- When adding a new source: `mkdir -p _research/<name>/`, clone into
+  `repo/` underneath, and update `docs/inspiration-notes.md` with the
+  patterns we plan to lift.
+
+This rule applies even when "just borrowing a small function" looks
+tempting. Always paraphrase by re-deriving the logic in our own style.
+
 ## Workflow Rules
 
 These are standing instructions from the repo owner:
