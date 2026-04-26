@@ -483,6 +483,11 @@ section h2::after {
     cursor: grabbing;
 }
 
+#furnace-visual.engine-dragging {
+    border-color: var(--accent-fire);
+    box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
+}
+
 #furnace-ascii {
     white-space: pre;
     font-size: 0.7rem;

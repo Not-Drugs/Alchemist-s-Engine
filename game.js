@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v21';
 
 const UPGRADES = {
     furnace: [
@@ -580,8 +580,13 @@ function canDragSparkFromEngine() {
 }
 
 function handleEngineDragStart(e) {
-    if (!canDragSparkFromEngine()) {
+    if (!game.revealed.mergeGrid) {
         e.preventDefault();
+        return;
+    }
+    if (game.resources.heat < SPARK_HEAT_COST) {
+        e.preventDefault();
+        showToast('Not enough heat — gather sticks to rekindle.', 'error');
         return;
     }
     draggedItem = { type: 'fuel', tier: 1, fromEngine: true };
@@ -591,6 +596,7 @@ function handleEngineDragStart(e) {
         e.dataTransfer.effectAllowed = 'copy';
         e.dataTransfer.setData('text/plain', 'engine-spark');
     }
+    e.currentTarget.classList.add('engine-dragging');
     // Highlight tier-1 fuel on the grid as merge targets
     game.grid.forEach((cell, i) => {
         if (cell && cell.type === 'fuel' && cell.tier === 1) {
@@ -603,6 +609,8 @@ function handleEngineDragStart(e) {
 function handleEngineDragEnd() {
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
+    const visual = document.getElementById('furnace-visual');
+    if (visual) visual.classList.remove('engine-dragging');
     draggedItem = null;
     draggedIndex = null;
     draggedElement = null;
@@ -835,8 +843,12 @@ function beginTouchDrag() {
 
 // Touch entry point for "drag a Spark out of the engine" flow.
 function handleEngineTouchStart(e) {
-    if (!canDragSparkFromEngine()) return;
     if (e.touches.length !== 1) return;
+    if (!game.revealed.mergeGrid) return;
+    if (game.resources.heat < SPARK_HEAT_COST) {
+        showToast('Not enough heat — gather sticks to rekindle.', 'error');
+        return;
+    }
 
     const t = e.touches[0];
     touchDragState = {
