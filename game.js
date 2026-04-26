@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v32';
+const APP_VERSION = 'v33';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -110,7 +110,7 @@ const REVEAL_STAGES = [
     { id: 'sootBeat2',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.5,  narrate: 'Symbols rise from the soot. Half-remembered.' },
     { id: 'sootBeat3',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.75, narrate: 'The engine is almost itself again.' },
     { id: 'mergeGrid',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET,
-        narrate: 'It remembers. The engine expands.',
+        narrate: 'The engine burns hot. Soot smolders away, revealing intricate carvings on the surface. The flame looks alive — almost as if you could reach out and grab it.',
         targets: ['#merge-section'],
         onReveal: () => {
             hideIntroControls();
