@@ -64,21 +64,8 @@
                 <section id="furnace-section">
                     <h2>The Engine</h2>
                     <div id="furnace">
-                        <div id="furnace-visual">
-                            <pre id="furnace-ascii">
-    _______
-   /       \
-  |  .   .  |
-  |    _    |
-  |  '---'  |
-  |_________|
- /___________\
-|_____________|
-            </pre>
-                            <span id="furnace-temp" class="reveal-hidden">0*</span>
-                        </div>
-                        <!-- Hand-labor: always-available slow lifeline. Gather a stick,
-                             then feed it into the engine as a separate step. -->
+                        <!-- Stick gather/feed lifeline lives on top so the engine
+                             visual + fuel drop-zone stay close to the merge grid. -->
                         <div id="stick-controls">
                             <div id="stick-count-row">
                                 <span class="stick-glyph">[/]</span>
@@ -92,15 +79,24 @@
                             <button id="feed-stick-btn" class="spawn-btn" disabled title="Feed one stick into the engine. Shift-click to feed all.">[&gt;] Feed Stick</button>
                             <div class="intro-hint">Slow labor. Keeps the engine alive when heat runs out.</div>
                         </div>
+                        <div id="furnace-visual">
+                            <pre id="furnace-ascii">
+    _______
+   /       \
+  |  .   .  |
+  |    _    |
+  |  '---'  |
+  |_________|
+ /___________\
+|_____________|
+            </pre>
+                            <span id="furnace-temp" class="reveal-hidden">0*</span>
+                            <div id="fuel-readout" class="fuel-readout reveal-hidden"><span class="fuel-readout-main">Fuel: <span id="furnace-fuel-bar">[&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</span> <span id="furnace-fuel">0</span> / <span id="furnace-fuel-max">100</span></span> <span id="furnace-fuel-time" class="fuel-time">idle</span></div>
+                        </div>
                         <div id="furnace-fuel-slot" class="drop-zone reveal-hidden">
                             <span>Drop Fuel Here<br><small>(or dbl/right-click)</small></span>
                         </div>
                         <button id="burn-all-btn" class="spawn-btn reveal-hidden" title="Dump all fuel from the grid into the engine.">[»] Burn All Fuel</button>
-                        <div id="furnace-stats" class="reveal-hidden">
-                            <div class="fuel-readout"><span class="fuel-readout-main">Fuel: <span id="furnace-fuel-bar">[&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</span> <span id="furnace-fuel">0</span> / <span id="furnace-fuel-max">100</span></span> <span id="furnace-fuel-time" class="fuel-time">idle</span></div>
-                            <div>Temperature: <span id="furnace-temperature">0</span>*</div>
-                            <div>Efficiency: <span id="furnace-efficiency">100</span>%</div>
-                        </div>
                     </div>
                 </section>
 

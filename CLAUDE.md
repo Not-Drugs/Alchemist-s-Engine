@@ -50,6 +50,12 @@ of the engine are hidden until the player has fed enough sticks (`kindlingAdded
   furnace. Shift-click (desktop) feeds every stored stick at once.
 - Sticks are a counted resource (`game.resources.sticks`), not a grid item.
 
+The Engine column lays out as: stick controls (top) → engine ASCII visual
+with the temperature badge (top-right of the visual) and the fuel meter
+baked in beneath the art → fuel drop zone → Burn All button. This
+keeps the drop zone close to the merge grid in the right column so
+fuel drags are short.
+
 **Stick upgrades** (Furnace tab, costType `'sticks'`, top of list — appear
 once the Upgrades panel reveals at `kindlingAdded >= 3`):
 

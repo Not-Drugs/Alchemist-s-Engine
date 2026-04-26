@@ -91,7 +91,7 @@ const ACHIEVEMENTS = [
 const REVEAL_STAGES = [
     { id: 'firstStick',    cond: g => g.stats.kindlingAdded >= 1,  narrate: 'A stick catches. The engine stirs.' },
     { id: 'heatMeter',     cond: g => g.stats.totalHeat >= 1,      narrate: 'A faint warmth rises from the iron.',         targets: ['#resources', '#heat-resource', '#furnace-temp'] },
-    { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#furnace-stats'] },
+    { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#fuel-readout'] },
     { id: 'upgrades',      cond: g => g.stats.kindlingAdded >= 3,  narrate: 'The engine responds to your attention. Tools take shape.', targets: ['#upgrades-section'] },
     { id: 'mergeGrid',     cond: g => g.stats.kindlingAdded >= 20,
         narrate: 'The engine has tasted enough kindling. It shows you what more it can do.',
@@ -1727,9 +1727,7 @@ function updateUI() {
         else label = `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}m left`;
         fuelTimeEl.textContent = `· ${label}`;
     }
-    document.getElementById('furnace-temperature').textContent = formatNumber(Math.floor(game.furnace.temperature));
     document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
-    document.getElementById('furnace-efficiency').textContent = Math.floor(game.bonuses.furnaceEfficiency * 100);
 
     // Furnace ASCII animation — art changes with temperature
     const furnaceAscii = document.getElementById('furnace-ascii');

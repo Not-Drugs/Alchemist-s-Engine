@@ -464,10 +464,10 @@ section h2::after {
 
 #furnace-visual {
     width: 100%;
-    max-width: 200px;
+    max-width: 280px;
     background: var(--bg-dark);
     border: 1px solid var(--border-color);
-    padding: 10px;
+    padding: 12px 14px 10px;
     position: relative;
     font-family: inherit;
 }
@@ -498,7 +498,7 @@ section h2::after {
 
 #furnace-temp {
     position: absolute;
-    bottom: 5px;
+    top: 6px;
     right: 10px;
     font-size: 1rem;
     font-weight: bold;
@@ -532,25 +532,13 @@ section h2::after {
     color: var(--text-primary);
 }
 
-#furnace-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    font-size: 0.8rem;
-    color: var(--text-dim);
-    width: 100%;
-}
-
-#furnace-stats div::before {
-    content: "> ";
-    color: var(--text-dim);
-}
-
-#furnace-stats span {
+#fuel-readout {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.7rem;
+    text-align: center;
     color: var(--text-primary);
-}
-
-.fuel-readout {
     letter-spacing: 0;
 }
 
