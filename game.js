@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v28';
+const APP_VERSION = 'v29';
 
 const UPGRADES = {
     furnace: [
@@ -601,6 +601,26 @@ function handleEngineDragStart(e) {
     if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'copy';
         e.dataTransfer.setData('text/plain', 'engine-spark');
+        // Custom drag image: a small Spark tile instead of a snapshot of
+        // the engine ASCII (which the browser would otherwise capture
+        // along with whitespace and look like "the whole engine box").
+        const tierInfo = FUEL_TIERS[0];
+        const ghost = document.createElement('div');
+        ghost.className = `fuel-item ${tierInfo.color}`;
+        ghost.style.position = 'absolute';
+        ghost.style.top = '-1000px';
+        ghost.style.left = '-1000px';
+        ghost.style.width = '52px';
+        ghost.style.height = '52px';
+        const label = document.createElement('span');
+        label.className = 'item-tier-label';
+        label.textContent = tierInfo.name;
+        ghost.appendChild(label);
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 26, 26);
+        // The browser snapshots the element synchronously for the drag
+        // image, so we can remove the source on the next tick.
+        setTimeout(() => ghost.remove(), 0);
     }
     e.currentTarget.classList.add('engine-dragging');
     // Highlight tier-1 fuel on the grid as merge targets
