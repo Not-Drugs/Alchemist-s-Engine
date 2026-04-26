@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v39';
+const APP_VERSION = 'v40';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -1700,31 +1700,34 @@ function prestige() {
 // blank space if that item has already been picked). Items don't
 // respawn yet — this is a proof of concept for the picture-as-the-UI
 // approach, not a balanced location.
-// Each tree is 6 lines tall with split upper branches (\\|//), a narrow
-// trunk, and lower branches (_/|\\_, /|\\). Two variants alternate so
-// the grove doesn't read as copy-paste — variant B has a broken-trunk
-// "X" for character. Items live in the ground rows below the ~~~ line.
+// The scene uses strict 12-char "slots" per tree so every trunk lines up
+// at the same column down each tree's 6 lines. Two variants alternate
+// for visual variety: A has split upper branches (\\|//) and lower
+// branches (_/|\\_, /|\\); B has a narrower top, a broken-trunk X mid,
+// and a stubby _|_ ring of dead branches. Row 1 is ABAB, row 2 is BABA
+// so the grove looks ragged rather than gridded. Items live in three
+// ground rows below the ~ line.
 const GROVE_SCENE = [
-    '                                                                ',
-    '    \\\\|//         \\|/          \\\\|//         \\|/             ',
-    '     \\|/            |             \\|/            |              ',
-    '      |             X              |             X              ',
-    '    _/|\\_         _|_           _/|\\_         _|_              ',
-    '     /|\\          /|\\            /|\\          /|\\               ',
-    '      |             |              |             |              ',
-    '                                                                ',
-    '   \\|/           \\\\|//         \\|/           \\\\|//           ',
-    '    |              \\|/            |              \\|/            ',
-    '    X               |              X               |             ',
-    '   _|_            _/|\\_          _|_            _/|\\_           ',
-    '   /|\\             /|\\           /|\\             /|\\            ',
-    '    |               |              |               |             ',
-    '                                                                ',
-    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ',
-    '                                                                ',
-    '   $   $       $    #         $    $                            ',
-    '        $              $              #     $                  ',
-    '             $                  $                               '
+    '                                                ',
+    '   \\\\|//        \\|/        \\\\|//        \\|/     ',
+    '    \\|/          |          \\|/          |      ',
+    '     |           X           |           X      ',
+    '   _/|\\_        _|_        _/|\\_        _|_     ',
+    '    /|\\         /|\\         /|\\         /|\\      ',
+    '     |           |           |           |      ',
+    '                                                ',
+    '    \\|/        \\\\|//        \\|/        \\\\|//    ',
+    '     |          \\|/          |          \\|/     ',
+    '     X           |           X           |      ',
+    '    _|_        _/|\\_        _|_        _/|\\_    ',
+    '    /|\\         /|\\         /|\\         /|\\      ',
+    '     |           |           |           |      ',
+    '                                                ',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
+    '                                                ',
+    '   $   $       $    #         $    $            ',
+    '        $              $    #     $             ',
+    '             $                  $               '
 ];
 // One entry per `$` in GROVE_SCENE, in left-to-right / top-to-bottom order.
 const GROVE_ITEMS = [
