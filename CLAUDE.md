@@ -198,6 +198,18 @@ Heat is no longer a permanent accumulator. When the furnace is idle
   spark, feed-stick, ore, and craft buttons behind upgrades (e.g. a
   workshop "Tireless Hands" line). Manual clicking stays the default
   early-game work; automation is something the player earns.
+- **Revisit heat ↔ temperature coupling.** Current model treats them
+  as parallel, independent outputs of the burning furnace: heat rate
+  is flat (10/s × bonuses) and temperature is a separate state
+  driven by fuel volume (target = `fuel × 5`, cap 1000). Scientifically
+  defensible — temperature is intensive, heat is extensive — but
+  there's room to make them feel more connected. Options to weigh
+  later: temperature multiplier on heat rate (hotter → more heat/s),
+  temperature decay during burn if fuel is too little to sustain it,
+  or specific-heat-style ramp where the first seconds of a fresh
+  burn deliver less heat until the furnace warms. Don't change
+  without re-tuning the early economy; the current numbers are
+  balanced around the flat-rate assumption.
 
 ## Workflow Rules
 
