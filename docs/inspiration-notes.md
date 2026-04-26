@@ -156,6 +156,119 @@ ASCII landscape, not separated tiles.
 | Event scene tree | Wanderer modal becomes the first instance: `{ id: 'wanderer', scenes: { meet: { text, choices: [{ trade }, { decline }] } } }`. Reusable for later encounters. |
 | Flavor string per action | Every craft / explore / unlock gets a one-liner. Already partly done; lean into it. |
 
+---
+
+## More patterns worth lifting (secondary, beyond the two main lenses)
+
+These came up while reading and don't fit cleanly under "visuals" or
+"layered mechanics" but are worth keeping in view as we expand.
+
+### Message log / notification feed (A Dark Room)
+
+- ADR keeps a scrolling text feed showing the last few events. New
+  messages push the old ones up but don't replace them. The feed is
+  always visible so nothing gets missed if the player isn't watching.
+- Our narration line only shows the latest beat — players who blink
+  can miss a soot-burn-off line or a phase reveal.
+- **Where it lands:** a small log beneath the engine showing the
+  last 3–5 narration beats. Light, atmospheric, completes the
+  storytelling layer.
+
+### Hidden / discoverable content (Candy Box 2)
+
+- CB2 has a lighthouse puzzle, a developer entity that talks to you
+  about the game's internals, hidden cave patterns, and bizarre
+  Easter eggs (a teapot, a third house with a minigame). None gate
+  progression. All reward attentive players.
+- **Where it lands:** later phases. A rare engine breath could surface
+  a one-time relic. A grove respawn could carry a "lost ember" that
+  gives a permanent bonus. Each one is a small one-shot scene.
+
+### Save migration as a pipeline (A Dark Room)
+
+- ADR's saves carry a `version` field. On load, each migration runs
+  in order from old → new. New shapes never break old saves; the
+  migration function for that version handles the upgrade.
+- We already have `SAVE_VERSION` and our own envelope. We currently
+  patch migrations inline in `loadGame`. Next time we change the
+  save shape, refactor those into ordered migration functions —
+  one per version bump. Cleaner and easier to test.
+
+### Visual feedback on every action (Candy Box 2)
+
+- CB2's "throw a candy" throws a candy *visibly*. The cauldron
+  bubbles when stirring. The dragon shrinks as you damage it. The
+  wizard hat appears on the player when equipped. Every interaction
+  has a corresponding piece of visual feedback that punctuates it.
+- We have `floatPopup` and `screenFlash` already; we under-use them.
+- **Where it lands:** a "spark fly" animation when a spark is
+  dragged from the engine to the grid. Engine ASCII briefly
+  brightens on each fuel feed. Crafting an axe should *do something*
+  visually beyond hiding the slot.
+
+### Layered audio with progression-aware tone (both)
+
+- Both games use ambient music that shifts tone with progress: calm
+  at the start, mysterious in the cave, urgent in combat. SFX layer
+  on top.
+- We have synth SFX, no ambient layer at all.
+- **Where it lands:** post-phase-1 polish. A low Web Audio drone could
+  fade in at heat 100 and shift harmonic content at each phase.
+  Ambient pad for stick phase, warmer drone for merge phase.
+
+### World map with fog of war (A Dark Room)
+
+- Once ADR's player has a compass, a 60×60 grid map opens. Fog of
+  war reveals as they move. Outposts unlock to travel further.
+- This is the deepest "explore" mechanic in the genre.
+- **Where it lands:** Phase 3 or 4 at the earliest. Our "blasted
+  landscape" framing eventually wants this — but only after we've
+  established the phase 1/2 loop and a meaningful reason to explore.
+
+### Tabs as the structural container (both)
+
+- Both games use tabs to manage many parallel systems. Resource bar
+  at the top, tabbed sections below. The tab itself becomes part of
+  the progression — new tabs unlock, old tabs stay.
+- We have tabs in the upgrades panel; we don't yet use them for
+  locations or systems at large.
+- **Where it lands:** when we have 3+ locations, they probably want
+  to be tabs rather than stacked sections. Same for any future
+  parallel system (workshop / sanctum / world).
+
+### Population / worker visualization (A Dark Room)
+
+- ADR shows villager assignments as columns of `[+]` and `[-]`
+  buttons next to a count. The player sees the whole workforce at
+  a glance and can shift assignments instantly.
+- This is the cleanest "where my idle output comes from" UI in the
+  genre.
+- **Where it lands:** when we build the worker/job pattern (future
+  Stockpile and beyond), use this layout: per-job row, current
+  count, increment/decrement, output rate, click to expand for
+  flavor.
+
+### One-time events as a queue (A Dark Room)
+
+- ADR queues events. The current one resolves before the next can
+  appear. Each event has its own scene tree and choices.
+- Cleaner than firing modals at random — players never get
+  double-stacked encounters.
+- **Where it lands:** any time we add a second NPC encounter.
+  Wanderer becomes the first entry in an event queue rather than a
+  one-off `mergeGrid.onReveal` modal call.
+
+### Mobile UX adaptations (both)
+
+- Both games eventually shipped mobile ports. ADR added bigger tap
+  targets and a simplified workshop UI. CB2's mobile version
+  reorganizes scenes into pannable views.
+- Given our mobile-first stance, watch how they handle dense
+  ASCII on small screens — both add panning / zooming, neither
+  forces a redesign.
+
+---
+
 ## Files quarantined under `_research/`
 
 - `_research/candybox2/repo/` — Candy Box 2 source. Read paths above
