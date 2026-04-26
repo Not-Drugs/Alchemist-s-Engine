@@ -38,11 +38,32 @@ the touch interaction.
 
 ## Game Mechanics Overview
 
-### Stick Phase (opening — kindlingAdded < 20)
+### Stick Phase (opening — peakHeat < 100)
 
 The game opens as a manual labor loop. The merge grid, sparks, and the rest
-of the engine are hidden until the player has fed enough sticks (`kindlingAdded
->= 20`).
+of the engine are hidden until the player has pushed heat to the
+`PHASE_1_HEAT_TARGET` (100) at least once. Soot is the narrative flavor:
+the engine is "fouled with arcane soot" and high heat burns it off,
+restoring the engine to its ornate, expanded form.
+
+Mechanically the soot system is invisible. Two surfaces tell the story:
+
+- The `[~] Heat 47/100` readout in the resource bar shows the player a
+  target during Phase 1; once `peakHeat >= PHASE_1_HEAT_TARGET` the
+  `/100` drops away and Heat is just an unbounded counter.
+- The engine ASCII art has six stages (`ENGINE_SOOT_STAGES`, indices 5
+  to 0) chosen each frame from `peakHeat / target`. Stages 5–1 are the
+  small dormant engine with progressively less soot. Stage 0 is the
+  ornate, larger restored form that locks in once Phase 1 ends; flame
+  animation (faint / steady / roaring) only runs on the ornate stage.
+
+Narration beats fire as `peakHeat` crosses 25, 50, 75, and 100% of the
+target — `sootBeat1`/`2`/`3` and the existing `mergeGrid` reveal. Phase
+transition also triggers a `screenFlash` and `screenShake('big')` for
+emphasis.
+
+`peakHeat` is monotonic — heat dips don't roll soot back. Existing saves
+past Phase 1 are auto-migrated (`peakHeat = target`) on load.
 
 - **Gather Stick** — 3-second progress-bar action that yields
   `bonuses.sticksPerGather` sticks (default 1). Always visible.

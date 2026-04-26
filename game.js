@@ -27,7 +27,88 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v30';
+const APP_VERSION = 'v31';
+
+// Phase 1 ends when the player has pushed heat to this level once. The
+// peakHeat stat tracks the all-time max so progress is monotonic; soot
+// stages fade as that ratio approaches 1, and at 1.0 the engine
+// "remembers itself" — the ornate ASCII swaps in and the merge grid
+// reveals. The number is intentionally locked (not capacity-scaled) so
+// later furnace-capacity upgrades don't extend Phase 1.
+const PHASE_1_HEAT_TARGET = 100;
+
+// Six progression stages for the engine ASCII art during Phase 1.
+// Stage indices 5..1 are the small dormant engine with progressively
+// less soot. Stage 0 is the ornate/expanded form that locks in once
+// peakHeat >= PHASE_1_HEAT_TARGET. Frame text is whitespace-significant.
+const ENGINE_SOOT_STAGES = [
+    // Stage 0 — restored / ornate. Larger and more elaborate.
+`    _____________
+   /             \\
+  /  *         *  \\
+ |   .---------.   |
+ |   |  .   .  |   |
+ |   |    _    |   |
+ |   |  '---'  |   |
+ |   '---------'   |
+  \\_______________/
+   |_____________|
+    |___________|`,
+    // Stage 1 — small, essentially clean
+`    _______
+   /       \\
+  |  .   .  |
+  |    _    |
+  |  '---'  |
+  |_________|
+ /___________\\
+|_____________|`,
+    // Stage 2 — small, light soot
+`    _______
+   /,      \\
+  |  ., .   |
+  |    _    |
+  |  '---'  |
+  |_________|
+ /,__________\\
+|_____________|`,
+    // Stage 3 — small, half-purged
+`    _______
+   /,    , \\
+  |  .,. , |
+  |   ~~   |
+  |  '---' |
+  |_;______|
+ /,_______,_\\
+|;____________|`,
+    // Stage 4 — small, heavy patches
+`   ;_______,;
+   /:,    :,\\
+  |:., .,, :|
+  |;: ~~~~ :|
+  |~,'-:-',:|
+  |_;,____;_|
+ /,;:~,~,;:\\
+|;:.~~~,~:.|`,
+    // Stage 5 — heavily fouled
+`   ,;:_____,;:
+   /::,   :,~\\
+  |;: ~~,~~ ;|
+  |~:.,..,.~|
+  |;:'~---',:|
+  |_;,,___,;_|
+ /,;:~~~~~,;:\\
+|;,~,;~~~,;:,~|`
+];
+
+function getEngineSootStage() {
+    const peak = (game && game.stats && game.stats.peakHeat) || 0;
+    if (peak >= PHASE_1_HEAT_TARGET) return 0;
+    const ratio = peak / PHASE_1_HEAT_TARGET;
+    // Map ratio [0..1) to stage [5..1]
+    const stage = 5 - Math.floor(ratio * 5);
+    return Math.max(1, Math.min(5, stage));
+}
 
 const UPGRADES = {
     furnace: [
@@ -97,14 +178,17 @@ const REVEAL_STAGES = [
     { id: 'heatMeter',     cond: g => g.stats.totalHeat >= 1,      narrate: 'A faint warmth rises from the iron.',         targets: ['#resources', '#heat-resource', '#furnace-temp'] },
     { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#fuel-readout'] },
     { id: 'upgrades',      cond: g => g.stats.kindlingAdded >= 3,  narrate: 'The engine responds to your attention. Tools take shape.', targets: ['#upgrades-section'] },
-    { id: 'mergeGrid',     cond: g => g.stats.kindlingAdded >= 20,
-        narrate: 'The engine has tasted enough kindling. It shows you what more it can do.',
+    // Soot-burn-off narration beats fire as peakHeat climbs the Phase 1 target.
+    { id: 'sootBeat1',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.25, narrate: 'Grime cracks. Something underneath shifts.' },
+    { id: 'sootBeat2',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.5,  narrate: 'Symbols rise from the soot. Half-remembered.' },
+    { id: 'sootBeat3',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.75, narrate: 'The engine is almost itself again.' },
+    { id: 'mergeGrid',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET,
+        narrate: 'It remembers. The engine expands.',
         targets: ['#merge-section'],
         onReveal: () => {
             hideIntroControls();
-            // Seed two Sparks so the merge mechanic is obvious
-            spawnItem('fuel', false);
-            spawnItem('fuel', false);
+            screenFlash('var(--accent-fire)');
+            screenShake('big');
         } },
     // Achievements stage intentionally omitted while the achievements UI is
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
@@ -169,7 +253,8 @@ const defaultGame = {
         startTime: Date.now(),
         playTime: 0,
         kindlingAdded: 0,
-        sticksGathered: 0
+        sticksGathered: 0,
+        peakHeat: 0
     },
     philosopherStones: 0,
     prestigeCount: 0,
@@ -1328,6 +1413,11 @@ function gameLoop() {
     // Automation
     processAutomation(delta);
 
+    // Phase 1 progress: peakHeat is monotonic, the soot stages key off it
+    if (game.resources.heat > (game.stats.peakHeat || 0)) {
+        game.stats.peakHeat = game.resources.heat;
+    }
+
     updateUI();
 }
 
@@ -2061,8 +2151,13 @@ function feedStick(bulk = false) {
 // ============================================
 
 function updateUI() {
-    // Resources
-    document.getElementById('heat-value').textContent = formatNumber(Math.floor(game.resources.heat));
+    // Resources — Phase 1 shows "47/100" so the player has a target;
+    // once peakHeat clears the threshold, heat is just an unbounded counter.
+    const phase1Active = (game.stats.peakHeat || 0) < PHASE_1_HEAT_TARGET;
+    const heatTxt = formatNumber(Math.floor(game.resources.heat));
+    document.getElementById('heat-value').textContent = phase1Active
+        ? `${heatTxt}/${PHASE_1_HEAT_TARGET}`
+        : heatTxt;
     document.getElementById('metal-value').textContent = formatNumber(Math.floor(game.resources.metal));
     document.getElementById('alloy-value').textContent = formatNumber(Math.floor(game.resources.alloy));
     document.getElementById('gear-value').textContent = formatNumber(Math.floor(game.resources.gears));
@@ -2116,7 +2211,12 @@ function updateUI() {
     }
     document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
 
-    // Furnace ASCII animation — art changes with temperature
+    // Furnace ASCII animation — art changes with temperature.
+    //
+    // During Phase 1 (peakHeat < target) we render a static sooted engine
+    // whose stage tracks how high heat has ever climbed. Once peakHeat
+    // crosses the target we lock in the ornate "restored" form and let
+    // the temperature-driven burn/roar frames take over again.
     const furnaceAscii = document.getElementById('furnace-ascii');
     if (furnaceAscii) {
         const burning = game.furnace.fuel > 0;
@@ -2126,55 +2226,41 @@ function updateUI() {
         furnaceAscii.classList.toggle('cold', cold);
         furnaceAscii.classList.toggle('roaring', temp >= 400);
 
-        const t = Math.floor(Date.now() / 180);
-        if (burning && temp >= 400) {
-            // Roaring inferno
-            const a = ['*^*^*', '^*^*^', '*^^*^', '^*^^*'][t % 4];
-            const b = ['^^^^^', '*^*^*', '^*^*^', '^^*^^'][t % 4];
-            furnaceAscii.textContent = `
-    _______
-   /  ${a}  \\
-  |  ${b}  |
-  |  ${a}  |
-  |  \\_|_/  |
-  |_________|
- /___________\\
-|_____________|`;
-        } else if (burning && temp >= 100) {
-            // Steady burn
-            const a = ['  ^  ', ' ^^^ ', '^^^^^'][t % 3];
-            const b = [' ^^^ ', '^^^^^', '  ^  '][t % 3];
-            furnaceAscii.textContent = `
-    _______
-   /       \\
-  |  ${a}  |
-  |  ${b}  |
-  |  '---'  |
-  |_________|
- /___________\\
-|_____________|`;
-        } else if (burning) {
-            // Faint warmth
-            const a = ['  .  ', ' . . ', '  .  '][t % 3];
-            furnaceAscii.textContent = `
-    _______
-   /       \\
-  |  ${a}  |
-  |    _    |
-  |  '---'  |
-  |_________|
- /___________\\
-|_____________|`;
+        const sootStage = getEngineSootStage();
+        furnaceAscii.classList.toggle('sooted', sootStage > 0);
+
+        if (sootStage > 0) {
+            // Phase 1: static sooted engine, no flame frames yet.
+            furnaceAscii.textContent = ENGINE_SOOT_STAGES[sootStage];
         } else {
+            // Phase 2+: ornate restored engine with animated flame slots.
+            const t = Math.floor(Date.now() / 180);
+            let a, b;
+            if (burning && temp >= 400) {
+                a = ['*^*^*', '^*^*^', '*^^*^', '^*^^*'][t % 4];
+                b = ['^^^^^', '*^*^*', '^*^*^', '^^*^^'][t % 4];
+            } else if (burning && temp >= 100) {
+                a = ['  ^  ', ' ^^^ ', '^^^^^'][t % 3];
+                b = [' ^^^ ', '^^^^^', '  ^  '][t % 3];
+            } else if (burning) {
+                a = ['  .  ', ' . . ', '  .  '][t % 3];
+                b = '  _  ';
+            } else {
+                a = '. . .';
+                b = '  _  ';
+            }
             furnaceAscii.textContent = `
-    _______
-   /       \\
-  |  .   .  |
-  |    _    |
-  |  '---'  |
-  |_________|
- /___________\\
-|_____________|`;
+    _____________
+   /             \\
+  /  *         *  \\
+ |   .---------.   |
+ |   |  ${a}  |   |
+ |   |  ${b}  |   |
+ |   |  '---'  |   |
+ |   '---------'   |
+  \\_______________/
+   |_____________|
+    |___________|`;
         }
     }
 
@@ -2564,6 +2650,13 @@ function loadGame() {
                 (game.stats.kindlingAdded || 0) > 0
             )) {
                 game.introSeen = true;
+            }
+
+            // Migration: peakHeat is a new stat. Anyone past the merge-grid
+            // reveal has effectively cleared Phase 1 already, so seed it to
+            // the target so they don't see the soot UI.
+            if ((game.stats.peakHeat || 0) < PHASE_1_HEAT_TARGET && game.revealed.mergeGrid) {
+                game.stats.peakHeat = PHASE_1_HEAT_TARGET;
             }
 
             // Re-apply upgrades
