@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v37';
+const APP_VERSION = 'v38';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -194,7 +194,7 @@ const defaultGame = {
     prestigeCount: 0,
     introSeen: false,
     locations: {
-        grove: { sticks: 5, stones: 1 }
+        grove: { collected: [] }
     },
     lastUpdate: Date.now()
 };
@@ -1693,43 +1693,89 @@ function prestige() {
 // UPGRADES
 // ============================================
 
-// Trial location: The Dead Grove. Click sticks / a rock to pick them up.
-// Items don't respawn for now — this is a proof-of-concept of the
-// click-to-collect mechanic, not a balanced location yet.
+// Trial location: The Dead Grove. The scene is a hand-authored ASCII
+// landscape — three dead trees over a small patch of ground with sticks
+// and a stone scattered through it. The `$` character is a placeholder:
+// each one is replaced at render time by a clickable item span (or by
+// blank space if that item has already been picked). Items don't
+// respawn yet — this is a proof of concept for the picture-as-the-UI
+// approach, not a balanced location.
+const GROVE_SCENE = [
+    '    *         *         *   ',
+    '   /|\\       /|\\       /|\\  ',
+    '  / | \\     / | \\     / | \\ ',
+    '    |         |         |   ',
+    '                            ',
+    '  $     $         $     $   ',
+    '       $               $    '
+];
+// One entry per `$` in GROVE_SCENE, in left-to-right / top-to-bottom order.
+const GROVE_ITEMS = [
+    { type: 'stick' },
+    { type: 'stick' },
+    { type: 'stone' },
+    { type: 'stick' },
+    { type: 'stick' },
+    { type: 'stick' }
+];
+
+function ensureGroveState() {
+    if (!game.locations) game.locations = JSON.parse(JSON.stringify(defaultGame.locations));
+    if (!game.locations.grove) game.locations.grove = { collected: [] };
+    if (!Array.isArray(game.locations.grove.collected)) {
+        game.locations.grove.collected = [];
+    }
+}
+
 function renderGrove() {
-    const container = document.getElementById('grove-items');
-    if (!container) return;
-    container.textContent = '';
+    const scene = document.getElementById('grove-scene');
+    if (!scene) return;
+    ensureGroveState();
+    scene.textContent = '';
 
-    const grove = (game.locations && game.locations.grove) || { sticks: 0, stones: 0 };
+    const collected = game.locations.grove.collected;
+    let itemIdx = 0;
 
-    for (let i = 0; i < grove.sticks; i++) {
-        const el = document.createElement('button');
-        el.className = 'grove-item grove-stick';
-        el.type = 'button';
-        el.textContent = '/';
-        el.setAttribute('aria-label', 'Pick up a stick');
-        el.addEventListener('click', () => collectGroveItem('stick'));
-        container.appendChild(el);
-    }
-    for (let i = 0; i < grove.stones; i++) {
-        const el = document.createElement('button');
-        el.className = 'grove-item grove-stone';
-        el.type = 'button';
-        el.textContent = '#';
-        el.setAttribute('aria-label', 'Pick up a stone');
-        el.addEventListener('click', () => collectGroveItem('stone'));
-        container.appendChild(el);
-    }
+    GROVE_SCENE.forEach((line) => {
+        const row = document.createElement('div');
+        row.className = 'grove-row';
+        for (const ch of line) {
+            if (ch === '$') {
+                const id = itemIdx++;
+                if (collected.includes(id)) {
+                    row.appendChild(document.createTextNode(' '));
+                } else {
+                    const item = GROVE_ITEMS[id];
+                    const btn = document.createElement('span');
+                    btn.className = `grove-item grove-${item.type}`;
+                    btn.setAttribute('role', 'button');
+                    btn.tabIndex = 0;
+                    btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
+                    btn.textContent = item.type === 'stick' ? '/' : '#';
+                    btn.addEventListener('click', () => collectGroveItem(id));
+                    btn.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            collectGroveItem(id);
+                        }
+                    });
+                    row.appendChild(btn);
+                }
+            } else {
+                row.appendChild(document.createTextNode(ch));
+            }
+        }
+        scene.appendChild(row);
+    });
 
-    if (grove.sticks === 0 && grove.stones === 0) {
-        const empty = document.createElement('span');
+    const allCollected = collected.length >= GROVE_ITEMS.length;
+    if (allCollected) {
+        const empty = document.createElement('div');
         empty.className = 'grove-empty';
         empty.textContent = 'The grove is empty for now.';
-        container.appendChild(empty);
+        scene.appendChild(empty);
     }
 
-    // Inventory blurb beneath the grove items
     const found = document.getElementById('grove-found');
     if (found) {
         const stoneCount = (game.resources.stones || 0);
@@ -1737,21 +1783,23 @@ function renderGrove() {
     }
 }
 
-function collectGroveItem(type) {
-    if (!game.locations || !game.locations.grove) return;
-    const grove = game.locations.grove;
-    if (type === 'stick' && grove.sticks > 0) {
-        grove.sticks--;
+function collectGroveItem(id) {
+    ensureGroveState();
+    const collected = game.locations.grove.collected;
+    if (collected.includes(id)) return;
+    const item = GROVE_ITEMS[id];
+    if (!item) return;
+
+    collected.push(id);
+    if (item.type === 'stick') {
         game.resources.sticks = (game.resources.sticks || 0) + 1;
         game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
         sfx('kindle');
-    } else if (type === 'stone' && grove.stones > 0) {
-        grove.stones--;
+    } else if (item.type === 'stone') {
         game.resources.stones = (game.resources.stones || 0) + 1;
         sfx('purchase');
-    } else {
-        return;
     }
+
     renderGrove();
     updateUI();
 }
@@ -2722,6 +2770,11 @@ function loadGame() {
             // a fresh Dead Grove so old saves get the trial location.
             if (!game.locations) {
                 game.locations = JSON.parse(JSON.stringify(defaultGame.locations));
+            }
+            // Migration: the trial grove used to count by type. Convert
+            // any old format to the new collected-id list.
+            if (game.locations.grove && !Array.isArray(game.locations.grove.collected)) {
+                game.locations.grove = { collected: [] };
             }
 
             // Re-apply upgrades
