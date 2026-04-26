@@ -1107,6 +1107,7 @@ function spawnFuel(bulk = false) {
         }
         if (spawnItem('fuel')) {
             game.resources.heat -= SPARK_HEAT_COST;
+            updateUI();
         }
         return;
     }
@@ -1126,6 +1127,7 @@ function spawnFuel(bulk = false) {
             : 'Grid is full!', 'error');
     } else {
         showToast(`Spawned ${count} sparks!`, 'success');
+        updateUI();
     }
 }
 
@@ -1133,7 +1135,10 @@ function spawnOre(bulk = false) {
     const cost = 10;
     if (!bulk) {
         if (game.resources.heat >= cost) {
-            if (spawnItem('ore')) game.resources.heat -= cost;
+            if (spawnItem('ore')) {
+                game.resources.heat -= cost;
+                updateUI();
+            }
         } else {
             showToast('Not enough heat!', 'error');
         }
@@ -1149,8 +1154,12 @@ function spawnOre(bulk = false) {
             count++;
         } else break;
     }
-    if (count === 0) showToast('No room or not enough heat!', 'error');
-    else showToast(`Spawned ${count} ore!`, 'success');
+    if (count === 0) {
+        showToast('No room or not enough heat!', 'error');
+    } else {
+        showToast(`Spawned ${count} ore!`, 'success');
+        updateUI();
+    }
 }
 
 // ============================================
@@ -2075,15 +2084,18 @@ const burnAll = document.getElementById('burn-all-btn');
     document.addEventListener('keydown', unlockAudio);
     document.addEventListener('touchend', unlockAudio);
 
-    // Block iOS double-tap zoom on interactive surfaces. touch-action:
-    // manipulation handles most cases, but Safari still zooms on rapid
-    // taps of non-form elements in some versions.
+    // Block iOS double-tap zoom on inert page surfaces only. touch-action:
+    // manipulation handles buttons and grid cells; calling preventDefault
+    // on touchend would cancel the synthetic click that follows, eating
+    // every other rapid tap on actionable controls. Only block here when
+    // the touch lands somewhere that *wouldn't* otherwise dispatch a
+    // useful click — i.e. background chrome, decorative ASCII, etc.
     let lastTouchEnd = 0;
+    const INTERACTIVE_SELECTOR = 'button, a, textarea, input, select, label, .grid-cell, .drop-zone, .resource, [role="button"]';
     document.addEventListener('touchend', (e) => {
         const now = Date.now();
         if (now - lastTouchEnd <= 350) {
-            // Let dblclick fire on grid items but not zoom the viewport
-            if (!e.target.closest('textarea, input')) {
+            if (!e.target.closest(INTERACTIVE_SELECTOR)) {
                 e.preventDefault();
             }
         }
