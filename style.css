@@ -325,6 +325,75 @@ section h2::after {
     border-color: var(--text-primary);
 }
 
+/* The Dead Grove (trial location). Click sticks / stones to pick them up. */
+#location-grove {
+    /* inherits the standard section frame */
+}
+
+.location-desc {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+}
+
+.location-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    min-height: 56px;
+    align-items: center;
+}
+
+.grove-item {
+    cursor: pointer;
+    padding: 8px 14px;
+    border: 1px solid var(--text-dim);
+    background: var(--bg-medium);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 0.06s ease, border-color 0.06s ease;
+}
+
+.grove-stick {
+    color: #aa8866;
+    border-color: #664422;
+}
+
+.grove-stone {
+    color: #cccccc;
+    border-color: #888888;
+}
+
+@media (hover: hover) {
+    .grove-item:hover {
+        border-color: var(--text-bright);
+    }
+}
+
+.grove-item:active {
+    transform: scale(0.92);
+    border-color: var(--text-bright);
+}
+
+.grove-empty {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.grove-found {
+    margin-top: 8px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    min-height: 1em;
+}
+
 /* Empty-cell beacon while the player is drawing a Spark out of the
    engine. Subtler than .drag-over (which is the active-hover state)
    but unmistakable as a "drop here" signal across the whole grid. */

@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v36';
+const APP_VERSION = 'v37';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -131,6 +131,7 @@ const REVEAL_STAGES = [
 const defaultGame = {
     resources: {
         heat: 0,
+        stones: 0,
         metal: 0,
         alloy: 0,
         gears: 0,
@@ -192,6 +193,9 @@ const defaultGame = {
     philosopherStones: 0,
     prestigeCount: 0,
     introSeen: false,
+    locations: {
+        grove: { sticks: 5, stones: 1 }
+    },
     lastUpdate: Date.now()
 };
 
@@ -232,6 +236,7 @@ function init() {
     renderAchievements();
     applyRevealedFlags();
     applyUnlocksFromSave();
+    renderGrove();
     const versionTag = document.getElementById('version-tag');
     if (versionTag) versionTag.textContent = APP_VERSION;
     updateUI();
@@ -1688,6 +1693,69 @@ function prestige() {
 // UPGRADES
 // ============================================
 
+// Trial location: The Dead Grove. Click sticks / a rock to pick them up.
+// Items don't respawn for now — this is a proof-of-concept of the
+// click-to-collect mechanic, not a balanced location yet.
+function renderGrove() {
+    const container = document.getElementById('grove-items');
+    if (!container) return;
+    container.textContent = '';
+
+    const grove = (game.locations && game.locations.grove) || { sticks: 0, stones: 0 };
+
+    for (let i = 0; i < grove.sticks; i++) {
+        const el = document.createElement('button');
+        el.className = 'grove-item grove-stick';
+        el.type = 'button';
+        el.textContent = '/';
+        el.setAttribute('aria-label', 'Pick up a stick');
+        el.addEventListener('click', () => collectGroveItem('stick'));
+        container.appendChild(el);
+    }
+    for (let i = 0; i < grove.stones; i++) {
+        const el = document.createElement('button');
+        el.className = 'grove-item grove-stone';
+        el.type = 'button';
+        el.textContent = '#';
+        el.setAttribute('aria-label', 'Pick up a stone');
+        el.addEventListener('click', () => collectGroveItem('stone'));
+        container.appendChild(el);
+    }
+
+    if (grove.sticks === 0 && grove.stones === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'grove-empty';
+        empty.textContent = 'The grove is empty for now.';
+        container.appendChild(empty);
+    }
+
+    // Inventory blurb beneath the grove items
+    const found = document.getElementById('grove-found');
+    if (found) {
+        const stoneCount = (game.resources.stones || 0);
+        found.textContent = stoneCount > 0 ? `Stones gathered: ${stoneCount}` : '';
+    }
+}
+
+function collectGroveItem(type) {
+    if (!game.locations || !game.locations.grove) return;
+    const grove = game.locations.grove;
+    if (type === 'stick' && grove.sticks > 0) {
+        grove.sticks--;
+        game.resources.sticks = (game.resources.sticks || 0) + 1;
+        game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
+        sfx('kindle');
+    } else if (type === 'stone' && grove.stones > 0) {
+        grove.stones--;
+        game.resources.stones = (game.resources.stones || 0) + 1;
+        sfx('purchase');
+    } else {
+        return;
+    }
+    renderGrove();
+    updateUI();
+}
+
 function renderUpgrades() {
     for (const [category, upgrades] of Object.entries(UPGRADES)) {
         const panel = document.getElementById(`${category}-upgrades`);
@@ -2648,6 +2716,12 @@ function loadGame() {
             // past Phase 1 don't need the tutorial twinkle.
             if (!game.stats.firstEngineSpark && game.revealed.mergeGrid) {
                 game.stats.firstEngineSpark = true;
+            }
+
+            // Migration: locations is a new field. If missing, seed with
+            // a fresh Dead Grove so old saves get the trial location.
+            if (!game.locations) {
+                game.locations = JSON.parse(JSON.stringify(defaultGame.locations));
             }
 
             // Re-apply upgrades
