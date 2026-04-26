@@ -565,6 +565,88 @@ function handleDragEnd(e) {
     document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
 }
 
+// Engine-as-source drag: pull a fresh Spark out of the furnace and drop it
+// on a grid cell. The synthetic dragged item carries fromEngine=true so the
+// drop handlers can branch to engineDropOnCell instead of trying to move a
+// non-existent source cell.
+function canDragSparkFromEngine() {
+    return !!game.revealed.mergeGrid && game.resources.heat >= SPARK_HEAT_COST;
+}
+
+function handleEngineDragStart(e) {
+    if (!canDragSparkFromEngine()) {
+        e.preventDefault();
+        return;
+    }
+    draggedItem = { type: 'fuel', tier: 1, fromEngine: true };
+    draggedIndex = -1;
+    draggedElement = e.currentTarget;
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', 'engine-spark');
+    }
+    // Highlight tier-1 fuel on the grid as merge targets
+    game.grid.forEach((cell, i) => {
+        if (cell && cell.type === 'fuel' && cell.tier === 1) {
+            const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
+            if (el) el.classList.add('merge-target');
+        }
+    });
+}
+
+function handleEngineDragEnd() {
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
+    draggedItem = null;
+    draggedIndex = null;
+    draggedElement = null;
+}
+
+function engineDropOnCell(targetIndex) {
+    if (game.resources.heat < SPARK_HEAT_COST) {
+        showToast('Not enough heat — gather sticks to rekindle.', 'error');
+        sfx('error');
+        return;
+    }
+    const targetItem = game.grid[targetIndex];
+
+    if (!targetItem) {
+        // Empty cell: place a fresh Spark
+        game.grid[targetIndex] = { type: 'fuel', tier: 1 };
+        game.resources.heat -= SPARK_HEAT_COST;
+        renderGridItem(targetIndex);
+        sfx('kindle');
+        updateUI();
+        return;
+    }
+
+    if (targetItem.type === 'fuel' && targetItem.tier === 1) {
+        // Merge fresh Spark into existing tier-1 fuel → Ember (tier 2)
+        const newTier = 2;
+        game.grid[targetIndex] = { type: 'fuel', tier: newTier };
+        game.resources.heat -= SPARK_HEAT_COST;
+        game.stats.totalMerges++;
+        if (newTier > game.stats.highestFuelTier) game.stats.highestFuelTier = newTier;
+        if (game.stats.totalMerges === 1) {
+            setNarration('The substances have fused. Bigger embers burn hotter, longer.');
+        }
+        renderGridItem(targetIndex);
+        const newItem = document.querySelector(`.grid-cell[data-index="${targetIndex}"] > div`);
+        if (newItem) {
+            newItem.classList.add('merge-flash');
+            setTimeout(() => newItem.classList.remove('merge-flash'), 300);
+            const tierInfo = FUEL_TIERS[newTier - 1];
+            if (tierInfo) floatPopup(newItem, `+${tierInfo.name}`, 'merge');
+        }
+        sfx('merge', newTier);
+        updateUI();
+        return;
+    }
+
+    // Mismatched cell — fail gracefully
+    showToast('Drop on an empty cell or another Spark.', 'error');
+}
+
 function handleDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -580,6 +662,12 @@ function handleDrop(e) {
     e.currentTarget.classList.remove('drag-over');
 
     const targetIndex = parseInt(e.currentTarget.dataset.index);
+
+    // Drag from engine — branch to engineDropOnCell, no source cell to clear.
+    if (draggedItem && draggedItem.fromEngine) {
+        engineDropOnCell(targetIndex);
+        return;
+    }
 
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
@@ -674,22 +762,40 @@ function handleTouchStart(e) {
 function beginTouchDrag() {
     if (!touchDragState || touchDragState.moved) return;
     const { itemEl, index, item } = touchDragState;
+    const fromEngine = !!item.fromEngine;
 
     draggedIndex = index;
     draggedItem = item;
     draggedElement = itemEl;
 
-    itemEl.classList.add('dragging');
+    if (!fromEngine) itemEl.classList.add('dragging');
 
-    // Ghost element follows the finger
-    const rect = itemEl.getBoundingClientRect();
-    const ghost = itemEl.cloneNode(true);
-    ghost.classList.add('touch-ghost');
+    let ghost;
+    if (fromEngine) {
+        // Synthetic Spark ghost (don't clone the whole engine visual)
+        ghost = document.createElement('div');
+        const tierInfo = FUEL_TIERS[0];
+        ghost.className = `fuel-item ${tierInfo.color} touch-ghost`;
+        const label = document.createElement('span');
+        label.className = 'item-tier-label';
+        label.textContent = tierInfo.name;
+        ghost.appendChild(label);
+        const size = 56;
+        ghost.style.left = (touchDragState.startX - size / 2) + 'px';
+        ghost.style.top = (touchDragState.startY - size / 2) + 'px';
+        ghost.style.width = size + 'px';
+        ghost.style.height = size + 'px';
+    } else {
+        // Clone the source grid item so the ghost matches what was picked up
+        const rect = itemEl.getBoundingClientRect();
+        ghost = itemEl.cloneNode(true);
+        ghost.classList.add('touch-ghost');
+        ghost.style.left = rect.left + 'px';
+        ghost.style.top = rect.top + 'px';
+        ghost.style.width = rect.width + 'px';
+        ghost.style.height = rect.height + 'px';
+    }
     ghost.style.position = 'fixed';
-    ghost.style.left = rect.left + 'px';
-    ghost.style.top = rect.top + 'px';
-    ghost.style.width = rect.width + 'px';
-    ghost.style.height = rect.height + 'px';
     ghost.style.pointerEvents = 'none';
     ghost.style.zIndex = '9998';
     ghost.style.opacity = '0.85';
@@ -698,17 +804,49 @@ function beginTouchDrag() {
     touchDragState.ghost = ghost;
     touchDragState.moved = true;
 
-    // Highlight same-tier merge targets (same as handleDragStart)
-    const maxTier = item.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
-    if (item.tier < maxTier) {
+    // Highlight merge targets
+    if (fromEngine) {
+        // Only tier-1 sparks accept an engine-spark for a merge
         game.grid.forEach((cell, i) => {
-            if (i === index) return;
-            if (cell && cell.type === item.type && cell.tier === item.tier) {
+            if (cell && cell.type === 'fuel' && cell.tier === 1) {
                 const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
                 if (el) el.classList.add('merge-target');
             }
         });
+    } else {
+        const maxTier = item.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
+        if (item.tier < maxTier) {
+            game.grid.forEach((cell, i) => {
+                if (i === index) return;
+                if (cell && cell.type === item.type && cell.tier === item.tier) {
+                    const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
+                    if (el) el.classList.add('merge-target');
+                }
+            });
+        }
     }
+}
+
+// Touch entry point for "drag a Spark out of the engine" flow.
+function handleEngineTouchStart(e) {
+    if (!canDragSparkFromEngine()) return;
+    if (e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    touchDragState = {
+        itemEl: e.currentTarget,
+        index: -1,
+        item: { type: 'fuel', tier: 1, fromEngine: true },
+        startX: t.clientX,
+        startY: t.clientY,
+        moved: false,
+        ghost: null,
+        lastTarget: null
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 }
 
 function handleTouchMove(e) {
@@ -742,10 +880,13 @@ function handleTouchMove(e) {
         touchDragState.lastTarget.classList.remove('drag-over');
     }
     if (target && target !== touchDragState.lastTarget) {
-        // Only highlight drop zones that accept this item type
+        // Only highlight drop zones that accept this item type. Engine-source
+        // drags don't accept any drop zone (they only place on grid cells).
         if (target.classList.contains('drop-zone')) {
-            const accepts = (target.id === 'furnace-fuel-slot' && draggedItem.type === 'fuel') ||
-                            (target.id === 'smelter-ore-slot'   && draggedItem.type === 'ore');
+            const accepts = !draggedItem.fromEngine && (
+                (target.id === 'furnace-fuel-slot' && draggedItem.type === 'fuel') ||
+                (target.id === 'smelter-ore-slot'   && draggedItem.type === 'ore')
+            );
             if (accepts) target.classList.add('drag-over');
         } else {
             target.classList.add('drag-over');
@@ -780,7 +921,11 @@ function handleTouchEnd(e) {
 
     if (target) {
         if (target.classList.contains('drop-zone')) {
-            dispatchTouchDropOnZone(target);
+            // Engine-source drag releasing on a drop zone is a no-op —
+            // sparks only place on grid cells, not back into the furnace.
+            if (!draggedItem || !draggedItem.fromEngine) {
+                dispatchTouchDropOnZone(target);
+            }
         } else {
             dispatchTouchDropOnGrid(target);
         }
@@ -800,6 +945,13 @@ function handleTouchEnd(e) {
 
 function dispatchTouchDropOnGrid(cell) {
     const targetIndex = parseInt(cell.dataset.index);
+
+    // Drag from engine — branch to engineDropOnCell.
+    if (draggedItem && draggedItem.fromEngine) {
+        engineDropOnCell(targetIndex);
+        return;
+    }
+
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
     const targetItem = game.grid[targetIndex];
@@ -1936,6 +2088,18 @@ const burnAll = document.getElementById('burn-all-btn');
     // Furnace drop zone
     setupFurnaceDropZone();
     setupSmelterDropZone();
+
+    // Engine as a drag SOURCE: drag a Spark out of the furnace onto the grid.
+    // Listeners are bound unconditionally; the handlers gate themselves on
+    // canDragSparkFromEngine() so dragging is a no-op until merge grid is
+    // unlocked and there's enough heat to spend.
+    const furnaceVisual = document.getElementById('furnace-visual');
+    if (furnaceVisual) {
+        furnaceVisual.setAttribute('draggable', 'true');
+        furnaceVisual.addEventListener('dragstart', handleEngineDragStart);
+        furnaceVisual.addEventListener('dragend', handleEngineDragEnd);
+        furnaceVisual.addEventListener('touchstart', handleEngineTouchStart, { passive: false });
+    }
 
     // Crafting buttons
     document.getElementById('craft-alloy').addEventListener('click', craftAlloy);

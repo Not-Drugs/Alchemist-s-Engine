@@ -470,6 +470,17 @@ section h2::after {
     padding: 12px 14px 10px;
     position: relative;
     font-family: inherit;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    /* Disable iOS long-press callout / image preview while dragging */
+    -webkit-touch-callout: none;
+    /* Drag with finger/cursor; tap interactions still work */
+    touch-action: none;
+}
+
+#furnace-visual:active {
+    cursor: grabbing;
 }
 
 #furnace-ascii {

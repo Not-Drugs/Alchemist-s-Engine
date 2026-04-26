@@ -76,6 +76,14 @@ seeds two Sparks on the grid as a tutorial nudge.
    - Drop fuel into furnace to generate Heat
    - **Sparks cost 1 heat each** — the merge system runs on the heat the
      engine has produced. Auto-Sparkers (automation) bypass the heat cost.
+   - **Bidirectional engine drag.** Fuel items drag from the grid into
+     `#furnace-fuel-slot` (existing). The engine itself (`#furnace-visual`)
+     is also a drag SOURCE: dragging from it onto an empty grid cell
+     spawns a fresh Spark (costs 1 heat); dragging onto an existing
+     tier-1 Spark merges them into an Ember. The drag uses a synthetic
+     `draggedItem.fromEngine = true` flag so `handleDrop` and
+     `dispatchTouchDropOnGrid` route to `engineDropOnCell()` instead of
+     trying to clear a non-existent source cell.
 
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat
