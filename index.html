@@ -132,7 +132,10 @@
                         <div id="smelter-ore-slot" class="drop-zone">
                             <span>Drop Ore Here<br><small>(or dbl/right-click)</small></span>
                         </div>
-                        <button id="smelt-all-btn" class="spawn-btn" title="Queue all ore from the grid into the smelter.">[»] Smelt All Ore</button>
+                        <div id="unlock-smelt-all" class="unlock-slot drop-zone">
+                            <div class="unlock-label">Drop a <strong>Pure Crystal</strong> to forge<br>[&raquo;] Smelt All Ore</div>
+                        </div>
+                        <button id="smelt-all-btn" class="spawn-btn reveal-hidden" title="Queue all ore from the grid into the smelter.">[»] Smelt All Ore</button>
                         <div id="smelter-stats">
                             <div>Ore Queue: <span id="smelter-ore">0</span></div>
                             <div>Progress: [<span id="smelter-progress-bar">&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;</span>] <span id="smelter-progress">0</span>%</div>

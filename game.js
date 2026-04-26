@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v29';
+const APP_VERSION = 'v30';
 
 const UPGRADES = {
     furnace: [
@@ -1158,13 +1158,14 @@ function dispatchTouchDropOnZone(zone) {
 // (under 'sparkUnlock' / 'burnAllUnlock') so it persists with the save.
 
 const UNLOCK_SLOTS = [
-    { slotId: 'unlock-spark',    upgradeId: 'sparkUnlock',    requiredTier: 6, label: '[+] Spark',         buttonId: 'spawn-fuel'  },
-    { slotId: 'unlock-burn-all', upgradeId: 'burnAllUnlock', requiredTier: 7, label: '[»] Burn All Fuel', buttonId: 'burn-all-btn' }
+    { slotId: 'unlock-spark',     upgradeId: 'sparkUnlock',    requiredType: 'fuel', requiredTier: 6, label: '[+] Spark',          buttonId: 'spawn-fuel'   },
+    { slotId: 'unlock-burn-all',  upgradeId: 'burnAllUnlock',  requiredType: 'fuel', requiredTier: 7, label: '[»] Burn All Fuel', buttonId: 'burn-all-btn'  },
+    { slotId: 'unlock-smelt-all', upgradeId: 'smeltAllUnlock', requiredType: 'ore',  requiredTier: 5, label: '[»] Smelt All Ore', buttonId: 'smelt-all-btn' }
 ];
 
 function unlockAcceptsDrag(slotConfig) {
     return draggedItem
-        && draggedItem.type === 'fuel'
+        && draggedItem.type === slotConfig.requiredType
         && draggedItem.tier === slotConfig.requiredTier
         && !draggedItem.fromEngine;
 }

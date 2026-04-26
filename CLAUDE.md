@@ -111,15 +111,20 @@ seeds two Sparks on the grid as a tutorial nudge.
      so swipes over them scroll the page natively. On a partially-
      full grid the empty cells provide a scroll path; outside the
      grid (margins, other sections) is always scrollable.
-   - **Convenience-button gating.** The `[+] Spark` spawner and
-     `[»] Burn All Fuel` button are hidden by default. Two unlock
-     slots in the merge section accept a sacrificed item to forge each:
-     drop a **Blazite (tier 6)** to unlock Spark, drop an **Infernite
-     (tier 7)** to unlock Burn All. Unlock state is recorded in
-     `game.upgrades` (under `'sparkUnlock'` and `'burnAllUnlock'`)
-     and replayed on load via `applyUnlocksFromSave()`. Manual
-     drag-from-engine and drag-fuel-to-engine remain available
-     pre-unlock so the player isn't blocked.
+   - **Convenience-button gating.** Three quick-action buttons are
+     hidden by default and unlock by sacrificing a specific high-tier
+     item dropped onto a slot:
+     - `[+] Spark` (in merge section) — needs a **Blazite** (fuel
+       tier 6).
+     - `[»] Burn All Fuel` (engine column) — needs an **Infernite**
+       (fuel tier 7).
+     - `[»] Smelt All Ore` (smelter section) — needs a **Pure
+       Crystal** (ore tier 5).
+     Unlock state is recorded in `game.upgrades` (under
+     `'sparkUnlock'`, `'burnAllUnlock'`, `'smeltAllUnlock'`) and
+     replayed on load via `applyUnlocksFromSave()`. Manual drag from
+     engine, drag fuel to engine, and drag ore to smelter remain
+     available pre-unlock so the player is never blocked.
 
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat
@@ -263,6 +268,16 @@ Heat is no longer a permanent accumulator. When the furnace is idle
   burn deliver less heat until the furnace warms. Don't change
   without re-tuning the early economy; the current numbers are
   balanced around the flat-rate assumption.
+- **Runic unlock slots.** Re-skin the convenience-button unlock slots
+  (currently a plain dashed-border box reading "Drop a Blazite to
+  forge [+] Spark") into something more thematic — engraved runic
+  altars where the required symbol is etched faintly into the slot
+  and lights up when the player places a matching item on it. Could
+  use box-drawing characters for the frame, the FUEL_TIERS / ORE_TIERS
+  ::before glyph as the placeholder rune, and a small flash + sigil
+  burn-in animation when consumed. Mechanics are settled (one item,
+  one unlock); this is purely a visual upgrade on top of the existing
+  UNLOCK_SLOTS pipeline.
 - **Environment / terraforming + buildings.** Reframe the game's
   setting: the player has woken in a magically blighted landscape
   and the engine's heat/output is what they use to slowly heal it.
