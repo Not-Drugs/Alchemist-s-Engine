@@ -325,6 +325,20 @@ section h2::after {
     border-color: var(--text-primary);
 }
 
+/* Empty-cell beacon while the player is drawing a Spark out of the
+   engine. Subtler than .drag-over (which is the active-hover state)
+   but unmistakable as a "drop here" signal across the whole grid. */
+.grid-cell.empty-target {
+    border-color: var(--accent-fire);
+    background: rgba(255, 102, 0, 0.08);
+    animation: emptyTargetPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes emptyTargetPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(255, 102, 0, 0); }
+    50%      { box-shadow: 0 0 8px rgba(255, 102, 0, 0.5); }
+}
+
 .grid-cell.drag-over::before {
     content: "+";
     color: var(--text-primary);
@@ -1351,6 +1365,53 @@ footer button:active {
    immediately. */
 .narration-hidden {
     display: none !important;
+}
+
+/* Phase 2 awakening modal — fires when peakHeat hits target. */
+.phase2-modal-content {
+    max-width: 480px;
+    text-align: center;
+    padding: 32px 28px 24px;
+}
+.phase2-modal-content h3 {
+    color: var(--accent-fire);
+    text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+}
+.phase2-modal-content h3::before,
+.phase2-modal-content h3::after {
+    color: var(--accent-fire);
+}
+.phase2-line {
+    margin-bottom: 14px;
+    color: var(--text-primary);
+    font-style: italic;
+    line-height: 1.6;
+}
+.phase2-modal-content .modal-buttons {
+    justify-content: center;
+    margin-top: 24px;
+}
+#phase2-dismiss {
+    padding: 10px 24px;
+    background: var(--bg-dark);
+    border: 1px solid var(--accent-fire);
+    color: var(--accent-fire);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    letter-spacing: 1px;
+}
+@media (hover: hover) {
+    #phase2-dismiss:hover {
+        background: var(--accent-fire);
+        color: var(--bg-dark);
+    }
+}
+#phase2-dismiss:active {
+    background: var(--accent-fire);
+    color: var(--bg-dark);
 }
 
 /* Intro story modal — atmospheric awakening beat shown on first load. */

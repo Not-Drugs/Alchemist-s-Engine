@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v34';
+const APP_VERSION = 'v35';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -110,12 +110,17 @@ const REVEAL_STAGES = [
     { id: 'sootBeat2',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.5,  narrate: 'Symbols rise from the soot. Half-remembered.' },
     { id: 'sootBeat3',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.75, narrate: 'The engine is almost itself again.' },
     { id: 'mergeGrid',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET,
-        narrate: 'The engine burns hot. Soot smolders away, revealing intricate carvings on the surface. The flame looks alive — almost as if you could reach out and grab it.',
         targets: ['#merge-section'],
         onReveal: () => {
             hideIntroControls();
             screenFlash('var(--accent-fire)');
             screenShake('big');
+            // Phase 2 awakening modal — interrupts the moment so the
+            // narration lands. Honors the Story Prompts toggle.
+            if (_narrationsEnabled) {
+                const modal = document.getElementById('phase2-modal');
+                if (modal) modal.classList.remove('hidden');
+            }
         } },
     // Achievements stage intentionally omitted while the achievements UI is
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
@@ -636,18 +641,33 @@ function handleEngineDragStart(e) {
         setTimeout(() => ghost.remove(), 0);
     }
     e.currentTarget.classList.add('engine-dragging');
-    // Highlight tier-1 fuel on the grid as merge targets
+    highlightEngineDropTargets();
+}
+
+// Light up the merge grid as the player begins drawing a spark out of the
+// engine. Empty cells get a soft beacon (.empty-target) so the player
+// sees where they can drop; existing tier-1 sparks get a pulse hint
+// (.merge-target) since dropping on one merges into an Ember.
+function highlightEngineDropTargets() {
     game.grid.forEach((cell, i) => {
+        const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
+        if (!el) return;
         if (cell && cell.type === 'fuel' && cell.tier === 1) {
-            const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
-            if (el) el.classList.add('merge-target');
+            el.classList.add('merge-target');
+        } else if (!cell) {
+            el.classList.add('empty-target');
         }
     });
+}
+
+function clearEngineDropTargets() {
+    document.querySelectorAll('.grid-cell.empty-target').forEach(el => el.classList.remove('empty-target'));
 }
 
 function handleEngineDragEnd() {
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
+    clearEngineDropTargets();
     const ascii = document.getElementById('furnace-ascii');
     if (ascii) ascii.classList.remove('engine-dragging');
     draggedItem = null;
@@ -864,13 +884,9 @@ function beginTouchDrag() {
 
     // Highlight merge targets
     if (fromEngine) {
-        // Only tier-1 sparks accept an engine-spark for a merge
-        game.grid.forEach((cell, i) => {
-            if (cell && cell.type === 'fuel' && cell.tier === 1) {
-                const el = document.querySelector(`.grid-cell[data-index="${i}"]`);
-                if (el) el.classList.add('merge-target');
-            }
-        });
+        // Tier-1 sparks merge with the engine spark; empty cells become
+        // beacons so the player sees where the spark can land.
+        highlightEngineDropTargets();
     } else {
         const maxTier = item.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
         if (item.tier < maxTier) {
@@ -1076,6 +1092,7 @@ function handleTouchEnd(e) {
     if (touchDragState.itemEl) touchDragState.itemEl.classList.remove('dragging');
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
+    clearEngineDropTargets();
 
     draggedItem = null;
     draggedIndex = null;
@@ -2475,6 +2492,15 @@ const burnAll = document.getElementById('burn-all-btn');
             narrationToggle.textContent = _narrationsEnabled ? '[ON]' : '[OFF]';
             try { localStorage.setItem('alchemistsEngine.narrations', _narrationsEnabled ? '1' : '0'); } catch (e) {}
             applyNarrationVisibility();
+        });
+    }
+
+    // Phase 2 awakening modal — close button.
+    const phase2Dismiss = document.getElementById('phase2-dismiss');
+    if (phase2Dismiss) {
+        phase2Dismiss.addEventListener('click', () => {
+            const modal = document.getElementById('phase2-modal');
+            if (modal) modal.classList.add('hidden');
         });
     }
 
