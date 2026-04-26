@@ -1221,6 +1221,18 @@ footer button:active {
     display: none !important;
 }
 
+/* Subtle build version at the bottom — quick way to spot a stale SW
+   cache after a deploy. Mirrors APP_VERSION in game.js. */
+#version-tag {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    opacity: 0.45;
+    margin-top: 12px;
+    letter-spacing: 1px;
+    user-select: none;
+}
+
 /* Story prompts toggle (Settings → Story Prompts) hides the narration line
    without removing it from the DOM, so flipping it back on resumes
    immediately. */

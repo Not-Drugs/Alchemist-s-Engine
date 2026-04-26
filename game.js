@@ -25,6 +25,10 @@ const ORE_TIERS = [
 
 const GRID_SIZE = 24; // 6x4 grid
 
+// Keep this in sync with `CACHE` in service-worker.js. Rendered into the
+// version tag at the bottom of the page so a stale build is easy to spot.
+const APP_VERSION = 'v20';
+
 const UPGRADES = {
     furnace: [
         { id: 'stickBundle',    name: 'Stick Bundle',    desc: 'Gather 2 sticks per click',         cost: 10,  costType: 'sticks', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 2); } },
@@ -211,6 +215,8 @@ function init() {
     renderUpgrades();
     renderAchievements();
     applyRevealedFlags();
+    const versionTag = document.getElementById('version-tag');
+    if (versionTag) versionTag.textContent = APP_VERSION;
     updateUI();
 
     startLoops();
