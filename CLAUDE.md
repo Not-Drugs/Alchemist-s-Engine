@@ -76,14 +76,25 @@ seeds two Sparks on the grid as a tutorial nudge.
    - Drop fuel into furnace to generate Heat
    - **Sparks cost 1 heat each** — the merge system runs on the heat the
      engine has produced. Auto-Sparkers (automation) bypass the heat cost.
-   - **Bidirectional engine drag.** Fuel items drag from the grid into
-     `#furnace-fuel-slot` (existing). The engine itself (`#furnace-visual`)
-     is also a drag SOURCE: dragging from it onto an empty grid cell
-     spawns a fresh Spark (costs 1 heat); dragging onto an existing
-     tier-1 Spark merges them into an Ember. The drag uses a synthetic
-     `draggedItem.fromEngine = true` flag so `handleDrop` and
-     `dispatchTouchDropOnGrid` route to `engineDropOnCell()` instead of
-     trying to clear a non-existent source cell.
+   - **Bidirectional engine drag.** The ASCII pre `#furnace-ascii` is the
+     interactive surface for both directions:
+     - **Drop fuel onto it** to feed the furnace (replaces the old
+       `#furnace-fuel-slot` zone). `applyFuelDropOnEngine()` handles
+       capacity check + grid clear + flash + toast.
+     - **Drag from it** onto a grid cell to spawn a fresh Spark (costs
+       1 heat) or merge into an existing tier-1 Spark (costs 1 heat,
+       counts as a real merge).
+     - The drag uses a synthetic `draggedItem.fromEngine = true` flag so
+       `handleDrop` and `dispatchTouchDropOnGrid` route to
+       `engineDropOnCell()` and the engine drop handler explicitly
+       rejects fromEngine drops (a Spark can't loop back into the
+       furnace).
+     - The touch surface is intentionally the ASCII region only — not
+       the whole `#furnace-visual` container — so scrolling near the
+       temp badge or fuel readout doesn't pick up phantom drags. Visual
+       feedback (drag-over highlight, pulse) is bubbled up to
+       `#furnace-visual` via CSS `:has()` so the cue is more visible
+       than highlighting just the small ASCII region.
 
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat

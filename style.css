@@ -470,30 +470,50 @@ section h2::after {
     padding: 12px 14px 10px;
     position: relative;
     font-family: inherit;
-    cursor: grab;
-    user-select: none;
-    -webkit-user-select: none;
-    /* Disable iOS long-press callout / image preview while dragging */
-    -webkit-touch-callout: none;
-    /* Drag with finger/cursor; tap interactions still work */
-    touch-action: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-#furnace-visual:active {
-    cursor: grabbing;
-}
-
-#furnace-visual.engine-dragging {
-    border-color: var(--accent-fire);
-    box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
-}
-
+/* The ASCII pre is the small interactive surface — drag source for sparks
+   and drop target for fuel. Limiting touch handling here keeps the temp
+   badge and fuel readout out of the drag/scroll conflict zone. */
 #furnace-ascii {
     white-space: pre;
     font-size: 0.7rem;
     line-height: 1.2;
     color: var(--text-dim);
     text-align: center;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+    border-radius: 2px;
+    transition: background 0.15s ease;
+}
+
+#furnace-ascii:active {
+    cursor: grabbing;
+}
+
+/* Lift the visual feedback up to the whole engine container while a drag
+   is in flight — bigger, more legible than highlighting just the small
+   ASCII region. :has() is well-supported in modern mobile browsers. */
+#furnace-visual:has(#furnace-ascii.drag-over) {
+    border-color: var(--accent-fire);
+    box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
+}
+
+#furnace-ascii.drag-over {
+    background: rgba(255, 102, 0, 0.08);
+}
+
+#furnace-visual:has(#furnace-ascii.engine-dragging) {
+    border-color: var(--accent-fire);
+    box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
+}
+
+#furnace-visual.pulse {
+    animation: dropPulse 0.3s ease;
 }
 
 #furnace-ascii.burning {
@@ -519,26 +539,6 @@ section h2::after {
     font-size: 1rem;
     font-weight: bold;
     color: var(--accent-heat);
-}
-
-#furnace-fuel-slot {
-    width: 100%;
-    max-width: 180px;
-    padding: 15px;
-    background: var(--bg-dark);
-    border: 1px dashed var(--border-color);
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 0.8rem;
-    transition: all 0.15s ease;
-}
-
-#furnace-fuel-slot::before {
-    content: "[ ";
-}
-
-#furnace-fuel-slot::after {
-    content: " ]";
 }
 
 .drop-zone.drag-over {
@@ -1756,7 +1756,6 @@ button.revealing { display: inline-block; }
     }
 
     /* Drop zones are primary targets — bump padding */
-    #furnace-fuel-slot,
     #smelter-ore-slot {
         min-height: 56px;
         padding: 16px;
@@ -1885,7 +1884,6 @@ button.revealing { display: inline-block; }
 
     /* Furnace/smelter/forge visuals scale down */
     #furnace-visual,
-    #furnace-fuel-slot,
     #smelter-visual,
     #smelter-ore-slot,
     #forge-visual,

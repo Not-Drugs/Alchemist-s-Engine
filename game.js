@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v21';
+const APP_VERSION = 'v22';
 
 const UPGRADES = {
     furnace: [
@@ -102,7 +102,6 @@ const REVEAL_STAGES = [
         targets: ['#merge-section', '#burn-all-btn'],
         onReveal: () => {
             hideIntroControls();
-            showFurnaceDrop();
             // Seed two Sparks so the merge mechanic is obvious
             spawnItem('fuel', false);
             spawnItem('fuel', false);
@@ -350,7 +349,7 @@ function burnAllFuel() {
         if (game.furnace.fuel >= maxFuel) break;
     }
     if (burned > 0) {
-        flashDropZone('furnace-fuel-slot');
+        flashDropZone('furnace-visual');
         floatPopup(document.getElementById('furnace-visual'), `+${formatNumber(burned)} fuel`, 'heat');
     } else {
         showToast(game.furnace.fuel >= maxFuel ? 'Furnace is full!' : 'No fuel on the grid.', 'error');
@@ -391,7 +390,7 @@ function quickSendItem(index) {
         game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
         game.grid[index] = null;
         renderGridItem(index);
-        flashDropZone('furnace-fuel-slot');
+        flashDropZone('furnace-visual');
     } else if (item.type === 'ore' && game.unlockedTiers.smelter) {
         const oreValue = ORE_TIERS[item.tier - 1].value;
         game.smelter.ore += oreValue;
@@ -609,8 +608,8 @@ function handleEngineDragStart(e) {
 function handleEngineDragEnd() {
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     document.querySelectorAll('.merge-target').forEach(el => el.classList.remove('merge-target'));
-    const visual = document.getElementById('furnace-visual');
-    if (visual) visual.classList.remove('engine-dragging');
+    const ascii = document.getElementById('furnace-ascii');
+    if (ascii) ascii.classList.remove('engine-dragging');
     draggedItem = null;
     draggedIndex = null;
     draggedElement = null;
@@ -892,18 +891,22 @@ function handleTouchMove(e) {
     const under = document.elementFromPoint(t.clientX, t.clientY);
     if (ghost) ghost.style.display = '';
 
-    const target = under && under.closest('.grid-cell, .drop-zone');
+    const target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii');
 
     if (touchDragState.lastTarget && touchDragState.lastTarget !== target) {
         touchDragState.lastTarget.classList.remove('drag-over');
     }
     if (target && target !== touchDragState.lastTarget) {
-        // Only highlight drop zones that accept this item type. Engine-source
-        // drags don't accept any drop zone (they only place on grid cells).
-        if (target.classList.contains('drop-zone')) {
+        if (target.id === 'furnace-ascii') {
+            // Engine ASCII accepts only non-engine fuel drops (a Spark from
+            // the engine itself can't be re-fed back into the furnace).
+            if (!draggedItem.fromEngine && draggedItem.type === 'fuel') {
+                target.classList.add('drag-over');
+            }
+        } else if (target.classList.contains('drop-zone')) {
+            // Other drop zones (smelter ore slot) — engine drags reject all.
             const accepts = !draggedItem.fromEngine && (
-                (target.id === 'furnace-fuel-slot' && draggedItem.type === 'fuel') ||
-                (target.id === 'smelter-ore-slot'   && draggedItem.type === 'ore')
+                target.id === 'smelter-ore-slot' && draggedItem.type === 'ore'
             );
             if (accepts) target.classList.add('drag-over');
         } else {
@@ -934,11 +937,17 @@ function handleTouchEnd(e) {
     if (changedTouch) {
         if (ghost) ghost.style.display = 'none';
         const under = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-        target = under && under.closest('.grid-cell, .drop-zone');
+        target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii');
     }
 
     if (target) {
-        if (target.classList.contains('drop-zone')) {
+        if (target.id === 'furnace-ascii') {
+            // Drop fuel onto the engine. Engine-source drags are rejected
+            // here so a Spark dragged out can't loop back into the furnace.
+            if (!draggedItem || !draggedItem.fromEngine) {
+                applyFuelDropOnEngine();
+            }
+        } else if (target.classList.contains('drop-zone')) {
             // Engine-source drag releasing on a drop zone is a no-op —
             // sparks only place on grid cells, not back into the furnace.
             if (!draggedItem || !draggedItem.fromEngine) {
@@ -1017,19 +1026,7 @@ function dispatchTouchDropOnGrid(cell) {
 }
 
 function dispatchTouchDropOnZone(zone) {
-    if (zone.id === 'furnace-fuel-slot' && draggedItem.type === 'fuel') {
-        const fuelValue = FUEL_TIERS[draggedItem.tier - 1].value;
-        const maxFuel = game.bonuses.furnaceCapacity;
-        if (game.furnace.fuel < maxFuel) {
-            game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
-            game.grid[draggedIndex] = null;
-            renderGridItem(draggedIndex);
-            flashDropZone('furnace-fuel-slot');
-            showToast(`Added ${FUEL_TIERS[draggedItem.tier - 1].name} to furnace!`);
-        } else {
-            showToast('Furnace is full!', 'error');
-        }
-    } else if (zone.id === 'smelter-ore-slot' && draggedItem.type === 'ore' && game.unlockedTiers.smelter) {
+    if (zone.id === 'smelter-ore-slot' && draggedItem.type === 'ore' && game.unlockedTiers.smelter) {
         const oreValue = ORE_TIERS[draggedItem.tier - 1].value;
         game.smelter.ore += oreValue;
         game.grid[draggedIndex] = null;
@@ -1043,38 +1040,54 @@ function dispatchTouchDropOnZone(zone) {
 // FURNACE DROP ZONE
 // ============================================
 
+// The engine ASCII art (#furnace-ascii) is the fuel drop target — drop fuel
+// items dragged from the grid directly onto the engine to feed the
+// furnace. Drag-over and pulse styling apply to the whole #furnace-visual
+// container via CSS :has() for a more visible flash, but the *touch
+// surface* is the small ASCII region only so scrolling near the temp
+// badge or fuel readout doesn't pick up phantom drags.
+// Engine-source drags (fromEngine = true) are explicitly rejected so a
+// Spark dragged out can't loop back into the furnace as input.
 function setupFurnaceDropZone() {
-    const furnaceSlot = document.getElementById('furnace-fuel-slot');
+    const target = document.getElementById('furnace-ascii');
+    if (!target) return;
 
-    furnaceSlot.addEventListener('dragover', (e) => {
+    target.addEventListener('dragover', (e) => {
+        if (!draggedItem) return;
+        if (draggedItem.type !== 'fuel') return;
+        if (draggedItem.fromEngine) return;
+        e.preventDefault(); // permit the drop
+        target.classList.add('drag-over');
+    });
+
+    target.addEventListener('dragleave', () => {
+        target.classList.remove('drag-over');
+    });
+
+    target.addEventListener('drop', (e) => {
         e.preventDefault();
-        if (draggedItem && draggedItem.type === 'fuel') {
-            furnaceSlot.classList.add('drag-over');
-        }
+        target.classList.remove('drag-over');
+        applyFuelDropOnEngine();
     });
+}
 
-    furnaceSlot.addEventListener('dragleave', () => {
-        furnaceSlot.classList.remove('drag-over');
-    });
+// Shared fuel-drop logic for the engine, used by both desktop drop and
+// the touch dispatch path.
+function applyFuelDropOnEngine() {
+    if (!draggedItem || draggedItem.type !== 'fuel' || draggedItem.fromEngine) return;
+    const fuelValue = FUEL_TIERS[draggedItem.tier - 1].value;
+    const maxFuel = game.bonuses.furnaceCapacity;
 
-    furnaceSlot.addEventListener('drop', (e) => {
-        e.preventDefault();
-        furnaceSlot.classList.remove('drag-over');
-
-        if (draggedItem && draggedItem.type === 'fuel') {
-            const fuelValue = FUEL_TIERS[draggedItem.tier - 1].value;
-            const maxFuel = game.bonuses.furnaceCapacity;
-
-            if (game.furnace.fuel < maxFuel) {
-                game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
-                game.grid[draggedIndex] = null;
-                renderGridItem(draggedIndex);
-                showToast(`Added ${FUEL_TIERS[draggedItem.tier - 1].name} to furnace!`);
-            } else {
-                showToast('Furnace is full!', 'error');
-            }
-        }
-    });
+    if (game.furnace.fuel >= maxFuel) {
+        showToast('Furnace is full!', 'error');
+        return;
+    }
+    game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
+    game.grid[draggedIndex] = null;
+    renderGridItem(draggedIndex);
+    flashDropZone('furnace-visual');
+    showToast(`Added ${FUEL_TIERS[draggedItem.tier - 1].name} to furnace!`);
+    updateUI();
 }
 
 // ============================================
@@ -1743,10 +1756,6 @@ function hideIntroControls() {
     // gather controls are now permanent so there is nothing to hide.
 }
 
-function showFurnaceDrop() {
-    revealTargets(['#furnace-fuel-slot']);
-}
-
 // Apply an already-revealed state on load (no animation)
 function applyRevealedFlags() {
     for (const stage of REVEAL_STAGES) {
@@ -1855,7 +1864,7 @@ function feedStick(bulk = false) {
     if (fed > 0) {
         const furnaceVisual = document.getElementById('furnace-visual');
         floatPopup(furnaceVisual, fed === 1 ? '+stick' : `+${fed} sticks`, 'heat');
-        flashDropZone('furnace-fuel-slot');
+        flashDropZone('furnace-visual');
         sfx('feed');
 
         // The 'firstStick' reveal stage fires the first-stick narration.
@@ -2108,15 +2117,17 @@ const burnAll = document.getElementById('burn-all-btn');
     setupSmelterDropZone();
 
     // Engine as a drag SOURCE: drag a Spark out of the furnace onto the grid.
-    // Listeners are bound unconditionally; the handlers gate themselves on
-    // canDragSparkFromEngine() so dragging is a no-op until merge grid is
-    // unlocked and there's enough heat to spend.
-    const furnaceVisual = document.getElementById('furnace-visual');
-    if (furnaceVisual) {
-        furnaceVisual.setAttribute('draggable', 'true');
-        furnaceVisual.addEventListener('dragstart', handleEngineDragStart);
-        furnaceVisual.addEventListener('dragend', handleEngineDragEnd);
-        furnaceVisual.addEventListener('touchstart', handleEngineTouchStart, { passive: false });
+    // Bound to #furnace-ascii (the small ASCII pre) rather than the whole
+    // #furnace-visual container so users can still scroll/tap on the temp
+    // badge and fuel readout without accidentally initiating a drag.
+    // Visual feedback (border highlight, pulse) is applied to the parent
+    // visual via CSS for a larger, more visible cue.
+    const furnaceAscii = document.getElementById('furnace-ascii');
+    if (furnaceAscii) {
+        furnaceAscii.setAttribute('draggable', 'true');
+        furnaceAscii.addEventListener('dragstart', handleEngineDragStart);
+        furnaceAscii.addEventListener('dragend', handleEngineDragEnd);
+        furnaceAscii.addEventListener('touchstart', handleEngineTouchStart, { passive: false });
     }
 
     // Crafting buttons
