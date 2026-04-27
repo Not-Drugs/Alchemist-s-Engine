@@ -27,7 +27,7 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v42';
+const APP_VERSION = 'v43';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -1715,40 +1715,74 @@ function prestige() {
 // dead-tree references in _research/ascii-trees/INDEX.md (notably
 // ejm and Sam Blumenstein); originals authored to match the energy.
 
-// Foreground tree variant A' — 8 lines, 12 chars wide, trunk at col 5.
-// Asymmetry: 3 left + 1 right upper, narrowing to bare; then 0+2 and
-// 1+3 right-heavy lower branches.
+// Tree primitives. Each line is exactly 10 chars wide with the trunk `|`
+// pinned to slot column 5. Real-life forest reference photos drove this
+// shape: tall thin trunks dominate, branches concentrate near the top,
+// trunk texture comes from sparse knots (`.`) and broken-branch stubs
+// (`-`), roots flare at the base. Each tree is 26 lines tall — most
+// of those lines are pure trunk, like a real tree growing past the
+// frame and fading into the canopy above.
+
+// Foreground tree A — has visible top canopy and full base.
 const FORE_TREE_A = [
-    '  \\\\\\|/     ',
-    '   \\\\|/     ',
-    '    \\|      ',
-    '     |      ',
-    '     |\\\\    ',
-    '    /|\\\\\\   ',
-    '     |      ',
-    '     |      '
+    '   \\\\|//  ', // 0  canopy crown
+    '    \\|/   ', // 1  canopy narrow
+    '     |    ', // 2  trunk
+    '    .|    ', // 3  knot
+    '     |    ', // 4
+    '     |.   ', // 5  knot
+    '     |    ', // 6
+    '     |    ', // 7
+    '    -|    ', // 8  broken-branch stub
+    '     |    ', // 9
+    '     |    ', // 10
+    '     |.   ', // 11 knot
+    '     |    ', // 12
+    '     |    ', // 13
+    '    .|    ', // 14 knot
+    '     |    ', // 15
+    '     |    ', // 16
+    '     |    ', // 17
+    '     |    ', // 18
+    '     |    ', // 19
+    '    -|    ', // 20 stub
+    '     |    ', // 21
+    '     |    ', // 22
+    '     |    ', // 23
+    '    /|\\   ', // 24 base flare
+    '   _/|\\_  '  // 25 roots
 ];
-// Foreground tree variant B' — mirror of A'. Right-heavy upper /
-// left-heavy lower, so when alternated with A' the grove tilts both
-// ways and reads as windblown.
+
+// Foreground tree B — top is "above the frame" (cut off, just trunk
+// continues), broader root spread at the base. Slightly different
+// knot pattern so adjacent trees don't read as copy-paste.
 const FORE_TREE_B = [
-    '    /|\\\\\\   ',
-    '    /|\\\\    ',
-    '     |\\     ',
-    '     |      ',
-    '   \\\\|      ',
-    '  \\\\\\|\\     ',
-    '     |      ',
-    '     |      '
-];
-// Midground tree — 5 lines, 8 chars wide, trunk at col 3. Simple
-// silhouette, repeated 6× for the midground row.
-const MID_TREE = [
-    '  \\|/   ',
-    '   |    ',
-    '  /|\\   ',
-    '   |    ',
-    '   |    '
+    '    \\|/   ', // 0  cut-off canopy hint
+    '     |    ', // 1
+    '     |.   ', // 2  knot
+    '     |    ', // 3
+    '    -|    ', // 4  stub
+    '     |    ', // 5
+    '    .|    ', // 6  knot
+    '     |    ', // 7
+    '     |    ', // 8
+    '    .|    ', // 9  knot
+    '     |    ', // 10
+    '     |    ', // 11
+    '     |.   ', // 12 knot
+    '     |    ', // 13
+    '     |    ', // 14
+    '    -|    ', // 15 stub
+    '     |    ', // 16
+    '     |    ', // 17
+    '    .|    ', // 18 knot
+    '     |    ', // 19
+    '     |    ', // 20
+    '     |    ', // 21
+    '     |    ', // 22
+    '     |    ', // 23
+    '    /|\\   ', // 24 base flare
+    '  __/|\\__ '  // 25 wider roots
 ];
 
 function buildLayer(treeMap, pattern) {
@@ -1763,24 +1797,28 @@ function buildLayer(treeMap, pattern) {
 }
 
 const GROVE_SCENE = {
-    // Distant treeline — 2 lines of `*` silhouettes spaced across.
+    // Distant treeline at the top of the frame — just sparse silhouette
+    // marks suggesting trees fading into mist. Faded via .grove-far CSS.
     background: [
-        '   *     *     *     *     *     *     *     *  ',
-        '   |     |     |     |     |     |     |     |  '
+        '  .  *      .    *      .   *      *  .',
+        '*   .   *      .  *   .       .   *    '
     ],
-    // Midground — 6 small trees in a row.
-    midground: buildLayer({ M: MID_TREE }, ['M', 'M', 'M', 'M', 'M', 'M']),
-    // Foreground — 4 large asymmetric trees, ABAB tilt pattern.
+    // No midground — depth comes from background dim + foreground bright,
+    // matching the photo references where the eye reads "near" or "far"
+    // without a clear middle band.
+    midground: [],
+    // Foreground — 4 tall asymmetric trees, ABAB. Each is 26 rows tall:
+    // ~2 rows of canopy at the top, ~22 rows of trunk with knots and
+    // stubs, ~2 rows of base/roots at the bottom. Trunks sit at scene
+    // columns 5, 15, 25, 35 (10-char slots).
     foreground: buildLayer({ A: FORE_TREE_A, B: FORE_TREE_B }, ['A', 'B', 'A', 'B']),
-    // Ground — alternating debris pattern instead of a flat horizon.
-    ground: [
-        '. , . , . , . , . , . , . , . , . , . , . , . , '
-    ],
+    // Ground — debris pattern flowing under the roots.
+    ground: ['. , ~ . , ~ . , ~ . , ~ . , ~ . , ~ . , ~ '],
     // Items — three rows of $ (stick) and # (stone) placeholders.
     items: [
-        '   $   $       $    #         $    $            ',
-        '        $              $    #     $             ',
-        '             $                  $               '
+        '   $   $       $    #         $    $    ',
+        '        $              $    #     $     ',
+        '             $                  $       '
     ]
 };
 // One entry per `$` in GROVE_SCENE, in left-to-right / top-to-bottom order.
