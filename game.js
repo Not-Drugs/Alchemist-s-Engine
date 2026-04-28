@@ -27,7 +27,10 @@ const GRID_SIZE = 24; // 6x4 grid
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
-const APP_VERSION = 'v43';
+// **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
+// player sees a "v43" tag while actually running v47 (or vice versa) and
+// can't tell whether their cache is stale.
+const APP_VERSION = 'v48';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -237,8 +240,8 @@ function init() {
     applyRevealedFlags();
     applyUnlocksFromSave();
     renderGrove();
-    const versionTag = document.getElementById('version-tag');
-    if (versionTag) versionTag.textContent = APP_VERSION;
+    const versionText = document.getElementById('version-text');
+    if (versionText) versionText.textContent = APP_VERSION;
     updateUI();
 
     startLoops();
@@ -3355,3 +3358,26 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
         }
     });
 }
+
+// Force refresh button next to the version tag. Saves the game, wipes
+// every SW cache, prods the SW for a new version, then reloads — bypasses
+// any stuck cache state so the player always has a way to see the latest
+// build without diving into devtools.
+async function forceRefresh() {
+    try { saveGame(); } catch (_) {}
+    try {
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if (navigator.serviceWorker) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg) await reg.update();
+        }
+    } catch (_) { /* fall through and reload regardless */ }
+    location.reload();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) refreshBtn.addEventListener('click', forceRefresh);
+});

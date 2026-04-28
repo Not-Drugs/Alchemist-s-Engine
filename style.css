@@ -1727,13 +1727,41 @@ footer button:active {
 /* Subtle build version at the bottom — quick way to spot a stale SW
    cache after a deploy. Mirrors APP_VERSION in game.js. */
 #version-tag {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     font-size: 0.65rem;
     color: var(--text-dim);
-    opacity: 0.45;
+    opacity: 0.6;
     margin-top: 12px;
     letter-spacing: 1px;
     user-select: none;
+}
+
+.refresh-btn {
+    background: transparent;
+    border: 1px solid var(--text-dim);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    cursor: pointer;
+    line-height: 1.2;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+@media (hover: hover) {
+    .refresh-btn:hover {
+        color: var(--accent-fire);
+        border-color: var(--accent-fire);
+    }
+}
+
+.refresh-btn:active {
+    background: var(--accent-fire);
+    color: var(--bg-dark);
+    border-color: var(--accent-fire);
 }
 
 /* Story prompts toggle (Settings → Story Prompts) hides the narration line
