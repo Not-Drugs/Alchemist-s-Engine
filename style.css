@@ -1402,6 +1402,14 @@ section h2::after {
 .upgrade-desc {
     font-size: 0.75rem;
     color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+.upgrade-flavor {
+    font-style: italic;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    opacity: 0.65;
     margin-bottom: 8px;
 }
 

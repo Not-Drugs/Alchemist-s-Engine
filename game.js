@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v48';
+const APP_VERSION = 'v49';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -42,7 +42,7 @@ const PHASE_1_HEAT_TARGET = 100;
 
 const UPGRADES = {
     furnace: [
-        { id: 'stickBundle',    name: 'Stick Bundle',    desc: 'Gather 2 sticks per click',         cost: 10,  costType: 'sticks', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 2); } },
+        { id: 'stickBundle',    name: 'Stick Basket',    desc: 'Gather 2 sticks per trip',          flavor: 'It takes sticks to make sticks.', cost: 5, costType: 'sticks', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 2); } },
         { id: 'whittlingKnife', name: 'Whittling Knife', desc: 'Gather sticks 25% faster',          cost: 40,  costType: 'sticks', requires: 'stickBundle', effect: () => { game.bonuses.stickGatherSpeed = 1.25; } },
         { id: 'stickCache',     name: 'Stick Cache',     desc: 'Gather 3 sticks per click',         cost: 200, costType: 'sticks', requires: 'stickBundle', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 3); } },
         { id: 'efficiency1', name: 'Better Bellows', desc: '+25% furnace efficiency', cost: 50, costType: 'heat', effect: () => { game.bonuses.furnaceEfficiency += 0.25; } },
@@ -2081,11 +2081,17 @@ function collectGroveItem(id) {
 }
 
 function renderUpgrades() {
+    function makeRow(cls, text) {
+        const el = document.createElement('div');
+        el.className = cls;
+        el.textContent = text;
+        return el;
+    }
     for (const [category, upgrades] of Object.entries(UPGRADES)) {
         const panel = document.getElementById(`${category}-upgrades`);
         if (!panel) continue;
 
-        panel.innerHTML = '';
+        panel.textContent = '';
 
         for (const upgrade of upgrades) {
             const div = document.createElement('div');
@@ -2101,11 +2107,11 @@ function renderUpgrades() {
                 div.classList.add('locked');
             }
 
-            div.innerHTML = `
-                <div class="upgrade-name">${upgrade.name}</div>
-                <div class="upgrade-desc">${upgrade.desc}</div>
-                <div class="upgrade-cost">${purchased ? 'Purchased' : `${formatNumber(upgrade.cost)} ${upgrade.costType}`}</div>
-            `;
+            div.appendChild(makeRow('upgrade-name', upgrade.name));
+            div.appendChild(makeRow('upgrade-desc', upgrade.desc));
+            if (upgrade.flavor) div.appendChild(makeRow('upgrade-flavor', upgrade.flavor));
+            const costText = purchased ? 'Purchased' : `${formatNumber(upgrade.cost)} ${upgrade.costType}`;
+            div.appendChild(makeRow('upgrade-cost', costText));
 
             if (!purchased && hasRequirement) {
                 div.addEventListener('click', () => purchaseUpgrade(upgrade));
