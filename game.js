@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v52';
+const APP_VERSION = 'v53';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -2583,6 +2583,16 @@ function updateUI() {
         furnaceAscii.classList.toggle('burning', burning);
         furnaceAscii.classList.toggle('cold', cold);
         furnaceAscii.classList.toggle('roaring', temp >= 400);
+
+        // Residual ember glow: when fuel runs out but the player still
+        // has stockpiled heat, the engine retains a faint red core. Sells
+        // the idea that "heat" is the engine's reserve, not just the
+        // current burn.
+        const furnaceVisual = document.getElementById('furnace-visual');
+        if (furnaceVisual) {
+            const hasResidualHeat = !burning && (game.resources.heat || 0) > 0;
+            furnaceVisual.classList.toggle('has-residual-heat', hasResidualHeat);
+        }
 
         const t = Math.floor(Date.now() / 180);
         if (burning && temp >= 400) {

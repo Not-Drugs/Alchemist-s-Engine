@@ -2166,6 +2166,38 @@ button.revealing { display: inline-block; }
     opacity: 0.6;
 }
 
+/* Residual ember glow — fires when fuel is out but the player still
+   has stockpiled heat. Communicates that the engine retains its heat
+   reserve even between burns. The glow sits in the center of the
+   engine visual via a pseudo-element radial gradient. Subtle pulse
+   suggests "still warm." */
+#furnace-visual {
+    position: relative;
+}
+#furnace-visual.has-residual-heat::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 28%;
+    height: 22%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse, rgba(255, 70, 30, 0.5) 0%, rgba(255, 70, 30, 0.18) 45%, transparent 75%);
+    pointer-events: none;
+    z-index: 0;
+    border-radius: 50%;
+    animation: residualEmberPulse 2.6s ease-in-out infinite;
+}
+@keyframes residualEmberPulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 0.95; }
+}
+/* Make sure the ASCII pre paints above the glow. */
+#furnace-visual #furnace-ascii {
+    position: relative;
+    z-index: 1;
+}
+
 /* Floating +N popup text for juicy feedback */
 .float-popup {
     position: absolute;
