@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v50';
+const APP_VERSION = 'v51';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -3106,19 +3106,6 @@ function loadGame() {
             if ((game.locations.grove.layoutV || 1) < GROVE_LAYOUT_V) {
                 game.locations.grove.collected = [];
                 game.locations.grove.layoutV = GROVE_LAYOUT_V;
-            }
-            // Migration: removed Whittling Knife (40 sticks) and Stick
-            // Cache (200 sticks). Refund anyone who already paid so
-            // they don't silently lose 240 sticks. The orphaned IDs
-            // get pruned naturally by the upgrade re-apply loop below
-            // (it only re-pushes IDs that still match a definition).
-            const refundMap = { whittlingKnife: 40, stickCache: 200 };
-            let stickRefund = 0;
-            for (const id of (game.upgrades || [])) {
-                if (refundMap[id]) stickRefund += refundMap[id];
-            }
-            if (stickRefund > 0) {
-                game.resources.sticks = (game.resources.sticks || 0) + stickRefund;
             }
 
             // Re-apply upgrades

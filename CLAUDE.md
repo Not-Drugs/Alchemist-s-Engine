@@ -84,9 +84,9 @@ once the Upgrades panel reveals at `kindlingAdded >= 3`):
   Flavor text: "It takes sticks to make sticks." (the basket is woven
   from the resource it produces — explains the cost).
 
-The Whittling Knife and Stick Cache upgrades were removed in v50; their
-costs are refunded to anyone who already owned them via a save migration.
-The orphaned IDs are pruned by the upgrade re-apply loop on load.
+The Whittling Knife and Stick Cache upgrades were removed in v50.
+Orphaned IDs in older saves are pruned silently by the upgrade
+re-apply loop on load (no refund — game isn't live yet).
 
 The merge grid reveal at `kindlingAdded >= 20` ends the stick phase and
 seeds two Sparks on the grid as a tutorial nudge.
