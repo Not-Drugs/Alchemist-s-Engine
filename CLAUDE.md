@@ -221,6 +221,62 @@ Heat is no longer a permanent accumulator. When the furnace is idle
 - Fuel burns, heat accrues, auto-sparkers/miners fill empty grid cells (capped
   by grid space), and essence generates from residual furnace temperature.
 
+### Trial Location: The Dead Grove
+
+A separate exploration mechanic, accessible via the location card in
+the right column. Tapping the card opens a fullscreen modal containing
+a hand-authored ASCII forest scene. The picture **is** the UI: items
+embedded in the art (sticks, stones) are clickable and add to the
+player's resources. Items don't respawn yet — this is a proof of
+concept for the picture-as-UI approach.
+
+**Scene composition.** 40 columns wide, sized for mobile portrait via
+a `clamp()` font-size. Each scene row is a flexbox of three side-by-
+side spans:
+
+```
+[ left near-tree (10c) | center depth band (20c) | right near-tree (10c) ]
+```
+
+The left and right spans render two huge framing trees (`LEFT_NEAR_TREE`
+and `RIGHT_NEAR_TREE` in `game.js`) that run the full vertical of the
+scene — gnarled bark `||` trunks with knot holes (`o`, `O`), branch
+stubs (`-`, `,`), broken branches at the crown, and root flare at the
+base. Inspired by the ejm winter and nabis gnarled-tree references on
+ascii.co.uk, paraphrased not copied (per the Clean Room Protocol).
+
+The center span rotates through depth bands as you read top to bottom:
+
+| Scene rows | Center content                  | CSS class       |
+|-----------:|----------------------------------|-----------------|
+| 0          | horizon stipple `. , . , .`      | `.grove-horizon`|
+| 1          | far treeline silhouette `^/\\^`  | `.grove-far`    |
+| 2–4        | far mid-band (4 tiny trees)      | `.grove-midfar` |
+| 5–8        | mid mid-band (4 small trees)     | `.grove-mid`    |
+| 9–14       | near mid-band (3 detailed trees) | `.grove-midnear`|
+| 15–25      | empty sky (only trunks visible)  | `.grove-sky`    |
+
+Atmospheric perspective comes from per-cell CSS — distant cells use
+lower opacity and smaller `font-size` (`em`-based, so they shrink
+relative to the scene's clamp-sized base). The framing trees stay
+full-bright at every height, anchoring the player's eye.
+
+Below the scene, a ground row and three item rows sit at the bottom.
+`$` placeholders in item rows are replaced at render with clickable
+spans (`renderGrove()` in `game.js`). Item layout is versioned via
+`game.locations.grove.layoutV` — bumping `GROVE_LAYOUT_V` in the save
+migration resets `collected` for old saves whose indices no longer
+point at the same items.
+
+**Building blocks** (`game.js`):
+- `LEFT_NEAR_TREE` / `RIGHT_NEAR_TREE` — 26-row framing trees
+- `MID_FAR_*`, `MID_MID_*`, `MID_NEAR_*` — slot-width primitives for
+  the three mid-bands; `buildBand()` concatenates them into rows
+- `GROVE_SCENE_ROWS` — pre-computed array of `{left, center, right,
+  centerCls}` consumed by `renderGrove()`
+- `GROVE_ITEM_ROWS` + `GROVE_ITEMS` — placeholder rows + the
+  positional item table
+
 ## Mobile & PWA
 
 - Viewport locked (no pinch-zoom) with `viewport-fit=cover` for notched devices.

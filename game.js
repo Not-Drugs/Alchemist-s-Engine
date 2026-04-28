@@ -194,7 +194,7 @@ const defaultGame = {
     prestigeCount: 0,
     introSeen: false,
     locations: {
-        grove: { collected: [] }
+        grove: { collected: [], layoutV: 2 }
     },
     lastUpdate: Date.now()
 };
@@ -1694,147 +1694,236 @@ function prestige() {
 // ============================================
 
 // Trial location: The Dead Grove. The scene is a hand-authored ASCII
-// landscape — three dead trees over a small patch of ground with sticks
-// and a stone scattered through it. The `$` character is a placeholder:
-// each one is replaced at render time by a clickable item span (or by
-// blank space if that item has already been picked). Items don't
-// respawn yet — this is a proof of concept for the picture-as-the-UI
-// approach, not a balanced location.
-// The grove scene is composed in four depth layers — background (distant
-// silhouettes), midground (small trees), foreground (large asymmetric
-// dead trees), and ground (textured debris) — plus the items rows.
-// Each layer is rendered with its own CSS class so we can dim the
-// distant ones via opacity, suggesting depth.
+// landscape rendered as a layered, depth-cued composite. Each scene row
+// is built from three side-by-side spans:
 //
-// Tree primitives are defined as 12-char or 8-char fixed-width slots
-// with the trunk pinned to a known column, so they can be concatenated
-// at runtime to build a row of trees with consistent trunk alignment.
+//   [ left near-tree | center mid/far content | right near-tree ]
 //
-// Foreground trees come in two asymmetric variants (A' left-heavy
-// upper / right-heavy lower; B' the mirror). Inspired by the gnarled
-// dead-tree references in _research/ascii-trees/INDEX.md (notably
-// ejm and Sam Blumenstein); originals authored to match the energy.
+// The left and right spans render the two huge framing trees that run
+// the full vertical of the scene. The center span shows whatever depth
+// band lives at that y coordinate — distant horizon stipple at the top,
+// receding bands of mid-trees in the middle, empty space toward the
+// bottom (just trunks visible). Per-span CSS opacity + font-size sells
+// the atmospheric perspective: distant content is dim and small, near
+// content is bright and large.
+//
+// `$` placeholders in items rows are replaced at render time by
+// clickable item spans (or blank space if that item has already been
+// picked). Items don't respawn yet — this is a proof of concept for
+// the picture-as-the-UI approach, not a balanced location.
+//
+// Layout choices come from the brainstorm: A2 atmospheric depth +
+// T1 symmetric framing trees, sized for mobile portrait (40 cols
+// wide so phones can render at a readable font size). Bark and
+// branch detail draws from the ejm winter tree and nabis gnarled
+// references on ascii.co.uk (paraphrased, not copied).
 
-// Tree primitives. Each line is exactly 10 chars wide with the trunk `|`
-// pinned to slot column 5. Real-life forest reference photos drove this
-// shape: tall thin trunks dominate, branches concentrate near the top,
-// trunk texture comes from sparse knots (`.`) and broken-branch stubs
-// (`-`), roots flare at the base. Each tree is 26 lines tall — most
-// of those lines are pure trunk, like a real tree growing past the
-// frame and fading into the canopy above.
+const GROVE_SCENE_W = 40;
+const GROVE_SIDE_W  = 10;  // each near-tree column
+const GROVE_CTR_W   = 20;  // center band width
+const GROVE_CTR_OFF = GROVE_SIDE_W;
 
-// Foreground tree A — has visible top canopy and full base.
-const FORE_TREE_A = [
-    '   \\\\|//  ', // 0  canopy crown
-    '    \\|/   ', // 1  canopy narrow
-    '     |    ', // 2  trunk
-    '    .|    ', // 3  knot
-    '     |    ', // 4
-    '     |.   ', // 5  knot
-    '     |    ', // 6
-    '     |    ', // 7
-    '    -|    ', // 8  broken-branch stub
-    '     |    ', // 9
-    '     |    ', // 10
-    '     |.   ', // 11 knot
-    '     |    ', // 12
-    '     |    ', // 13
-    '    .|    ', // 14 knot
-    '     |    ', // 15
-    '     |    ', // 16
-    '     |    ', // 17
-    '     |    ', // 18
-    '     |    ', // 19
-    '    -|    ', // 20 stub
-    '     |    ', // 21
-    '     |    ', // 22
-    '     |    ', // 23
-    '    /|\\   ', // 24 base flare
-    '   _/|\\_  '  // 25 roots
+// ----- Foreground trees: full-height, gnarled bark, knot holes ------
+
+// LEFT framing tree. Trunk centered around col 4-5. Crown branches
+// reach inward (to the right) so it visually "leans" toward the
+// scene. Bottom flares into roots that meet the ground row.
+const LEFT_NEAR_TREE = [
+    '    \\|/   ', // 0  crown apex (10c)
+    ' \\\\\\|/_/  ', // 1  tangled top branches (10c)
+    '  \\\\|//   ', // 2  (10c)
+    '\\__\\|//__ ', // 3  broken-branch stub flung left, stub right (10c)
+    '    || /  ', // 4  trunk emerges, side branch right
+    '    ||/   ', // 5
+    '   o||    ', // 6  knot hole
+    '    ||    ', // 7
+    '    ||,   ', // 8  branch stub
+    '   .||    ', // 9  bark mark
+    '    ||    ', // 10
+    '   -||    ', // 11 broken stub
+    '    ||    ', // 12
+    '    ||O   ', // 13 large knot
+    '    ||    ', // 14
+    '    ||    ', // 15
+    '   .||    ', // 16
+    '    ||,   ', // 17 stub
+    '    ||    ', // 18
+    '    ||    ', // 19
+    '   o||    ', // 20 knot
+    '    ||    ', // 21
+    '    ||    ', // 22
+    '   /||\\   ', // 23 base flare
+    '  /_||_\\  ', // 24
+    '_/  ||  \\_'  // 25 root spread
 ];
 
-// Foreground tree B — top is "above the frame" (cut off, just trunk
-// continues), broader root spread at the base. Slightly different
-// knot pattern so adjacent trees don't read as copy-paste.
-const FORE_TREE_B = [
-    '    \\|/   ', // 0  cut-off canopy hint
-    '     |    ', // 1
-    '     |.   ', // 2  knot
-    '     |    ', // 3
-    '    -|    ', // 4  stub
-    '     |    ', // 5
-    '    .|    ', // 6  knot
-    '     |    ', // 7
-    '     |    ', // 8
-    '    .|    ', // 9  knot
-    '     |    ', // 10
-    '     |    ', // 11
-    '     |.   ', // 12 knot
-    '     |    ', // 13
-    '     |    ', // 14
-    '    -|    ', // 15 stub
-    '     |    ', // 16
-    '     |    ', // 17
-    '    .|    ', // 18 knot
-    '     |    ', // 19
-    '     |    ', // 20
-    '     |    ', // 21
-    '     |    ', // 22
-    '     |    ', // 23
-    '    /|\\   ', // 24 base flare
-    '  __/|\\__ '  // 25 wider roots
+// RIGHT framing tree. Mirror of LEFT — trunk col shifted, branches
+// reach inward (to the left), with its own knot/stub variation so it
+// doesn't read as a flipped copy.
+const RIGHT_NEAR_TREE = [
+    '   \\|/    ', // 0  (10c)
+    ' \\_\\|///  ', // 1  (10c)
+    '  \\\\|//   ', // 2  (10c)
+    '__\\\\|//__ ', // 3  (10c)
+    '  \\ ||    ', // 4
+    '   \\||    ', // 5
+    '    ||o   ', // 6  knot on right side
+    '    ||    ', // 7
+    '   ,||    ', // 8
+    '    ||.   ', // 9
+    '    ||    ', // 10
+    '    ||-   ', // 11
+    '    ||    ', // 12
+    '   O||    ', // 13
+    '    ||    ', // 14
+    '    ||    ', // 15
+    '    ||.   ', // 16
+    '   ,||    ', // 17
+    '    ||    ', // 18
+    '    ||    ', // 19
+    '    ||o   ', // 20
+    '    ||    ', // 21
+    '    ||    ', // 22
+    '   /||\\   ', // 23
+    '  /_||_\\  ', // 24
+    '_/  ||  \\_'  // 25
 ];
 
-function buildLayer(treeMap, pattern) {
-    const numLines = treeMap[pattern[0]].length;
-    const lines = [];
-    for (let i = 0; i < numLines; i++) {
-        let line = '';
-        for (const key of pattern) line += treeMap[key][i];
-        lines.push(line);
-    }
-    return lines;
+// ----- Mid/far center-band trees -------------------------------------
+// Three size tiers, used to populate three receding mid-bands inside
+// the 20-char center area. Smaller = further. Each tree is a slot
+// of fixed width with the trunk centered.
+
+// FAR mid-tree: 4 cols wide, trunk col 1-2. Just a silhouette.
+const MID_FAR_A = [' /^\\', '  | ', '  | '];
+const MID_FAR_B = [' /|\\', '  | ', '  | '];
+
+// MID mid-tree: 5 cols wide, trunk col 2.
+const MID_MID_A = [' \\|/ ', '  |  ', '  |  ', '__|__'];
+const MID_MID_B = ['  ^  ', ' /|\\ ', '  |  ', ' _|_ '];
+
+// NEAR mid-tree: 7 cols wide, trunk col 3, more branching detail.
+// These are the closest mid-trees, so they get a hint of bark texture.
+const MID_NEAR_A = [
+    '  \\|/  ',
+    ' \\\\|// ',
+    '   |   ',
+    '  o|   ',
+    '   |   ',
+    ' _/|\\_ '
+];
+const MID_NEAR_B = [
+    '   ^   ',
+    '  \\|/  ',
+    '   |   ',
+    '   |o  ',
+    '   |   ',
+    '  /|\\  '
+];
+
+// ----- Distant horizon ----------------------------------------------
+// FAR_TREELINE renders inside the 20-char center band as a single row
+// of barely-there crown silhouettes. Sits just under the horizon
+// stipple at the very top of the scene.
+const FAR_TREELINE = ' ^ /\\ ^ /^\\ ^^ /\\ ^';
+const HORIZON_STIPPLE = '. , . , . , . , . ,';
+
+// ----- Helpers -------------------------------------------------------
+function padTo(s, w) {
+    if (s.length >= w) return s.slice(0, w);
+    return s + ' '.repeat(w - s.length);
 }
 
-const GROVE_SCENE = {
-    // Distant treeline at the top of the frame — just sparse silhouette
-    // marks suggesting trees fading into mist. Faded via .grove-far CSS.
-    background: [
-        '  .  *      .    *      .   *      *  .',
-        '*   .   *      .  *   .       .   *    '
-    ],
-    // No midground — depth comes from background dim + foreground bright,
-    // matching the photo references where the eye reads "near" or "far"
-    // without a clear middle band.
-    midground: [],
-    // Foreground — 4 tall asymmetric trees, ABAB. Each is 26 rows tall:
-    // ~2 rows of canopy at the top, ~22 rows of trunk with knots and
-    // stubs, ~2 rows of base/roots at the bottom. Trunks sit at scene
-    // columns 5, 15, 25, 35 (10-char slots).
-    foreground: buildLayer({ A: FORE_TREE_A, B: FORE_TREE_B }, ['A', 'B', 'A', 'B']),
-    // Ground — debris pattern flowing under the roots.
-    ground: ['. , ~ . , ~ . , ~ . , ~ . , ~ . , ~ . , ~ '],
-    // Items — three rows of $ (stick) and # (stone) placeholders.
-    items: [
-        '   $   $       $    #         $    $    ',
-        '        $              $    #     $     ',
-        '             $                  $       '
-    ]
-};
-// One entry per `$` in GROVE_SCENE, in left-to-right / top-to-bottom order.
+function buildBand(slotPrim, pattern, totalWidth) {
+    // slotPrim: { A: [...], B: [...] } — each slot same height, fixed width
+    const slotW = slotPrim[pattern[0]][0].length;
+    const h = slotPrim[pattern[0]].length;
+    const rows = [];
+    for (let r = 0; r < h; r++) {
+        let line = '';
+        for (const key of pattern) line += slotPrim[key][r];
+        rows.push(padTo(line, totalWidth));
+    }
+    return rows;
+}
+
+// ----- Scene composition --------------------------------------------
+// Build the SCENE_ROWS structure: an array where each entry describes
+// one rendered row as { left, center, right, centerCls }. The left
+// and right spans use 'near' styling (full opacity); the center span
+// uses whatever depth class the band dictates ('horizon', 'far',
+// 'midfar', 'midnear', or 'sky' for empty trunk-only rows).
+
+function buildGroveScene() {
+    const rows = [];
+
+    // The left/right framing trees are 26 rows tall and start at row 0.
+    // We pre-compute every row's left and right columns, then fill in
+    // the center per scene row.
+    const leftCol  = (i) => LEFT_NEAR_TREE[i]  || ' '.repeat(GROVE_SIDE_W);
+    const rightCol = (i) => RIGHT_NEAR_TREE[i] || ' '.repeat(GROVE_SIDE_W);
+    const blankCtr = ' '.repeat(GROVE_CTR_W);
+
+    // Pre-build the three mid-bands.
+    const farBand    = buildBand({ A: MID_FAR_A,  B: MID_FAR_B  }, ['A','B','A','B','A'],          GROVE_CTR_W);
+    const midBand    = buildBand({ A: MID_MID_A,  B: MID_MID_B  }, ['A','B','A','B'],              GROVE_CTR_W);
+    const nearBand   = buildBand({ A: MID_NEAR_A, B: MID_NEAR_B }, ['A','B','A'],                  GROVE_CTR_W);
+
+    // Layout of center per scene row index:
+    //   0:    horizon stipple
+    //   1:    far treeline silhouette
+    //   2-4:  far mid-band (3 rows tall)
+    //   5-8:  mid mid-band (4 rows tall)
+    //   9-14: near mid-band (6 rows tall)
+    //   15-22: empty (just trunks visible — leaves space for player's eye)
+    //   23-25: roots/base (handled by left/right trees themselves)
+    //
+    // Total = 26 scene rows (matches the framing trees' height).
+
+    function pushRow(left, center, right, centerCls) {
+        rows.push({ left, center, right, centerCls });
+    }
+
+    pushRow(leftCol(0), padTo(HORIZON_STIPPLE,  GROVE_CTR_W), rightCol(0), 'horizon');
+    pushRow(leftCol(1), padTo(FAR_TREELINE,     GROVE_CTR_W), rightCol(1), 'far');
+    for (let i = 0; i < farBand.length; i++) {
+        pushRow(leftCol(2 + i), farBand[i], rightCol(2 + i), 'midfar');
+    }
+    const offMid = 2 + farBand.length;
+    for (let i = 0; i < midBand.length; i++) {
+        pushRow(leftCol(offMid + i), midBand[i], rightCol(offMid + i), 'mid');
+    }
+    const offNear = offMid + midBand.length;
+    for (let i = 0; i < nearBand.length; i++) {
+        pushRow(leftCol(offNear + i), nearBand[i], rightCol(offNear + i), 'midnear');
+    }
+    const offEmpty = offNear + nearBand.length;
+    for (let i = offEmpty; i < LEFT_NEAR_TREE.length; i++) {
+        pushRow(leftCol(i), blankCtr, rightCol(i), 'sky');
+    }
+
+    return rows;
+}
+
+const GROVE_SCENE_ROWS = buildGroveScene();
+
+// Ground + items rows live below the framing trees' roots. Items are
+// rendered as a single row each (full-width) so the placeholder $/#
+// system continues to work as before.
+const GROVE_GROUND_ROW = '. , ~ . , ~ . , ~ . , ~ . , ~ . , ~ . , ';
+const GROVE_ITEM_ROWS = [
+    '   $    $        #         $   $       ',
+    '       $    $        $        #    $   ',
+    '   $        $    $        $        $   '
+];
+
+// One entry per `$` in GROVE_ITEM_ROWS, in left-to-right / top-to-bottom
+// order. Re-tuned for the 40-col scene; existing saves auto-reset their
+// grove.collected on load (see save migration in load/processSave).
 const GROVE_ITEMS = [
-    { type: 'stick' },  // row 1, pos 1
-    { type: 'stick' },  // row 1, pos 2
-    { type: 'stick' },  // row 1, pos 3
-    { type: 'stone' },  // row 1, pos 4
-    { type: 'stick' },  // row 1, pos 5
-    { type: 'stick' },  // row 1, pos 6
-    { type: 'stick' },  // row 2, pos 1
-    { type: 'stick' },  // row 2, pos 2
-    { type: 'stone' },  // row 2, pos 3
-    { type: 'stick' },  // row 2, pos 4
-    { type: 'stick' },  // row 3, pos 1
-    { type: 'stick' }   // row 3, pos 2
+    { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stick' }, { type: 'stick' },
+    { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stick' },
+    { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }
 ];
 
 function ensureGroveState() {
@@ -1854,49 +1943,68 @@ function renderGrove() {
     const collected = game.locations.grove.collected;
     let itemIdx = 0;
 
-    // Each layer renders with its own depth class (.grove-far / -mid /
-    // -near / -ground / -items) so CSS can fade distant rows for the
-    // 3D-ish "treeline behind treeline" effect.
-    const layers = [
-        { className: 'grove-far',    lines: GROVE_SCENE.background },
-        { className: 'grove-mid',    lines: GROVE_SCENE.midground  },
-        { className: 'grove-near',   lines: GROVE_SCENE.foreground },
-        { className: 'grove-ground', lines: GROVE_SCENE.ground     },
-        { className: 'grove-items',  lines: GROVE_SCENE.items      }
-    ];
-
-    layers.forEach((layer) => {
-        layer.lines.forEach((line) => {
-            const row = document.createElement('div');
-            row.className = `grove-row ${layer.className}`;
-            for (const ch of line) {
-                if (ch === '$') {
-                    const id = itemIdx++;
-                    if (collected.includes(id)) {
-                        row.appendChild(document.createTextNode(' '));
-                    } else {
-                        const item = GROVE_ITEMS[id];
-                        const btn = document.createElement('span');
-                        btn.className = `grove-item grove-${item.type}`;
-                        btn.setAttribute('role', 'button');
-                        btn.tabIndex = 0;
-                        btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
-                        btn.textContent = item.type === 'stick' ? '/' : '#';
-                        btn.addEventListener('click', () => collectGroveItem(id));
-                        btn.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                collectGroveItem(id);
-                            }
-                        });
-                        row.appendChild(btn);
-                    }
-                } else {
-                    row.appendChild(document.createTextNode(ch));
-                }
+    // Helper: build a clickable item button (or a blank space if
+    // already picked) for a single $ placeholder.
+    function makeItemNode() {
+        const id = itemIdx++;
+        if (collected.includes(id)) return document.createTextNode(' ');
+        const item = GROVE_ITEMS[id];
+        if (!item) return document.createTextNode(' ');
+        const btn = document.createElement('span');
+        btn.className = `grove-item grove-${item.type}`;
+        btn.setAttribute('role', 'button');
+        btn.tabIndex = 0;
+        btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
+        btn.textContent = item.type === 'stick' ? '/' : '#';
+        btn.addEventListener('click', () => collectGroveItem(id));
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                collectGroveItem(id);
             }
-            scene.appendChild(row);
         });
+        return btn;
+    }
+
+    // Helper: produce a span containing this string. If the string has
+    // $ characters they become clickable item buttons inline.
+    function buildSpan(text, depthCls) {
+        const span = document.createElement('span');
+        span.className = `grove-cell grove-${depthCls}`;
+        for (const ch of text) {
+            if (ch === '$') span.appendChild(makeItemNode());
+            else span.appendChild(document.createTextNode(ch));
+        }
+        return span;
+    }
+
+    // Compose each scene row from three side-by-side spans:
+    // [ left near-tree | center depth band | right near-tree ].
+    // The center span carries the row's depth class (horizon / far /
+    // midfar / mid / midnear / sky) so atmospheric perspective comes
+    // through CSS opacity + size on the center span only. The framing
+    // trees stay full-bright and full-size at all heights.
+    GROVE_SCENE_ROWS.forEach((rowSpec) => {
+        const row = document.createElement('div');
+        row.className = 'grove-row grove-scene-row';
+        row.appendChild(buildSpan(rowSpec.left,   'near'));
+        row.appendChild(buildSpan(rowSpec.center, rowSpec.centerCls));
+        row.appendChild(buildSpan(rowSpec.right,  'near'));
+        scene.appendChild(row);
+    });
+
+    // Ground row — single full-width span with its own depth class.
+    const groundRow = document.createElement('div');
+    groundRow.className = 'grove-row grove-ground-row';
+    groundRow.appendChild(buildSpan(GROVE_GROUND_ROW, 'ground'));
+    scene.appendChild(groundRow);
+
+    // Item rows — placeholder $ characters become clickable buttons.
+    GROVE_ITEM_ROWS.forEach((line) => {
+        const row = document.createElement('div');
+        row.className = 'grove-row grove-items-row';
+        row.appendChild(buildSpan(line, 'items'));
+        scene.appendChild(row);
     });
 
     const allCollected = collected.length >= GROVE_ITEMS.length;
@@ -2922,6 +3030,16 @@ function loadGame() {
             // any old format to the new collected-id list.
             if (game.locations.grove && !Array.isArray(game.locations.grove.collected)) {
                 game.locations.grove = { collected: [] };
+            }
+            // Migration: the grove scene was redesigned with a new
+            // item layout (different $ count and ordering). Old
+            // collected indices no longer point at the same items, so
+            // reset on saves that predate the new layout. groveLayoutV
+            // is bumped whenever GROVE_ITEM_ROWS changes.
+            const GROVE_LAYOUT_V = 2;
+            if ((game.locations.grove.layoutV || 1) < GROVE_LAYOUT_V) {
+                game.locations.grove.collected = [];
+                game.locations.grove.layoutV = GROVE_LAYOUT_V;
             }
 
             // Re-apply upgrades
