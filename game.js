@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v51';
+const APP_VERSION = 'v52';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -38,7 +38,7 @@ const APP_VERSION = 'v51';
 // "Heat 47/100" target readout in the resource bar plus the narration
 // beats wired up in REVEAL_STAGES (sootBeat1/2/3 and mergeGrid). The
 // engine ASCII visual progression was reverted — it's a TBD redesign.
-const PHASE_1_HEAT_TARGET = 100;
+const PHASE_1_HEAT_TARGET = 1000;
 
 const UPGRADES = {
     furnace: [

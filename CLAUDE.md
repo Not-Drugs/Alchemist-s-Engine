@@ -38,22 +38,26 @@ the touch interaction.
 
 ## Game Mechanics Overview
 
-### Stick Phase (opening — peakHeat < 100)
+### Stick Phase (opening — peakHeat < 1000)
 
 The game opens as a manual labor loop. The merge grid, sparks, and the rest
 of the engine are hidden until the player has pushed heat to the
-`PHASE_1_HEAT_TARGET` (100) at least once. Narratively this is "burning
+`PHASE_1_HEAT_TARGET` (1000) at least once. Narratively this is "burning
 the arcane soot off a long-dormant engine," but the soot itself is not
 exposed in the UI — the player just sees a heat target.
 
+At base rates (1 fuel/sec burn, 10 heat/fuel, 1 stick = 3 fuel) reaching
+1000 heat takes ~34 sticks fed; with the Stick Basket (4 sticks/trip in
+5s) Phase 1 lands around 2-3 minutes of active play.
+
 Player-facing surfaces:
 
-- The `[~] Heat 47/100` readout in the resource bar shows the target
-  during Phase 1. Once `peakHeat >= PHASE_1_HEAT_TARGET` the `/100`
+- The `[~] Heat 470/1000` readout in the resource bar shows the target
+  during Phase 1. Once `peakHeat >= PHASE_1_HEAT_TARGET` the `/1000`
   drops away and Heat is just an unbounded counter.
 - Narration beats fire as `peakHeat` crosses 25, 50, 75, and 100% of
-  the target (`sootBeat1`/`2`/`3` and the existing `mergeGrid`
-  reveal). The 100% reveal triggers a `screenFlash` and
+  the target (`sootBeat1`/`2`/`3` at 250/500/750 and the `mergeGrid`
+  reveal at 1000). The 100% reveal triggers a `screenFlash` and
   `screenShake('big')` to mark the moment.
 
 The engine ASCII visual progression (sooted → ornate restored form)
@@ -88,12 +92,12 @@ The Whittling Knife and Stick Cache upgrades were removed in v50.
 Orphaned IDs in older saves are pruned silently by the upgrade
 re-apply loop on load (no refund — game isn't live yet).
 
-The merge grid reveal at `kindlingAdded >= 20` ends the stick phase and
-seeds two Sparks on the grid as a tutorial nudge.
+The merge grid reveal at `peakHeat >= PHASE_1_HEAT_TARGET` (1000) ends
+the stick phase and seeds two Sparks on the grid as a tutorial nudge.
 
 ### Progression Tiers
 
-1. **Alchemical Table + Furnace** (Unlocks at `kindlingAdded >= 20`)
+1. **Alchemical Table + Furnace** (Unlocks at `peakHeat >= 1000`)
    - 6x4 drag-and-drop merge grid
    - 8 fuel tiers: Spark → Ember → Kindling → Coal → Charite → Blazite → Infernite → Solite
    - Each merge triples fuel value
