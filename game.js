@@ -1735,31 +1735,31 @@ const LEFT_NEAR_TREE = [
     '\\__\\|//__ ', // 3  broken-branch stub flung left, stub right (10c)
     '    || /  ', // 4  trunk emerges, side branch right
     '    ||/   ', // 5
-    '   o||    ', // 6  knot hole
+    '    O|    ', // 6  big knot ON trunk (left side)
     '    ||    ', // 7
     '    ||,   ', // 8  branch stub
-    '   .||    ', // 9  bark mark
+    '    (|    ', // 9  small knot left side
     '    ||    ', // 10
-    '   -||    ', // 11 broken stub
+    '    ||-   ', // 11 broken stub
     '    ||    ', // 12
-    '    ||O   ', // 13 large knot
+    '    |O    ', // 13 big knot ON trunk (right side)
     '    ||    ', // 14
     '    ||    ', // 15
-    '   .||    ', // 16
+    '    |)    ', // 16 small knot right side
     '    ||,   ', // 17 stub
     '    ||    ', // 18
     '    ||    ', // 19
-    '   o||    ', // 20 knot
+    '    O|    ', // 20 big knot left
     '    ||    ', // 21
     '    ||    ', // 22
-    '    ||,   ', // 23 stub (extension)
-    '   .||    ', // 24
+    '    ||,   ', // 23 stub
+    '    (|    ', // 24 small knot left
     '    ||    ', // 25
-    '   o||    ', // 26 knot (extension)
+    '    O|    ', // 26 big knot left
     '    ||    ', // 27
-    '   -||    ', // 28 broken stub (extension)
+    '   -||    ', // 28 broken stub (outside trunk — branch, not knot)
     '    ||    ', // 29
-    '    ||O   ', // 30 big knot (extension)
+    '    |O    ', // 30 big knot right
     '    ||    ', // 31
     '   /||\\   ', // 32 base flare
     '  /_||_\\  ', // 33
@@ -1776,31 +1776,31 @@ const RIGHT_NEAR_TREE = [
     '__\\\\|//__ ', // 3  (10c)
     '  \\ ||    ', // 4
     '   \\||    ', // 5
-    '    ||o   ', // 6  knot on right side
+    '    |O    ', // 6  big knot ON trunk (right side — mirror)
     '    ||    ', // 7
-    '   ,||    ', // 8
-    '    ||.   ', // 9
+    '   ,||    ', // 8  branch stub
+    '    |)    ', // 9  small knot right
     '    ||    ', // 10
-    '    ||-   ', // 11
+    '    ||-   ', // 11 broken stub
     '    ||    ', // 12
-    '   O||    ', // 13
+    '    O|    ', // 13 big knot left side (variation)
     '    ||    ', // 14
     '    ||    ', // 15
-    '    ||.   ', // 16
-    '   ,||    ', // 17
+    '    (|    ', // 16 small knot left (variation)
+    '   ,||    ', // 17 stub
     '    ||    ', // 18
     '    ||    ', // 19
-    '    ||o   ', // 20
+    '    |O    ', // 20 big knot right
     '    ||    ', // 21
     '    ||    ', // 22
-    '   ,||    ', // 23 stub (extension)
-    '    ||.   ', // 24
+    '   ,||    ', // 23 stub
+    '    |)    ', // 24 small knot right
     '    ||    ', // 25
-    '    ||o   ', // 26 knot (extension)
+    '    |O    ', // 26 big knot right
     '    ||    ', // 27
-    '    ||-   ', // 28 broken stub (extension)
+    '    ||-   ', // 28 broken stub (outside — branch)
     '    ||    ', // 29
-    '   O||    ', // 30 big knot (extension)
+    '    O|    ', // 30 big knot left
     '    ||    ', // 31
     '   /||\\   ', // 32
     '  /_||_\\  ', // 33
@@ -1809,16 +1809,18 @@ const RIGHT_NEAR_TREE = [
 
 // ----- Mid/far center-band trees -------------------------------------
 // Three size tiers, used to populate three receding mid-bands inside
-// the 20-char center area. Smaller = further. Each tree is a slot
-// of fixed width with the trunk centered.
+// the 20-char center area. Each band has THREE variants (A/B/C) that
+// alternate so the row doesn't read as repeated stamps.
 
 // FAR mid-tree: 4 cols wide, trunk col 1-2. Just a silhouette.
 const MID_FAR_A = [' /^\\', '  | ', '  | '];
 const MID_FAR_B = [' /|\\', '  | ', '  | '];
+const MID_FAR_C = [' ^^ ', '  | ', ' _|_'];
 
 // MID mid-tree: 5 cols wide, trunk col 2.
 const MID_MID_A = [' \\|/ ', '  |  ', '  |  ', '__|__'];
 const MID_MID_B = ['  ^  ', ' /|\\ ', '  |  ', ' _|_ '];
+const MID_MID_C = [' /^\\ ', ' \\|/ ', '  |  ', '__|__'];
 
 // NEAR mid-tree: 7 cols wide, trunk col 3, more branching detail.
 // These are the closest mid-trees, so they get a hint of bark texture.
@@ -1826,7 +1828,7 @@ const MID_NEAR_A = [
     '  \\|/  ',
     ' \\\\|// ',
     '   |   ',
-    '  o|   ',
+    '   O   ',  // knot ON trunk (matches framing-tree style)
     '   |   ',
     ' _/|\\_ '
 ];
@@ -1834,17 +1836,31 @@ const MID_NEAR_B = [
     '   ^   ',
     '  \\|/  ',
     '   |   ',
-    '   |o  ',
+    '   (   ',  // small knot
     '   |   ',
     '  /|\\  '
 ];
+const MID_NEAR_C = [
+    '  /^\\  ',
+    '  \\|/  ',
+    '  /|\\  ',
+    '   |   ',
+    '   |   ',
+    ' _/|\\_ '
+];
 
 // ----- Distant horizon ----------------------------------------------
-// FAR_TREELINE renders inside the 20-char center band as a single row
-// of barely-there crown silhouettes. Sits just under the horizon
-// stipple at the very top of the scene.
-const FAR_TREELINE = ' ^ /\\ ^ /^\\ ^^ /\\ ^';
-const HORIZON_STIPPLE = '. , . , . , . , . ,';
+// HORIZON_STIPPLE — single faintest row at the very top.
+// DISTANT_TREELINE — two rows just under it, micro-silhouettes.
+// FOG_ROW — sparse stipple used between bands to suggest atmospheric
+// haze (the eye reads this as distance because real distant forests
+// fade into hazy negative space between tree-mass bands).
+const HORIZON_STIPPLE  = '. , . , . , . , . ,';
+const DISTANT_TREELINE = [
+    '. ^ . /\\ . ^ /^\\ . ',
+    '^ /\\^./\\^^/\\.^/\\^.'
+];
+const FOG_ROW          = '  .  ,  \'  .  ,  \'  ';
 
 // ----- Helpers -------------------------------------------------------
 function padTo(s, w) {
@@ -1875,49 +1891,49 @@ function buildBand(slotPrim, pattern, totalWidth) {
 function buildGroveScene() {
     const rows = [];
 
-    // The left/right framing trees are 26 rows tall and start at row 0.
-    // We pre-compute every row's left and right columns, then fill in
-    // the center per scene row.
+    // The left/right framing trees are LEFT_NEAR_TREE.length rows tall
+    // and start at row 0. We pre-compute every row's left and right
+    // columns, then fill in the center per scene row.
     const leftCol  = (i) => LEFT_NEAR_TREE[i]  || ' '.repeat(GROVE_SIDE_W);
     const rightCol = (i) => RIGHT_NEAR_TREE[i] || ' '.repeat(GROVE_SIDE_W);
     const blankCtr = ' '.repeat(GROVE_CTR_W);
 
-    // Pre-build the three mid-bands.
-    const farBand    = buildBand({ A: MID_FAR_A,  B: MID_FAR_B  }, ['A','B','A','B','A'],          GROVE_CTR_W);
-    const midBand    = buildBand({ A: MID_MID_A,  B: MID_MID_B  }, ['A','B','A','B'],              GROVE_CTR_W);
-    const nearBand   = buildBand({ A: MID_NEAR_A, B: MID_NEAR_B }, ['A','B','A'],                  GROVE_CTR_W);
+    // Pre-build the three mid-bands. Three variants (A/B/C) cycle so
+    // adjacent trees don't look identical.
+    const farBand  = buildBand({ A: MID_FAR_A,  B: MID_FAR_B,  C: MID_FAR_C  }, ['A','B','C','A','B'],     GROVE_CTR_W);
+    const midBand  = buildBand({ A: MID_MID_A,  B: MID_MID_B,  C: MID_MID_C  }, ['A','C','B','A'],         GROVE_CTR_W);
+    const nearBand = buildBand({ A: MID_NEAR_A, B: MID_NEAR_B, C: MID_NEAR_C }, ['A','B','C'],             GROVE_CTR_W);
 
     // Layout of center per scene row index:
-    //   0:    horizon stipple
-    //   1:    far treeline silhouette
-    //   2-4:  far mid-band (3 rows tall)
-    //   5-8:  mid mid-band (4 rows tall)
-    //   9-14: near mid-band (6 rows tall)
-    //   15-22: empty (just trunks visible — leaves space for player's eye)
-    //   23-25: roots/base (handled by left/right trees themselves)
+    //   0:     horizon stipple                  (.grove-horizon)
+    //   1-2:   distant treeline (2 rows)        (.grove-far)
+    //   3:     fog row                          (.grove-far)
+    //   4-6:   far mid-band (3 rows)            (.grove-midfar)
+    //   7:     fog row                          (.grove-midfar)
+    //   8-11:  mid mid-band (4 rows)            (.grove-mid)
+    //   12:    fog row                          (.grove-mid)
+    //   13-18: near mid-band (6 rows)           (.grove-midnear)
+    //   19+:   empty sky (trunks only)          (.grove-sky)
     //
-    // Total = 26 scene rows (matches the framing trees' height).
+    // Total bands = 19 rows. Framing trees are 35 rows, so 16 rows of
+    // empty sky/trunks-only at the bottom — gives the eye breathing
+    // room and lets the framing trees dominate the lower half.
 
     function pushRow(left, center, right, centerCls) {
         rows.push({ left, center, right, centerCls });
     }
 
-    pushRow(leftCol(0), padTo(HORIZON_STIPPLE,  GROVE_CTR_W), rightCol(0), 'horizon');
-    pushRow(leftCol(1), padTo(FAR_TREELINE,     GROVE_CTR_W), rightCol(1), 'far');
-    for (let i = 0; i < farBand.length; i++) {
-        pushRow(leftCol(2 + i), farBand[i], rightCol(2 + i), 'midfar');
-    }
-    const offMid = 2 + farBand.length;
-    for (let i = 0; i < midBand.length; i++) {
-        pushRow(leftCol(offMid + i), midBand[i], rightCol(offMid + i), 'mid');
-    }
-    const offNear = offMid + midBand.length;
-    for (let i = 0; i < nearBand.length; i++) {
-        pushRow(leftCol(offNear + i), nearBand[i], rightCol(offNear + i), 'midnear');
-    }
-    const offEmpty = offNear + nearBand.length;
-    for (let i = offEmpty; i < LEFT_NEAR_TREE.length; i++) {
-        pushRow(leftCol(i), blankCtr, rightCol(i), 'sky');
+    let r = 0;
+    pushRow(leftCol(r), padTo(HORIZON_STIPPLE, GROVE_CTR_W), rightCol(r), 'horizon'); r++;
+    for (const line of DISTANT_TREELINE) { pushRow(leftCol(r), padTo(line, GROVE_CTR_W), rightCol(r), 'far'); r++; }
+    pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'far'); r++;
+    for (const line of farBand)  { pushRow(leftCol(r), line, rightCol(r), 'midfar');  r++; }
+    pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'midfar'); r++;
+    for (const line of midBand)  { pushRow(leftCol(r), line, rightCol(r), 'mid');     r++; }
+    pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'mid'); r++;
+    for (const line of nearBand) { pushRow(leftCol(r), line, rightCol(r), 'midnear'); r++; }
+    while (r < LEFT_NEAR_TREE.length) {
+        pushRow(leftCol(r), blankCtr, rightCol(r), 'sky'); r++;
     }
 
     return rows;

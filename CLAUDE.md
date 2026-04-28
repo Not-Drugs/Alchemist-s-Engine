@@ -250,11 +250,19 @@ The center span rotates through depth bands as you read top to bottom:
 | Scene rows | Center content                  | CSS class       |
 |-----------:|----------------------------------|-----------------|
 | 0          | horizon stipple `. , . , .`      | `.grove-horizon`|
-| 1          | far treeline silhouette `^/\\^`  | `.grove-far`    |
-| 2–4        | far mid-band (4 tiny trees)      | `.grove-midfar` |
-| 5–8        | mid mid-band (4 small trees)     | `.grove-mid`    |
-| 9–14       | near mid-band (3 detailed trees) | `.grove-midnear`|
-| 15–34      | empty sky (only trunks visible)  | `.grove-sky`    |
+| 1–2        | distant treeline (2 micro rows)  | `.grove-far`    |
+| 3          | fog stipple (haze separator)     | `.grove-far`    |
+| 4–6        | far mid-band (5 tiny trees A/B/C)| `.grove-midfar` |
+| 7          | fog stipple                      | `.grove-midfar` |
+| 8–11       | mid mid-band (4 small trees)     | `.grove-mid`    |
+| 12         | fog stipple                      | `.grove-mid`    |
+| 13–18      | near mid-band (3 detailed trees) | `.grove-midnear`|
+| 19–34      | empty sky (only trunks visible)  | `.grove-sky`    |
+
+Each band has THREE variants (A/B/C) cycling so adjacent trees don't
+read as repeated stamps. Fog rows between bands sell atmospheric
+depth — the eye reads horizontal haze between tree-mass bands as
+distance.
 
 Atmospheric perspective comes from per-cell CSS opacity + color
 tinting only — `font-size` is intentionally NOT varied per cell
