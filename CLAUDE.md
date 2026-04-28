@@ -52,13 +52,22 @@ At base rates (1 fuel/sec burn, 10 heat/fuel, 1 stick = 3 fuel) reaching
 
 Player-facing surfaces:
 
-- The `[~] Heat 470/1000` readout in the resource bar shows the target
-  during Phase 1. Once `peakHeat >= PHASE_1_HEAT_TARGET` the `/1000`
-  drops away and Heat is just an unbounded counter.
+- A **Heat bar** (`#engine-heat-readout`) sits inside the engine
+  column directly above the Fuel bar. During Phase 1 it renders as
+  `Heat: [▓▓░░] 470 / 1000` with the `+10/s` rate on a second line;
+  after Phase 1 the bar hides and only the unbounded number remains.
+  Heat is intentionally NOT duplicated in the top resource bar —
+  metal/alloy/etc still live there for later phases.
 - Narration beats fire as `peakHeat` crosses 25, 50, 75, and 100% of
   the target (`sootBeat1`/`2`/`3` at 250/500/750 and the `mergeGrid`
   reveal at 1000). The 100% reveal triggers a `screenFlash` and
   `screenShake('big')` to mark the moment.
+- An **ember-core glow** (red text-shadow on the engine's inner ASCII
+  face — eyes `.   .`, vent `_`, grate `'---'`) pulses softly when the
+  furnace has run out of fuel but `game.resources.heat > 0`. Sells the
+  idea that heat is the engine's *reserve*, not just the current burn.
+  Implemented via `.ember-core` spans wrapping the inner-face chars
+  in `renderBareEngineAscii()` (game.js).
 
 The engine ASCII visual progression (sooted → ornate restored form)
 is currently TBD — first attempt was reverted. The engine renders the
@@ -177,15 +186,29 @@ the stick phase and seeds two Sparks on the grid as a tutorial nudge.
 
 ### Heat Decay (idle)
 
-Heat is no longer a permanent accumulator. When the furnace is idle
-(`game.furnace.fuel === 0`), `game.resources.heat` decays exponentially:
+Heat is not a permanent accumulator. When the furnace is idle
+(`game.furnace.fuel === 0`), `game.resources.heat` decays via two
+layered terms — exponential plus a linear floor:
 
-- Base rate: `0.5% / sec` (`game.bonuses.heatDecayRate = 0.005`)
-- Runs only in the foreground game loop; offline processing does NOT apply
-  decay (the 8-hour cap + 50% efficiency are enough friction).
+```
+expLoss   = heat × (1 − (1 − decayRate)^delta)
+floorLoss = MIN_HEAT_DECAY_PER_SEC × delta
+heat     -= max(expLoss, floorLoss)
+```
+
+- Default `decayRate = 0.005` (0.5% of current heat per second). True
+  exponential — half-life ≈ 139 seconds regardless of starting heat.
+- `MIN_HEAT_DECAY_PER_SEC = 0.1`. The floor takes over when the
+  exponential term shrinks below it (around heat ≤ 20). Without the
+  floor a small puddle would linger near-forever (10 heat would take
+  ~30+ minutes to drain). With it, ~100 seconds.
+- Runs only in the foreground game loop; offline processing does NOT
+  apply decay (the 8-hour cap + 50% efficiency are enough friction).
 - Three furnace upgrades form the retention ladder:
   - **Thermal Mortar** (300 heat) — sets decay rate to `0.002` (60% slower)
-  - **Sealed Crucible** (3000 heat, requires Mortar) — sets decay rate to `0`
+  - **Sealed Crucible** (3000 heat, requires Mortar) — sets `decayRate = 0`,
+    which bypasses BOTH the exponential and floor terms (the upgrade
+    promises no decay, so the floor mustn't kick in)
   - **Ember Heart** (30000 heat, requires Crucible) — `heatPassiveGen = 0.5`
     heat/sec while idle (multiplied by wisdom)
 
@@ -195,8 +218,14 @@ Heat is no longer a permanent accumulator. When the furnace is idle
 - `ORE_TIERS` - 5 tiers, same tripling pattern
 - `GRID_SIZE` - 24 cells (6x4)
 - `SPARK_HEAT_COST` - 1 (heat consumed per manual spark)
-- `STICK_GATHER_MS` - 3000 (manual stick-gather duration)
+- `STICK_GATHER_MS` - 3000 (base manual stick-gather duration; Stick
+  Basket overrides via `game.bonuses.stickGatherMs = 5000`)
 - `STICK_FUEL_VALUE` - 3 (fuel granted per stick fed; ≈3s of burn)
+- `PHASE_1_HEAT_TARGET` - 1000 (heat target ending the stick phase;
+  drives the soot narration beats and the merge-grid reveal)
+- `MIN_HEAT_DECAY_PER_SEC` - 0.1 (linear floor on idle heat decay)
+- `APP_VERSION` / `CACHE` - kept in sync; bump BOTH on every shell
+  change (see `feedback_version_sync.md` memory)
 - `UPGRADES` - Object with furnace/smelter/forge/workshop upgrade arrays
 - `ACHIEVEMENTS` - 18 achievements with ASCII icons
 - `SAVE_VERSION` - Integer version of the save-code envelope format
@@ -342,7 +371,14 @@ point at the same items.
 - Service worker (`service-worker.js`) caches the shell
   (`index.html`, `style.css`, `game.js`, `qrcode.js`, `manifest.webmanifest`,
   `icon.svg`) with a stale-while-revalidate strategy. Bump the `CACHE`
-  constant when the shell changes.
+  constant when the shell changes (and also bump `APP_VERSION` in
+  `game.js` to match — they MUST be kept in sync, otherwise the
+  visible version label drifts and players can't tell stale-cache
+  from current-build).
+- A `[↻]` refresh button next to the version tag lets players
+  self-serve out of any stuck-SW state — saves the game, wipes every
+  Cache Storage entry, prods the SW for an update, then reloads.
+  See `forceRefresh()` in `game.js`.
 - Prestige resets everything except: Philosopher's Stones, prestige count,
   achievements, and cumulative stats.
 
