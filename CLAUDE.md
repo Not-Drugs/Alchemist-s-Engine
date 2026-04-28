@@ -223,8 +223,12 @@ Heat is no longer a permanent accumulator. When the furnace is idle
 
 ### Trial Location: The Dead Grove
 
-A separate exploration mechanic, accessible via the location card in
-the right column. Tapping the card opens a fullscreen modal containing
+A separate exploration mechanic, accessible from the **Explore** card
+that sits below the Alchemical Table. The card renders a tiny world
+map: a hollow box icon for the engine ("you are here", non-clickable)
+linked by a horizontal line to a solid box icon for the grove
+(the `#grove-enter` button). Future locations join this row as more
+nodes. Tapping the grove icon opens a fullscreen modal containing
 a hand-authored ASCII forest scene. The picture **is** the UI: items
 embedded in the art (sticks, stones) are clickable and add to the
 player's resources. Items don't respawn yet — this is a proof of

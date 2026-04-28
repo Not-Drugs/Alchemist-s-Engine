@@ -98,19 +98,6 @@
                     </div>
                 </section>
 
-                <!-- The Dead Grove (trial location) — teaser card opens a fullscreen scene -->
-                <section id="location-grove">
-                    <button id="grove-enter" class="location-card" type="button">
-                        <h2>The Dead Grove</h2>
-                        <pre class="location-card-art">    *         *         *
-   /|\       /|\       /|\
-  / | \     / | \     / | \
-    |         |         |</pre>
-                        <p class="location-desc">Branches without leaves, brittle as bone. Sticks and stones lie scattered.</p>
-                        <span class="location-cta">[ Enter ]</span>
-                    </button>
-                </section>
-
                 <!-- Alchemical Table (Merge Grid) -->
                 <section id="merge-section" class="reveal-hidden">
                     <h2>Alchemical Table</h2>
@@ -126,6 +113,32 @@
                     <div id="spawn-controls">
                         <button id="spawn-fuel" class="spawn-btn reveal-hidden" title="Tap to spark a fuel. Costs 1 heat per spark.">[+] Spark (1 Heat)</button>
                         <button id="spawn-ore" class="spawn-btn reveal-hidden" disabled title="Tap to spawn raw ore.">[+] Raw Ore (10 Heat)</button>
+                    </div>
+                </section>
+
+                <!-- Explore — the world map. Each node is a location; the
+                     hollow node is "you are here" (the engine) and clickable
+                     nodes route to other places. Only the grove exists for
+                     now; future locations join this row as more nodes.
+                     Sits below the Alchemical Table so the player has
+                     established the engine + merge loop before being
+                     offered an excursion. -->
+                <section id="location-grove" class="explore-section">
+                    <h2>Explore</h2>
+                    <div class="explore-map">
+                        <div class="explore-node explore-engine" aria-label="The Engine (you are here)">
+                            <pre class="explore-icon">&#9484;&#9472;&#9472;&#9488;
+&#9474;  &#9474;
+&#9492;&#9472;&#9472;&#9496;</pre>
+                            <span class="explore-label">engine</span>
+                        </div>
+                        <span class="explore-connector" aria-hidden="true">&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;</span>
+                        <button id="grove-enter" class="explore-node explore-clickable" type="button" aria-label="Travel to the Dead Grove">
+                            <pre class="explore-icon">&#9484;&#9472;&#9472;&#9488;
+&#9474;&#9608;&#9608;&#9474;
+&#9492;&#9472;&#9472;&#9496;</pre>
+                            <span class="explore-label">grove</span>
+                        </button>
                     </div>
                 </section>
 

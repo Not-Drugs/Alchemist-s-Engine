@@ -330,54 +330,98 @@ section h2::after {
    scene lives. The scene is hand-authored ASCII — trees and ground
    rendered as plain text, with item characters embedded inline as
    clickable spans. */
-.location-card {
-    display: block;
-    width: 100%;
+/* Explore section — a node-and-edge map of locations the player can
+   travel to. Hollow box = "you are here" (the engine), solid box = a
+   visitable location (the grove). Only the visitable nodes are
+   real buttons; the engine node is purely informational. */
+.explore-section {
     background: var(--bg-medium);
     border: 1px solid var(--box-char);
-    padding: 16px;
+    padding: 14px 16px;
     text-align: center;
-    cursor: pointer;
-    color: var(--text-primary);
-    font-family: inherit;
-    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.location-card h2 {
-    margin-bottom: 0;
+.explore-section h2 {
+    margin-bottom: 4px;
     border-bottom: none;
     padding-bottom: 0;
 }
 
-@media (hover: hover) {
-    .location-card:hover {
-        border-color: var(--text-bright);
-        background: var(--bg-light);
-    }
+.explore-map {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-top: 10px;
 }
 
-.location-card:active {
-    border-color: var(--accent-fire);
-    background: var(--bg-light);
-}
-
-.location-card-art {
+.explore-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    margin: 0;
     color: var(--text-dim);
     font-family: inherit;
-    font-size: 0.85rem;
-    line-height: 1.2;
-    text-align: center;
-    margin: 14px 0 12px;
+    cursor: default;
+}
+
+.explore-icon {
+    margin: 0;
+    line-height: 1.0;
     white-space: pre;
+    font-family: inherit;
+    font-size: 1.1rem;
     user-select: none;
 }
 
-.location-cta {
+.explore-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-top: 4px;
+    text-transform: lowercase;
+}
+
+.explore-connector {
+    /* Single-line of heavy box-draw; align-items:center on the parent
+       puts this at the vertical middle of the icons (line 2 of 3). */
+    color: var(--text-dim);
+    line-height: 1.0;
+    white-space: pre;
+    font-family: inherit;
+    font-size: 1.1rem;
+    user-select: none;
+    /* Nudge up to compensate for the label adding height to the
+       sibling nodes — without this the connector would center to the
+       middle of icon+label, which sits below icon row 2. */
+    transform: translateY(-0.55em);
+}
+
+.explore-node.explore-clickable {
+    cursor: pointer;
     color: var(--accent-fire);
-    font-weight: bold;
-    letter-spacing: 2px;
-    margin-top: 8px;
-    display: inline-block;
+    transition: color 0.15s ease, transform 0.1s ease;
+}
+
+@media (hover: hover) {
+    .explore-clickable:hover {
+        color: var(--text-bright);
+    }
+    .explore-clickable:hover .explore-label {
+        color: var(--accent-fire);
+    }
+}
+
+.explore-clickable:active {
+    transform: scale(0.97);
+}
+
+.explore-clickable:focus-visible {
+    outline: 1px solid var(--accent-fire);
+    outline-offset: 2px;
 }
 
 .grove-modal-content {
