@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v53';
+const APP_VERSION = 'v54';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -2576,23 +2576,48 @@ function updateUI() {
 
     // Furnace ASCII animation — art changes with temperature.
     const furnaceAscii = document.getElementById('furnace-ascii');
+    // Helper for the bare engine art. When `glowCore` is true, the
+    // inner-face characters (eyes, mouth-grate) are wrapped in
+    // .ember-core spans so CSS can colour and pulse them — this is
+    // how the "still-warm engine" beat is rendered.
+    function renderBareEngineAscii(target, glowCore) {
+        target.textContent = '';
+        // Each entry: [pre-text, optional glow-text, post-text]. When
+        // glowCore is true, glow-text becomes a span; otherwise it's
+        // appended as plain text.
+        const lines = [
+            ['\n    _______', '', ''],
+            ['\n   /       \\', '', ''],
+            ['\n  |  ', '.   .', '  |'],
+            ['\n  |    ', '_', '    |'],
+            ['\n  |  ', "'---'", '  |'],
+            ['\n  |_________|', '', ''],
+            ['\n /___________\\', '', ''],
+            ['\n|_____________|', '', '']
+        ];
+        for (const [pre, glow, post] of lines) {
+            target.appendChild(document.createTextNode(pre));
+            if (glow) {
+                if (glowCore) {
+                    const span = document.createElement('span');
+                    span.className = 'ember-core';
+                    span.textContent = glow;
+                    target.appendChild(span);
+                } else {
+                    target.appendChild(document.createTextNode(glow));
+                }
+            }
+            if (post) target.appendChild(document.createTextNode(post));
+        }
+    }
     if (furnaceAscii) {
         const burning = game.furnace.fuel > 0;
         const temp = game.furnace.temperature;
         const cold = !burning && temp < 1 && game.stats.totalHeat === 0;
+        const hasResidualHeat = !burning && (game.resources.heat || 0) > 0;
         furnaceAscii.classList.toggle('burning', burning);
         furnaceAscii.classList.toggle('cold', cold);
         furnaceAscii.classList.toggle('roaring', temp >= 400);
-
-        // Residual ember glow: when fuel runs out but the player still
-        // has stockpiled heat, the engine retains a faint red core. Sells
-        // the idea that "heat" is the engine's reserve, not just the
-        // current burn.
-        const furnaceVisual = document.getElementById('furnace-visual');
-        if (furnaceVisual) {
-            const hasResidualHeat = !burning && (game.resources.heat || 0) > 0;
-            furnaceVisual.classList.toggle('has-residual-heat', hasResidualHeat);
-        }
 
         const t = Math.floor(Date.now() / 180);
         if (burning && temp >= 400) {
@@ -2634,15 +2659,10 @@ function updateUI() {
  /___________\\
 |_____________|`;
         } else {
-            furnaceAscii.textContent = `
-    _______
-   /       \\
-  |  .   .  |
-  |    _    |
-  |  '---'  |
-  |_________|
- /___________\\
-|_____________|`;
+            // Cold or warm-but-no-fuel. If the player still has heat
+            // banked, the inner face (eyes, mouth) lights up with the
+            // ember glow via wrapper spans; otherwise it's plain ASCII.
+            renderBareEngineAscii(furnaceAscii, hasResidualHeat);
         }
     }
 
