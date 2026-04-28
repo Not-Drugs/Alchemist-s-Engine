@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v55';
+const APP_VERSION = 'v56';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -2540,18 +2540,18 @@ function updateUI() {
         if (game.furnace.fuel > 0) {
             const heatRate = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier * getWisdomMultiplier() *
                 (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
-            heatRateEl.textContent = `+${formatNumber(heatRate)}/s`;
+            heatRateEl.textContent = `+${formatRate(heatRate)}/s`;
             heatRateEl.classList.remove('decaying');
         } else {
             const decayRate = game.bonuses.heatDecayRate || 0;
             const passiveGen = game.bonuses.heatPassiveGen || 0;
             const decayPerSec = decayRate * game.resources.heat;
             const netRate = passiveGen - decayPerSec;
-            if (netRate > 0.01) {
-                heatRateEl.textContent = `+${formatNumber(netRate)}/s`;
+            if (netRate > 0.005) {
+                heatRateEl.textContent = `+${formatRate(netRate)}/s`;
                 heatRateEl.classList.remove('decaying');
-            } else if (decayPerSec > 0.01) {
-                heatRateEl.textContent = `-${formatNumber(decayPerSec)}/s`;
+            } else if (decayPerSec > 0.005) {
+                heatRateEl.textContent = `-${formatRate(decayPerSec)}/s`;
                 heatRateEl.classList.add('decaying');
             } else {
                 heatRateEl.textContent = `+0/s`;
@@ -3359,6 +3359,17 @@ function formatNumber(n) {
     if (n < 1000000000) return (n / 1000000).toFixed(2) + 'M';
     if (n < 1000000000000) return (n / 1000000000).toFixed(2) + 'B';
     return (n / 1000000000000).toFixed(2) + 'T';
+}
+
+// Display variant for per-second rates. formatNumber floors integers
+// (so a real 0.25/s decay would render as "0/s" — misleading early-game).
+// formatRate keeps decimals for small magnitudes and trims trailing
+// zeros / decimal points so readouts stay clean.
+function formatRate(n) {
+    if (n >= 1000) return formatNumber(n);
+    if (n >= 10)   return Math.round(n).toString();
+    if (n >= 1)    return n.toFixed(1).replace(/\.0$/, '');
+    return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 function formatTime(ms) {
