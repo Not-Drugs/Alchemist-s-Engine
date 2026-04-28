@@ -78,10 +78,15 @@ fuel drags are short.
 **Stick upgrades** (Furnace tab, costType `'sticks'`, top of list — appear
 once the Upgrades panel reveals at `kindlingAdded >= 3`):
 
-- **Stick Bundle** (10 sticks) — `sticksPerGather = 2`
-- **Whittling Knife** (40 sticks, requires Bundle) — `stickGatherSpeed = 1.25`
-  (gather time becomes `STICK_GATHER_MS / stickGatherSpeed` ≈ 2.4s)
-- **Stick Cache** (200 sticks, requires Bundle) — `sticksPerGather = 3`
+- **Stick Basket** (5 sticks) — `sticksPerGather = 4`, `stickGatherMs = 5000`.
+  Trip is slower (3s → 5s) but yields 4 sticks instead of 1, so the rate
+  goes from 0.33/s → 0.8/s (2.4× base) and the player taps half as often.
+  Flavor text: "It takes sticks to make sticks." (the basket is woven
+  from the resource it produces — explains the cost).
+
+The Whittling Knife and Stick Cache upgrades were removed in v50; their
+costs are refunded to anyone who already owned them via a save migration.
+The orphaned IDs are pruned by the upgrade re-apply loop on load.
 
 The merge grid reveal at `kindlingAdded >= 20` ends the stick phase and
 seeds two Sparks on the grid as a tutorial nudge.

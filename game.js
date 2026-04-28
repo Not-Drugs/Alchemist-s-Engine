@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v49';
+const APP_VERSION = 'v50';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -42,9 +42,7 @@ const PHASE_1_HEAT_TARGET = 100;
 
 const UPGRADES = {
     furnace: [
-        { id: 'stickBundle',    name: 'Stick Basket',    desc: 'Gather 2 sticks per trip',          flavor: 'It takes sticks to make sticks.', cost: 5, costType: 'sticks', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 2); } },
-        { id: 'whittlingKnife', name: 'Whittling Knife', desc: 'Gather sticks 25% faster',          cost: 40,  costType: 'sticks', requires: 'stickBundle', effect: () => { game.bonuses.stickGatherSpeed = 1.25; } },
-        { id: 'stickCache',     name: 'Stick Cache',     desc: 'Gather 3 sticks per click',         cost: 200, costType: 'sticks', requires: 'stickBundle', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 3); } },
+        { id: 'stickBundle',    name: 'Stick Basket',    desc: 'Gather 4 sticks per trip (slower)', flavor: 'It takes sticks to make sticks.', cost: 5, costType: 'sticks', effect: () => { game.bonuses.sticksPerGather = Math.max(game.bonuses.sticksPerGather, 4); game.bonuses.stickGatherMs = 5000; } },
         { id: 'efficiency1', name: 'Better Bellows', desc: '+25% furnace efficiency', cost: 50, costType: 'heat', effect: () => { game.bonuses.furnaceEfficiency += 0.25; } },
         { id: 'efficiency2', name: 'Insulated Walls', desc: '+25% furnace efficiency', cost: 200, costType: 'heat', requires: 'efficiency1', effect: () => { game.bonuses.furnaceEfficiency += 0.25; } },
         { id: 'efficiency3', name: 'Arcane Vents', desc: '+50% furnace efficiency', cost: 1000, costType: 'heat', requires: 'efficiency2', effect: () => { game.bonuses.furnaceEfficiency += 0.5; } },
@@ -180,7 +178,7 @@ const defaultGame = {
         heatDecayRate: 0.005,
         heatPassiveGen: 0,
         sticksPerGather: 1,
-        stickGatherSpeed: 1
+        stickGatherMs: 3000
     },
     stats: {
         totalHeat: 0,
@@ -2409,7 +2407,7 @@ function startStickGather() {
     btn.disabled = true;
     if (fill) fill.style.width = '0%';
 
-    const duration = STICK_GATHER_MS / (game.bonuses.stickGatherSpeed || 1);
+    const duration = game.bonuses.stickGatherMs || STICK_GATHER_MS;
     const startTime = Date.now();
     const intervalId = setInterval(() => {
         const elapsed = Date.now() - startTime;
@@ -3108,6 +3106,19 @@ function loadGame() {
             if ((game.locations.grove.layoutV || 1) < GROVE_LAYOUT_V) {
                 game.locations.grove.collected = [];
                 game.locations.grove.layoutV = GROVE_LAYOUT_V;
+            }
+            // Migration: removed Whittling Knife (40 sticks) and Stick
+            // Cache (200 sticks). Refund anyone who already paid so
+            // they don't silently lose 240 sticks. The orphaned IDs
+            // get pruned naturally by the upgrade re-apply loop below
+            // (it only re-pushes IDs that still match a definition).
+            const refundMap = { whittlingKnife: 40, stickCache: 200 };
+            let stickRefund = 0;
+            for (const id of (game.upgrades || [])) {
+                if (refundMap[id]) stickRefund += refundMap[id];
+            }
+            if (stickRefund > 0) {
+                game.resources.sticks = (game.resources.sticks || 0) + stickRefund;
             }
 
             // Re-apply upgrades
