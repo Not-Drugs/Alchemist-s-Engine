@@ -395,6 +395,11 @@ section h2::after {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* Belt-and-suspenders with the body scroll lock in JS: stop touch
+       gestures inside the grove from triggering a scroll on the page
+       behind it. */
+    overscroll-behavior: contain;
+    touch-action: pan-y;
 }
 
 .grove-modal-content h3 {
@@ -422,10 +427,12 @@ section h2::after {
 }
 
 .grove-modal-content .grove-row {
-    /* Base font sizing for the scene rows. Per-cell depth classes
-       override font-size for atmospheric perspective. clamp() keeps
-       it readable on narrow phones and big tablets alike. */
-    font-size: clamp(0.7rem, 2.0vw, 1.5rem);
+    /* Base font sizing for the scene rows. We size relative to BOTH
+       width and height so the scene fills the modal on any phone:
+       min() picks whichever dimension is the binding constraint.
+       3.6vw keeps 40 chars within ~360px viewports; 2.6vh ensures
+       ~30 rows fill ~700px viewports. */
+    font-size: min(3.6vw, 2.6vh);
     line-height: 1.0;
     text-align: center;
     white-space: pre;
@@ -433,10 +440,16 @@ section h2::after {
 }
 
 .grove-modal-content .grove-scene-row {
-    /* The composite scene rows place left/center/right cells inline.
-       inline-flex aligns them on a shared baseline so trunk columns
-       can't drift even if the center cell is rendered at a smaller
-       font size. */
+    /* All cells in a scene row use the SAME font-size so the column
+       count math (10 + 20 + 10 = 40 chars) translates to consistent
+       pixel widths. Atmospheric depth comes purely from per-cell
+       opacity + color, not size — sizing differences would make the
+       framing trees zig-zag horizontally as the center cell shrinks
+       in narrower bands. inline-flex preserves baseline alignment
+       across cells.
+
+       Note: do NOT add per-cell font-size overrides — see commit
+       49e1dda iteration where this caused trunk drift. */
     display: flex;
     justify-content: center;
     align-items: flex-end;
@@ -446,6 +459,7 @@ section h2::after {
 .grove-modal-content .grove-cell {
     white-space: pre;
     font-family: inherit;
+    font-size: inherit;
     letter-spacing: 0;
     display: inline-block;
 }
@@ -457,18 +471,27 @@ section h2::after {
 }
 
 .grove-leave {
+    /* Compact [X] in the top-right corner so it can't crash into the
+       title text. The hit area is still 44x44 (HIG-compliant) via
+       padding even though the visible label is just one character. */
     position: absolute;
-    top: max(12px, env(safe-area-inset-top));
-    right: max(12px, env(safe-area-inset-right));
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
     background: var(--bg-dark);
     border: 1px solid var(--accent-fire);
     color: var(--accent-fire);
-    padding: 8px 16px;
+    padding: 8px 12px;
+    min-width: 44px;
+    min-height: 44px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.85rem;
-    letter-spacing: 1px;
+    font-size: 1.1rem;
+    line-height: 1;
+    letter-spacing: 0;
     z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 @media (hover: hover) {
@@ -508,38 +531,33 @@ section h2::after {
 }
 
 /* Per-cell depth styling. Each scene row contains three side-by-side
-   spans — left near-tree, center depth band, right near-tree. The
-   center span's class controls how dim and how small that band reads,
-   producing atmospheric perspective without changing row layout.
-   Framing trees (grove-near) stay full-bright at all heights. */
+   spans — left near-tree, center depth band, right near-tree. Atmospheric
+   perspective comes from per-cell opacity + color tinting only; font-size
+   is intentionally NOT overridden so columns line up across rows.
+   Framing trees (grove-near) stay full-bright; distant bands fade. */
 .grove-cell.grove-horizon {
-    opacity: 0.18;
-    font-size: 0.55em;
+    opacity: 0.20;
     color: #8a9a8c;
     letter-spacing: 0;
 }
 
 .grove-cell.grove-far {
-    opacity: 0.32;
-    font-size: 0.65em;
+    opacity: 0.35;
     color: #97907a;
 }
 
 .grove-cell.grove-midfar {
-    opacity: 0.50;
-    font-size: 0.75em;
+    opacity: 0.52;
     color: #a89878;
 }
 
 .grove-cell.grove-mid {
     opacity: 0.68;
-    font-size: 0.85em;
     color: #b5a482;
 }
 
 .grove-cell.grove-midnear {
     opacity: 0.85;
-    font-size: 0.95em;
     color: #c8b48a;
 }
 

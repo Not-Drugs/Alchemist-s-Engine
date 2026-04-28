@@ -1752,9 +1752,18 @@ const LEFT_NEAR_TREE = [
     '   o||    ', // 20 knot
     '    ||    ', // 21
     '    ||    ', // 22
-    '   /||\\   ', // 23 base flare
-    '  /_||_\\  ', // 24
-    '_/  ||  \\_'  // 25 root spread
+    '    ||,   ', // 23 stub (extension)
+    '   .||    ', // 24
+    '    ||    ', // 25
+    '   o||    ', // 26 knot (extension)
+    '    ||    ', // 27
+    '   -||    ', // 28 broken stub (extension)
+    '    ||    ', // 29
+    '    ||O   ', // 30 big knot (extension)
+    '    ||    ', // 31
+    '   /||\\   ', // 32 base flare
+    '  /_||_\\  ', // 33
+    '_/  ||  \\_'  // 34 root spread
 ];
 
 // RIGHT framing tree. Mirror of LEFT — trunk col shifted, branches
@@ -1784,9 +1793,18 @@ const RIGHT_NEAR_TREE = [
     '    ||o   ', // 20
     '    ||    ', // 21
     '    ||    ', // 22
-    '   /||\\   ', // 23
-    '  /_||_\\  ', // 24
-    '_/  ||  \\_'  // 25
+    '   ,||    ', // 23 stub (extension)
+    '    ||.   ', // 24
+    '    ||    ', // 25
+    '    ||o   ', // 26 knot (extension)
+    '    ||    ', // 27
+    '    ||-   ', // 28 broken stub (extension)
+    '    ||    ', // 29
+    '   O||    ', // 30 big knot (extension)
+    '    ||    ', // 31
+    '   /||\\   ', // 32
+    '  /_||_\\  ', // 33
+    '_/  ||  \\_'  // 34
 ];
 
 // ----- Mid/far center-band trees -------------------------------------
@@ -2868,19 +2886,44 @@ const burnAll = document.getElementById('burn-all-btn');
         });
     }
 
-    // Dead Grove: teaser card opens the fullscreen scene; [Leave] closes.
+    // Dead Grove: teaser card opens the fullscreen scene; [X] closes.
+    // We lock body scroll while the modal is open so the page underneath
+    // can't bleed-scroll on touch (iOS rubber-band especially); the
+    // pre-modal overflow + scroll position are saved and restored on
+    // close so the player lands back where they were.
     const groveEnter = document.getElementById('grove-enter');
     const groveLeave = document.getElementById('grove-leave');
     const groveModal = document.getElementById('grove-modal');
+    let groveSavedScrollY = 0;
+    function lockBodyScroll() {
+        groveSavedScrollY = window.scrollY || window.pageYOffset || 0;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${groveSavedScrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+    }
+    function unlockBodyScroll() {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, groveSavedScrollY);
+    }
     if (groveEnter && groveModal) {
         groveEnter.addEventListener('click', () => {
             groveModal.classList.remove('hidden');
+            lockBodyScroll();
             renderGrove();
         });
     }
     if (groveLeave && groveModal) {
         groveLeave.addEventListener('click', () => {
             groveModal.classList.add('hidden');
+            unlockBodyScroll();
         });
     }
 

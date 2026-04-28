@@ -254,12 +254,18 @@ The center span rotates through depth bands as you read top to bottom:
 | 2–4        | far mid-band (4 tiny trees)      | `.grove-midfar` |
 | 5–8        | mid mid-band (4 small trees)     | `.grove-mid`    |
 | 9–14       | near mid-band (3 detailed trees) | `.grove-midnear`|
-| 15–25      | empty sky (only trunks visible)  | `.grove-sky`    |
+| 15–34      | empty sky (only trunks visible)  | `.grove-sky`    |
 
-Atmospheric perspective comes from per-cell CSS — distant cells use
-lower opacity and smaller `font-size` (`em`-based, so they shrink
-relative to the scene's clamp-sized base). The framing trees stay
-full-bright at every height, anchoring the player's eye.
+Atmospheric perspective comes from per-cell CSS opacity + color
+tinting only — `font-size` is intentionally NOT varied per cell
+because differing cell sizes inside a flex row collapse the row's
+total width and pull the framing trees inward, making trunks
+zig-zag (caught and fixed in the v45 polish pass). The framing
+trees stay full-bright at every height, anchoring the player's eye.
+
+Modal lifecycle locks body scroll on open via `lockBodyScroll()` /
+`unlockBodyScroll()` (saves and restores `window.scrollY`) so the
+page underneath can't bleed-scroll on touch.
 
 Below the scene, a ground row and three item rows sit at the bottom.
 `$` placeholders in item rows are replaced at render with clickable
@@ -269,7 +275,7 @@ migration resets `collected` for old saves whose indices no longer
 point at the same items.
 
 **Building blocks** (`game.js`):
-- `LEFT_NEAR_TREE` / `RIGHT_NEAR_TREE` — 26-row framing trees
+- `LEFT_NEAR_TREE` / `RIGHT_NEAR_TREE` — 35-row framing trees
 - `MID_FAR_*`, `MID_MID_*`, `MID_NEAR_*` — slot-width primitives for
   the three mid-bands; `buildBand()` concatenates them into rows
 - `GROVE_SCENE_ROWS` — pre-computed array of `{left, center, right,
