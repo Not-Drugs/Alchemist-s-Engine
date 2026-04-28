@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v54';
+const APP_VERSION = 'v55';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -103,7 +103,7 @@ const ACHIEVEMENTS = [
 
 const REVEAL_STAGES = [
     { id: 'firstStick',    cond: g => g.stats.kindlingAdded >= 1,  narrate: 'A stick catches. The engine stirs.' },
-    { id: 'heatMeter',     cond: g => g.stats.totalHeat >= 1,      narrate: 'A faint warmth rises from the iron.',         targets: ['#resources', '#heat-resource', '#furnace-temp'] },
+    { id: 'heatMeter',     cond: g => g.stats.totalHeat >= 1,      narrate: 'A faint warmth rises from the iron.',         targets: ['#resources', '#engine-heat-readout', '#furnace-temp'] },
     { id: 'furnaceStats',  cond: g => g.stats.totalHeat >= 8,      narrate: 'You begin to notice the rhythm of the burn.', targets: ['#fuel-readout'] },
     { id: 'upgrades',      cond: g => g.stats.kindlingAdded >= 3,  narrate: 'The engine responds to your attention. Tools take shape.', targets: ['#upgrades-section'] },
     // Soot-burn-off narration beats fire as peakHeat climbs the Phase 1 target.
@@ -2503,41 +2503,60 @@ function feedStick(bulk = false) {
 // ============================================
 
 function updateUI() {
-    // Resources — Phase 1 shows "47/100" so the player has a target;
-    // once peakHeat clears the threshold, heat is just an unbounded counter.
+    // Resources — Phase 1 shows the heat bar progressing toward the
+    // target; once peakHeat clears it, the bar gives way to an unbounded
+    // counter (the bar would be meaningless past 100% fill).
     const phase1Active = (game.stats.peakHeat || 0) < PHASE_1_HEAT_TARGET;
     const heatTxt = formatNumber(Math.floor(game.resources.heat));
-    document.getElementById('heat-value').textContent = phase1Active
-        ? `${heatTxt}/${PHASE_1_HEAT_TARGET}`
-        : heatTxt;
     document.getElementById('metal-value').textContent = formatNumber(Math.floor(game.resources.metal));
     document.getElementById('alloy-value').textContent = formatNumber(Math.floor(game.resources.alloy));
     document.getElementById('gear-value').textContent = formatNumber(Math.floor(game.resources.gears));
     document.getElementById('essence-value').textContent = formatNumber(Math.floor(game.resources.essence));
 
+    // Heat readout (engine column, above fuel). During Phase 1 the bar
+    // tracks progress toward PHASE_1_HEAT_TARGET; afterwards the bar
+    // is hidden and just the number remains.
+    const heatBarEl   = document.getElementById('engine-heat-bar');
+    const heatValueEl = document.getElementById('engine-heat-value');
+    const heatMaxEl   = document.getElementById('engine-heat-max');
+    if (heatValueEl) heatValueEl.textContent = heatTxt;
+    if (heatMaxEl)   heatMaxEl.textContent   = phase1Active ? ` / ${PHASE_1_HEAT_TARGET}` : '';
+    if (heatBarEl) {
+        if (phase1Active) {
+            const heatBarWidth = 14;
+            const heatFilled = Math.min(heatBarWidth, Math.floor((game.resources.heat / PHASE_1_HEAT_TARGET) * heatBarWidth));
+            heatBarEl.textContent = '[' + '▓'.repeat(heatFilled) + '░'.repeat(heatBarWidth - heatFilled) + ']';
+            heatBarEl.style.display = '';
+        } else {
+            heatBarEl.style.display = 'none';
+        }
+    }
+
     // Heat rate — shows generation while burning, decay while idle. Decay
     // is approximate (heat * decayRate is the instantaneous derivative of
     // the exponential decay used in processFurnace).
-    const heatRateEl = document.getElementById('heat-rate');
-    if (game.furnace.fuel > 0) {
-        const heatRate = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier * getWisdomMultiplier() *
-            (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
-        heatRateEl.textContent = `+${formatNumber(heatRate)}/s`;
-        heatRateEl.classList.remove('decaying');
-    } else {
-        const decayRate = game.bonuses.heatDecayRate || 0;
-        const passiveGen = game.bonuses.heatPassiveGen || 0;
-        const decayPerSec = decayRate * game.resources.heat;
-        const netRate = passiveGen - decayPerSec;
-        if (netRate > 0.01) {
-            heatRateEl.textContent = `+${formatNumber(netRate)}/s`;
+    const heatRateEl = document.getElementById('engine-heat-rate');
+    if (heatRateEl) {
+        if (game.furnace.fuel > 0) {
+            const heatRate = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier * getWisdomMultiplier() *
+                (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
+            heatRateEl.textContent = `+${formatNumber(heatRate)}/s`;
             heatRateEl.classList.remove('decaying');
-        } else if (decayPerSec > 0.01) {
-            heatRateEl.textContent = `-${formatNumber(decayPerSec)}/s`;
-            heatRateEl.classList.add('decaying');
         } else {
-            heatRateEl.textContent = `+0/s`;
-            heatRateEl.classList.remove('decaying');
+            const decayRate = game.bonuses.heatDecayRate || 0;
+            const passiveGen = game.bonuses.heatPassiveGen || 0;
+            const decayPerSec = decayRate * game.resources.heat;
+            const netRate = passiveGen - decayPerSec;
+            if (netRate > 0.01) {
+                heatRateEl.textContent = `+${formatNumber(netRate)}/s`;
+                heatRateEl.classList.remove('decaying');
+            } else if (decayPerSec > 0.01) {
+                heatRateEl.textContent = `-${formatNumber(decayPerSec)}/s`;
+                heatRateEl.classList.add('decaying');
+            } else {
+                heatRateEl.textContent = `+0/s`;
+                heatRateEl.classList.remove('decaying');
+            }
         }
     }
 
@@ -2559,7 +2578,7 @@ function updateUI() {
         if (secs < 60) label = `${secs}s left`;
         else if (secs < 3600) label = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} left`;
         else label = `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}m left`;
-        fuelTimeEl.textContent = `· ${label}`;
+        fuelTimeEl.textContent = label;
     }
     document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
 

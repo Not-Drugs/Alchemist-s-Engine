@@ -1046,9 +1046,12 @@ section h2::after {
     color: var(--text-primary);
 }
 
-#fuel-readout {
-    margin-top: 10px;
-    padding-top: 8px;
+/* Engine column readouts (heat above, fuel below). Shared structure
+   so the two bars line up identically and the bar row's geometry
+   never shifts when the secondary line changes its text width. */
+.engine-readout {
+    margin-top: 8px;
+    padding-top: 6px;
     border-top: 1px solid var(--border-color);
     font-size: 0.7rem;
     text-align: center;
@@ -1056,23 +1059,49 @@ section h2::after {
     letter-spacing: 0;
 }
 
-.fuel-readout-main {
-    white-space: nowrap;
+#engine-heat-readout {
+    border-top: 1px solid var(--border-color);
+    margin-top: 10px;
 }
 
-#furnace-fuel-bar {
-    color: var(--accent-fire);
-    letter-spacing: -1px;
+#fuel-readout {
+    border-top: 1px dashed var(--border-color);
+    margin-top: 4px;
+    padding-top: 4px;
 }
+
+.engine-readout .readout-row {
+    white-space: nowrap;
+    line-height: 1.25;
+}
+
+.engine-readout .bar-glyphs {
+    letter-spacing: -1px;
+    /* Fixed inline-block width so the bar's geometry never shifts
+       even if the surrounding number changes width. */
+    display: inline-block;
+}
+
+#furnace-fuel-bar { color: var(--accent-fire); }
+#engine-heat-bar  { color: var(--accent-heat); }
 
 #smelter-progress-bar {
     color: var(--accent-metal);
     letter-spacing: -1px;
 }
 
+#engine-heat-rate,
 #furnace-fuel-time {
-    color: var(--text-dim) !important;
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    /* Reserve enough horizontal space that the longest possible
+       string ("59:59 left", "+999/s") doesn't push siblings around
+       and "idle" sits centered in the same slot. */
+    display: inline-block;
+    min-width: 6em;
 }
+
+#engine-heat-rate.decaying { color: var(--accent-fire); }
 
 /* Smelter */
 #smelter {

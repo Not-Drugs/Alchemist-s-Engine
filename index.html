@@ -30,12 +30,10 @@
 
             <!-- Resource Bar (hidden until first heat) -->
             <section id="resources" class="reveal-hidden">
-                <div class="resource reveal-hidden" id="heat-resource">
-                    <span class="resource-icon">[~]</span>
-                    <span class="resource-name">Heat</span>
-                    <span class="resource-value" id="heat-value">0</span>
-                    <span class="resource-rate" id="heat-rate">+0/s</span>
-                </div>
+                <!-- Heat now lives in the engine column as a bar above
+                     the fuel bar (#engine-heat-readout). It is no longer
+                     part of the top resource bar. -->
+
                 <div class="resource reveal-hidden" id="metal-resource">
                     <span class="resource-icon">[#]</span>
                     <span class="resource-name">Metal</span>
@@ -92,7 +90,14 @@
             </pre>
                             <span id="furnace-temp" class="reveal-hidden">0*</span>
                             <span id="engine-prompt" class="engine-prompt hidden" aria-hidden="true">&#10022;</span>
-                            <div id="fuel-readout" class="fuel-readout reveal-hidden"><span class="fuel-readout-main">Fuel: <span id="furnace-fuel-bar">[&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</span> <span id="furnace-fuel">0</span> / <span id="furnace-fuel-max">100</span></span> <span id="furnace-fuel-time" class="fuel-time">idle</span></div>
+                            <div id="engine-heat-readout" class="engine-readout reveal-hidden">
+                                <div class="readout-row">Heat: <span id="engine-heat-bar" class="bar-glyphs">[&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</span> <span id="engine-heat-value">0</span><span id="engine-heat-max"> / 1000</span></div>
+                                <div class="readout-row engine-heat-rate-row"><span id="engine-heat-rate" class="readout-rate">+0/s</span></div>
+                            </div>
+                            <div id="fuel-readout" class="fuel-readout engine-readout reveal-hidden">
+                                <div class="readout-row">Fuel: <span id="furnace-fuel-bar" class="bar-glyphs">[&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;&#9617;]</span> <span id="furnace-fuel">0</span> / <span id="furnace-fuel-max">100</span></div>
+                                <div class="readout-row"><span id="furnace-fuel-time" class="fuel-time">idle</span></div>
+                            </div>
                         </div>
                         <button id="burn-all-btn" class="spawn-btn reveal-hidden" title="Dump all fuel from the grid into the engine.">[»] Burn All Fuel</button>
                     </div>
