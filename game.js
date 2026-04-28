@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v56';
+const APP_VERSION = 'v57';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -1419,11 +1419,17 @@ function processFurnace(delta) {
         game._heatAccum = 0;
         game._heatTimer = 0;
 
-        // Heat decay while idle. Exponential so large stockpiles aren't
-        // wiped but early-game pressure to keep burning is real.
+        // Heat decay while idle. Exponential (0.5% of current heat per
+        // second by default) so large stockpiles aren't wiped — but
+        // floored at MIN_HEAT_DECAY_PER_SEC so small pools don't
+        // linger near-forever (10 heat used to take ~30+ minutes to
+        // clear; with the floor it's ~100 seconds). The Sealed
+        // Crucible upgrade (decayRate = 0) bypasses both.
         const decayRate = game.bonuses.heatDecayRate || 0;
         if (decayRate > 0 && game.resources.heat > 0) {
-            game.resources.heat *= Math.pow(1 - decayRate, delta);
+            const expLoss   = game.resources.heat * (1 - Math.pow(1 - decayRate, delta));
+            const floorLoss = MIN_HEAT_DECAY_PER_SEC * delta;
+            game.resources.heat -= Math.max(expLoss, floorLoss);
             if (game.resources.heat < 0.01) game.resources.heat = 0;
         }
 
@@ -2395,6 +2401,13 @@ function applyRevealedFlags() {
 // stick counts as a free resource you can stockpile and feed to the engine.
 const STICK_GATHER_MS = 3000;
 const STICK_FUEL_VALUE = 3; // each stick = 3 fuel = 3 seconds of burn
+
+// Minimum absolute heat decay per second while idle. Layered on top of
+// the percentage-based exponential decay so small pools don't linger
+// forever (a 10-heat puddle drains in ~100s instead of half-life-ing
+// down for hours). Bypassed entirely when bonuses.heatDecayRate = 0
+// (Sealed Crucible upgrade).
+const MIN_HEAT_DECAY_PER_SEC = 0.1;
 let stickGatherState = null;
 
 function startStickGather() {
@@ -2545,7 +2558,9 @@ function updateUI() {
         } else {
             const decayRate = game.bonuses.heatDecayRate || 0;
             const passiveGen = game.bonuses.heatPassiveGen || 0;
-            const decayPerSec = decayRate * game.resources.heat;
+            const decayPerSec = decayRate > 0 && game.resources.heat > 0
+                ? Math.max(decayRate * game.resources.heat, MIN_HEAT_DECAY_PER_SEC)
+                : 0;
             const netRate = passiveGen - decayPerSec;
             if (netRate > 0.005) {
                 heatRateEl.textContent = `+${formatRate(netRate)}/s`;
