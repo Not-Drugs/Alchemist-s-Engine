@@ -88,7 +88,98 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v62';
+const APP_VERSION = 'v63';
+
+// ============================================
+// DEBUG TOUCH LOG  (set false to ship clean)
+// ============================================
+// Set to true to show an in-page touch-event overlay — useful on mobile
+// where devtools aren't available. All instrumentation is gated behind this
+// flag; the production path is completely untouched when it's false.
+const DEBUG_TOUCH_LOG = true;
+
+(function initDebugTouchLog() {
+    if (!DEBUG_TOUCH_LOG) return;
+
+    const MAX_LINES = 20;
+    const LOG_LINES = [];
+
+    // Create the fixed overlay panel
+    const panel = document.createElement('div');
+    panel.id = 'dbg-touch-panel';
+    panel.style.cssText = [
+        'position:fixed',
+        'top:8px',
+        'right:8px',
+        'width:220px',
+        'max-height:260px',
+        'overflow-y:auto',
+        'background:rgba(10,10,10,0.88)',
+        'color:#b8ffb8',
+        'font:10px/1.35 monospace',
+        'padding:4px 6px',
+        'border:1px solid #444',
+        'z-index:99999',
+        'pointer-events:auto',
+        'user-select:text',
+        '-webkit-user-select:text',
+        'word-break:break-all',
+        'border-radius:4px',
+    ].join(';');
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;border-bottom:1px solid #333;padding-bottom:2px;';
+    const title = document.createElement('span');
+    title.textContent = 'DBG:touch (newest↓)';
+    title.style.cssText = 'color:#ffff88;font-weight:bold;';
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clear';
+    clearBtn.style.cssText = 'background:#222;color:#ffaa44;border:1px solid #555;font:9px monospace;padding:1px 4px;cursor:pointer;border-radius:2px;';
+    clearBtn.addEventListener('click', () => { LOG_LINES.length = 0; renderLines(); });
+    header.appendChild(title);
+    header.appendChild(clearBtn);
+    panel.appendChild(header);
+
+    const logEl = document.createElement('div');
+    logEl.id = 'dbg-touch-log';
+    panel.appendChild(logEl);
+
+    // Wait for body to be available (DOMContentLoaded may not have fired yet)
+    function attachPanel() {
+        if (document.body) {
+            document.body.appendChild(panel);
+        } else {
+            document.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel));
+        }
+    }
+    attachPanel();
+
+    function renderLines() {
+        logEl.innerHTML = '';
+        LOG_LINES.forEach((line, i) => {
+            const row = document.createElement('div');
+            row.style.cssText = i % 2 === 0
+                ? 'color:#b8ffb8;padding:1px 0;'
+                : 'color:#88ddff;padding:1px 0;';
+            row.textContent = line;
+            logEl.appendChild(row);
+        });
+        // Scroll to bottom so newest is always visible
+        panel.scrollTop = panel.scrollHeight;
+    }
+
+    // The global helper — called from instrumentation hooks
+    window._dbgLog = function dbgLog(line) {
+        if (!DEBUG_TOUCH_LOG) return;
+        // Truncate to ~78 chars for readability on small screens
+        if (line.length > 78) line = line.slice(0, 75) + '…';
+        LOG_LINES.push(line);
+        if (LOG_LINES.length > MAX_LINES) LOG_LINES.shift();
+        renderLines();
+    };
+}());
+// Fallback no-op so instrumentation calls are safe when the flag is off.
+if (!window._dbgLog) window._dbgLog = function () {};
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -474,7 +565,16 @@ function createGrid() {
         satRailEl.addEventListener('dragstart', handleDragStart);
         satRailEl.addEventListener('dragend', handleDragEnd);
         // Touch start for deploy (sat-slot → grid): delegate via event bubbling.
-        document.getElementById('sat-slots').addEventListener('touchstart', handleSatSlotTouchStart, { passive: false });
+        const satSlotsEl = document.getElementById('sat-slots');
+        if (satSlotsEl) {
+            satSlotsEl.addEventListener('touchstart', handleSatSlotTouchStart, { passive: false });
+            // Debug capture: fires before handleSatSlotTouchStart so we see raw bubbling
+            if (DEBUG_TOUCH_LOG) {
+                satSlotsEl.addEventListener('touchstart', (e) => {
+                    _dbgLog(`[capture] touchstart bubbled to #sat-slots | tgt=${e.target.nodeName}#${e.target.id||''} draggable=${e.target.getAttribute('draggable')}`);
+                }, { capture: true, passive: true });
+            }
+        }
     }
 }
 
@@ -752,6 +852,7 @@ function screenFlash(color = 'var(--accent-essence)') {
 // ============================================
 
 function handleDragStart(e) {
+    _dbgLog(`dragstart | tgt=${e.target.nodeName}#${e.target.id||''}.${[...e.target.classList].slice(0,2).join('.')}`);
     // Satchel rail drag: pull a stashed fuel/ore stack onto the grid.
     const satSlot = e.target.closest && e.target.closest('.sat-slot[draggable="true"]');
     if (satSlot) {
@@ -762,6 +863,7 @@ function handleDragStart(e) {
         draggedIndex = null;
         draggedElement = satSlot;
         satSlot.classList.add('dragging');
+        _dbgLog(`  set: from=sat ${item.type}/t${item.tier} slot=${slotIndex}`);
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', `sat:${slotIndex}`);
@@ -779,6 +881,7 @@ function handleDragStart(e) {
         draggedIndex = null;
         draggedElement = invTile;
         invTile.classList.add('dragging');
+        _dbgLog(`  set: from=inv kind=${kind} count=${count}`);
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', `inv:${kind}`);
@@ -789,6 +892,7 @@ function handleDragStart(e) {
     draggedIndex = parseInt(e.target.dataset.index);
     draggedItem = game.grid[draggedIndex];
     draggedElement = e.target;
+    _dbgLog(`  set: from=grid idx=${draggedIndex} item=${draggedItem ? draggedItem.type+'/t'+draggedItem.tier : 'null'}`);
 
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
@@ -1092,6 +1196,8 @@ function handleTouchStart(e) {
     const item = game.grid[index];
     if (!item) return;
 
+    _dbgLog(`touchstart@grid[${index}] | tgt=${e.target.nodeName}.${[...e.target.classList].join('.')}`);
+
     const t = e.touches[0];
     touchDragState = {
         itemEl,
@@ -1103,6 +1209,7 @@ function handleTouchStart(e) {
         ghost: null,
         lastTarget: null
     };
+    _dbgLog(`set: from=grid kind/tier=${item.type}/${item.tier}`);
 
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -1115,6 +1222,10 @@ function beginTouchDrag() {
     const fromEngine = !!item.fromEngine;
     const fromInventory = !!item.fromInventory;
     const fromSatchel = !!item.fromSatchel;
+
+    const src = fromEngine ? 'engine' : fromInventory ? 'inv' : fromSatchel ? 'sat' : 'grid';
+    const desc = fromInventory ? `ingredient/${item.kind}` : `${item.type}/${item.tier !== undefined ? 't' + item.tier : '?'}`;
+    _dbgLog(`BEGIN: ghost=${src} item=${desc}`);
 
     draggedIndex = index;
     draggedItem = item;
@@ -1224,9 +1335,11 @@ function clearEngineHoldState() {
 function commitEngineDrag(startX, startY, itemEl) {
     clearEngineHoldState();
     if (game.resources.heat < SPARK_HEAT_COST) {
+        _dbgLog(`commitEngineDrag BLOCKED: heat=${Math.floor(game.resources.heat)} < ${SPARK_HEAT_COST}`);
         showToast('Not enough heat — gather sticks to rekindle.', 'error');
         return;
     }
+    _dbgLog(`commitEngineDrag → set: from=engine fuel/t1`);
     if (navigator.vibrate) {
         try { navigator.vibrate(25); } catch (_) {}
     }
@@ -1297,7 +1410,8 @@ function handleInvTileTouchStart(e) {
     const invTile = e.currentTarget;
     const kind = invTile.dataset.kind;
     const count = (game.inventory[kind] || 0);
-    if (count <= 0) return;
+    _dbgLog(`touchstart@inv-tile#${invTile.id} kind=${kind} count=${count} | tgt=${e.target.nodeName}#${e.target.id||''}.${[...e.target.classList].slice(0,2).join('.')}`);
+    if (count <= 0) { _dbgLog(`  → BLOCKED: count=0`); return; }
 
     e.preventDefault(); // suppress iOS tap/scroll hijack so the drag commits cleanly
 
@@ -1312,6 +1426,7 @@ function handleInvTileTouchStart(e) {
         ghost: null,
         lastTarget: null
     };
+    _dbgLog(`  set: from=inv kind=${kind}`);
 
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -1322,10 +1437,12 @@ function handleInvTileTouchStart(e) {
 // Delegates via the #sat-slots container so we only need one listener.
 function handleSatSlotTouchStart(e) {
     if (e.touches.length !== 1) return;
+    _dbgLog(`touchstart@sat-slots | tgt=${e.target.nodeName}#${e.target.id||''}.${[...e.target.classList].slice(0,2).join('.')}`);
     const satSlot = e.target.closest && e.target.closest('.sat-slot[draggable="true"]');
-    if (!satSlot) return;
+    if (!satSlot) { _dbgLog(`  → closest .sat-slot[draggable] = null (no match)`); return; }
     const slotIndex = parseInt(satSlot.dataset.slotIndex);
     const item = game.satchel[slotIndex];
+    _dbgLog(`  → satSlot[${slotIndex}] item=${item ? item.type+'/t'+item.tier : 'null'}`);
     if (!item) return;
 
     e.preventDefault(); // prevent scroll hijack when starting a drag
@@ -1341,6 +1458,7 @@ function handleSatSlotTouchStart(e) {
         ghost: null,
         lastTarget: null
     };
+    _dbgLog(`  set: from=sat ${item.type}/t${item.tier} slot=${slotIndex}`);
 
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -1431,15 +1549,21 @@ function handleTouchEnd(e) {
         target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile, #satchel-rail');
     }
 
+    _dbgLog(`touchend | draggedItem=${draggedItem ? (draggedItem.fromInventory?'inv/'+draggedItem.kind:draggedItem.fromSatchel?'sat/t'+draggedItem.tier:draggedItem.fromEngine?'engine':'grid/t'+draggedItem.tier) : 'null'} target=${target ? (target.id||target.className.split(' ')[0]) : 'null'}`);
+
     if (target) {
         if (target.id === 'furnace-ascii') {
             // Drop fuel onto the engine. Engine-source drags are rejected
             // here so a Spark dragged out can't loop back into the furnace.
             if (!draggedItem || !draggedItem.fromEngine) {
+                _dbgLog(`DROP: fuel-on-engine`);
                 applyFuelDropOnEngine();
+            } else {
+                _dbgLog(`DROP: fuel-on-engine BLOCKED (fromEngine)`);
             }
         } else if (target.classList.contains('inv-tile')) {
             // Return an ingredient tile from the grid back to the inventory rail.
+            _dbgLog(`DROP: inv-tile-return kind=${target.dataset.kind} dragKind=${draggedItem&&draggedItem.kind} dragIdx=${draggedIndex}`);
             if (draggedItem && draggedItem.type === 'ingredient' && draggedItem.kind === target.dataset.kind && draggedIndex !== null) {
                 game.grid[draggedIndex] = null;
                 game.inventory[target.dataset.kind] = (game.inventory[target.dataset.kind] || 0) + 1;
@@ -1450,6 +1574,7 @@ function handleTouchEnd(e) {
             }
         } else if (target.id === 'satchel-rail') {
             // Stash a fuel/ore tile from the grid into the satchel.
+            _dbgLog(`DROP: satchel-stash dragType=${draggedItem&&draggedItem.type} fromSat=${draggedItem&&draggedItem.fromSatchel} fromEng=${draggedItem&&draggedItem.fromEngine} dragIdx=${draggedIndex}`);
             if (draggedItem && (draggedItem.type === 'fuel' || draggedItem.type === 'ore') && !draggedItem.fromEngine && !draggedItem.fromSatchel && draggedIndex !== null) {
                 const item = game.grid[draggedIndex];
                 if (item && (item.type === 'fuel' || item.type === 'ore')) {
@@ -1468,12 +1593,16 @@ function handleTouchEnd(e) {
         } else if (target.classList.contains('drop-zone')) {
             // Engine-source drag releasing on a drop zone is a no-op —
             // sparks only place on grid cells, not back into the furnace.
+            _dbgLog(`DROP: drop-zone id=${target.id}`);
             if (!draggedItem || !draggedItem.fromEngine) {
                 dispatchTouchDropOnZone(target);
             }
         } else {
+            _dbgLog(`DROP: grid-cell idx=${target.dataset&&target.dataset.index}`);
             dispatchTouchDropOnGrid(target);
         }
+    } else {
+        _dbgLog(`DROP: no-target (dropped in void)`);
     }
 
     // Cleanup
