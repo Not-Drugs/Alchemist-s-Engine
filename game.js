@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v65';
+const APP_VERSION = 'v66';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2639,17 +2639,30 @@ function satchelGlyph(item) {
 function renderSatchelRail() {
     const slotsEl = document.getElementById('sat-slots');
     if (!slotsEl) return;
-    slotsEl.replaceChildren();
-    for (let i = 0; i < SATCHEL_CAP; i++) {
+
+    // Ensure 8 slot elements exist (created on first render, never replaced).
+    // Stable DOM elements are critical for touch drags — iOS Safari fires
+    // touchcancel when the touched element is removed mid-drag, which would
+    // cancel the user's deploy gesture before they crossed the move threshold.
+    while (slotsEl.children.length < SATCHEL_CAP) {
         const slot = document.createElement('div');
         slot.className = 'sat-slot';
+        slotsEl.appendChild(slot);
+    }
+
+    // Update each slot in place.
+    for (let i = 0; i < SATCHEL_CAP; i++) {
+        const slot = slotsEl.children[i];
         slot.dataset.slotIndex = String(i);
+        slot.replaceChildren();
         const item = game.satchel[i];
         if (!item) {
             slot.classList.add('is-empty');
             slot.textContent = '_';
             slot.setAttribute('draggable', 'false');
+            slot.removeAttribute('title');
         } else {
+            slot.classList.remove('is-empty');
             const glyph = document.createElement('span');
             glyph.className = 'sat-slot-glyph';
             glyph.textContent = satchelGlyph(item);
@@ -2661,12 +2674,10 @@ function renderSatchelRail() {
                 slot.appendChild(count);
             }
             // setAttribute (vs. .draggable property) is more reliable for the
-            // [draggable="true"] selector match across mobile browsers, especially
-            // for nodes just (re)built via replaceChildren.
+            // [draggable="true"] selector match across mobile browsers.
             slot.setAttribute('draggable', 'true');
             slot.title = `${item.type === 'fuel' ? 'Fuel' : 'Ore'} tier ${item.tier} ×${item.count}`;
         }
-        slotsEl.appendChild(slot);
     }
 }
 
