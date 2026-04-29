@@ -353,6 +353,7 @@ function createGrid() {
             if (!draggedItem || draggedItem.type !== 'ingredient' || draggedItem.kind !== el.dataset.kind) return;
             if (draggedIndex === null) return;
             game.grid[draggedIndex] = null;
+            renderGridItem(draggedIndex);
             game.inventory[el.dataset.kind] = (game.inventory[el.dataset.kind] || 0) + 1;
             sfx('kindle');
             updateUI();
@@ -2319,16 +2320,21 @@ function renderUpgrades() {
     }
 }
 
+function getCostBucket(costType) {
+    return (costType === 'sticks' || costType === 'stones') ? game.inventory : game.resources;
+}
+
 function purchaseUpgrade(upgrade) {
     if (game.upgrades.includes(upgrade.id)) return;
 
-    const resource = game.resources[upgrade.costType];
+    const bucket = getCostBucket(upgrade.costType);
+    const resource = bucket[upgrade.costType];
     if (resource === undefined || resource < upgrade.cost) {
         showToast(`Not enough ${upgrade.costType}!`, 'error');
         return;
     }
 
-    game.resources[upgrade.costType] -= upgrade.cost;
+    bucket[upgrade.costType] -= upgrade.cost;
     game.upgrades.push(upgrade.id);
     upgrade.effect();
 
