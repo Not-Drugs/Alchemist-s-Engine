@@ -150,12 +150,20 @@ const REVEAL_STAGES = [
 const defaultGame = {
     resources: {
         heat: 0,
-        stones: 0,
         metal: 0,
         alloy: 0,
         gears: 0,
-        essence: 0,
-        sticks: 0
+        essence: 0
+    },
+    inventory: {
+        sticks: 0,
+        stones: 0
+    },
+    satchel: [],          // [{type:'fuel'|'ore', tier:1..N, count:1+}, ...] — soft cap 8 stacks
+    keyItems: [],         // [{type:'golem', id:'<uuid>'}, ...] — soft cap 8 items
+    flags: {
+        discoveredRecipes: {},
+        golemRecipeTaught: false
     },
     revealed: {},
     grid: Array(GRID_SIZE).fill(null),
@@ -2076,7 +2084,7 @@ function renderGrove() {
 
     const found = document.getElementById('grove-found');
     if (found) {
-        const stoneCount = (game.resources.stones || 0);
+        const stoneCount = (game.inventory.stones || 0);
         found.textContent = stoneCount > 0 ? `Stones gathered: ${stoneCount}` : '';
     }
 }
@@ -2090,11 +2098,11 @@ function collectGroveItem(id) {
 
     collected.push(id);
     if (item.type === 'stick') {
-        game.resources.sticks = (game.resources.sticks || 0) + 1;
+        game.inventory.sticks = (game.inventory.sticks || 0) + 1;
         game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
         sfx('kindle');
     } else if (item.type === 'stone') {
-        game.resources.stones = (game.resources.stones || 0) + 1;
+        game.inventory.stones = (game.inventory.stones || 0) + 1;
         sfx('purchase');
     }
 
@@ -2478,7 +2486,7 @@ function cancelStickGather(deliver = false) {
 
     const sticksToAdd = Math.max(1, Math.floor(game.bonuses.sticksPerGather || 1));
     const prevGathered = game.stats.sticksGathered || 0;
-    game.resources.sticks = (game.resources.sticks || 0) + sticksToAdd;
+    game.inventory.sticks = (game.inventory.sticks || 0) + sticksToAdd;
     game.stats.sticksGathered = prevGathered + sticksToAdd;
 
     const btnEl = document.getElementById('gather-stick-btn');
@@ -2495,7 +2503,7 @@ function cancelStickGather(deliver = false) {
 
 // Consume stored sticks, converting each into STICK_FUEL_VALUE fuel.
 function feedStick(bulk = false) {
-    if ((game.resources.sticks || 0) <= 0) {
+    if ((game.inventory.sticks || 0) <= 0) {
         showToast('No sticks to feed — gather some first.', 'error');
         return;
     }
@@ -2506,13 +2514,13 @@ function feedStick(bulk = false) {
     }
 
     let fed = 0;
-    const limit = bulk ? game.resources.sticks : 1;
+    const limit = bulk ? game.inventory.sticks : 1;
     for (let i = 0; i < limit; i++) {
         if (game.furnace.fuel >= maxFuel) break;
-        if (game.resources.sticks <= 0) break;
+        if (game.inventory.sticks <= 0) break;
         const added = Math.min(STICK_FUEL_VALUE, maxFuel - game.furnace.fuel);
         game.furnace.fuel += added;
-        game.resources.sticks -= 1;
+        game.inventory.sticks -= 1;
         game.stats.kindlingAdded++;
         fed++;
     }
@@ -2807,10 +2815,10 @@ function updateUI() {
 
     // Stick counter and feed button
     const stickCountEl = document.getElementById('stick-count');
-    if (stickCountEl) stickCountEl.textContent = game.resources.sticks || 0;
+    if (stickCountEl) stickCountEl.textContent = game.inventory.sticks || 0;
     const feedStickBtn = document.getElementById('feed-stick-btn');
     if (feedStickBtn) {
-        const canFeed = (game.resources.sticks || 0) > 0 && game.furnace.fuel < game.bonuses.furnaceCapacity;
+        const canFeed = (game.inventory.sticks || 0) > 0 && game.furnace.fuel < game.bonuses.furnaceCapacity;
         feedStickBtn.disabled = !canFeed;
     }
 
@@ -3149,7 +3157,22 @@ function loadGame() {
             game.stats = { ...defaultGame.stats, ...loaded.stats };
             game.unlockedTiers = { ...defaultGame.unlockedTiers, ...loaded.unlockedTiers };
             game.automation = { ...defaultGame.automation, ...loaded.automation };
+            game.inventory = { ...defaultGame.inventory, ...(loaded.inventory || {}) };
+            game.satchel = Array.isArray(loaded.satchel) ? loaded.satchel : [];
+            game.keyItems = Array.isArray(loaded.keyItems) ? loaded.keyItems : [];
+            game.flags = { ...defaultGame.flags, ...(loaded.flags || {}) };
+            game.flags.discoveredRecipes = { ...defaultGame.flags.discoveredRecipes, ...(loaded.flags?.discoveredRecipes || {}) };
             game.revealed = loaded.revealed || {};
+
+            // Migration: sticks/stones moved from game.resources to game.inventory.
+            // Take the max in case a partially-migrated save has both.
+            const legacySticks = (loaded.resources && typeof loaded.resources.sticks === 'number') ? loaded.resources.sticks : 0;
+            const legacyStones = (loaded.resources && typeof loaded.resources.stones === 'number') ? loaded.resources.stones : 0;
+            game.inventory.sticks = Math.max(game.inventory.sticks || 0, legacySticks);
+            game.inventory.stones = Math.max(game.inventory.stones || 0, legacyStones);
+            // Zero out legacy fields if they leaked through the resources merge.
+            if ('sticks' in game.resources) delete game.resources.sticks;
+            if ('stones' in game.resources) delete game.resources.stones;
 
             // Migration: if save predates the reveal system but the player
             // already has progress, mark all applicable stages as revealed
