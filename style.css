@@ -2888,7 +2888,6 @@ button.revealing { display: inline-block; }
 }
 
 /* Key Items modal — namespaced .ki-modal to avoid clash with existing .modal rules */
-.ki-modal--hidden { display: none; }
 .ki-modal {
     position: fixed;
     inset: 0;
@@ -2898,6 +2897,8 @@ button.revealing { display: inline-block; }
     justify-content: center;
     z-index: 1000;
 }
+/* Higher specificity than .ki-modal so it wins regardless of source order. */
+.ki-modal.ki-modal--hidden { display: none; }
 .ki-modal-content {
     background: var(--bg-dark, #0c0c0c);
     border: 1px solid var(--accent-fire, #ff6600);
