@@ -207,6 +207,42 @@ deferred (see design spec at
 `game.resources.sticks`/`.stones` into `game.inventory.sticks`/`.stones`
 (taking the max defensively if both exist) and removes the old fields.
 
+**Implementation notes (v60–v70 lessons).** Land-mines worth knowing
+before touching any of this:
+
+- The on-grid ingredient `kind` is singular (`'stick'`/`'stone'` —
+  matches recipe arm specs and the rail tile's `data-kind`), but
+  inventory keys are plural (`game.inventory.sticks`/`.stones`).
+  Always go through `invKeyForKind(kind)` to translate. Mixing the two
+  silently reads as `count === 0` and bails the drag (this was the
+  v64 fix).
+- Satchel slots update **in place** — `renderSatchelRail` creates the
+  8 slot DIVs once and never replaces them, only their contents. On
+  Android Chrome and iOS Safari, removing a touched element fires
+  `touchcancel` and clears the in-progress drag, so `replaceChildren()`
+  every tick on a touch source breaks any drag that takes longer than
+  ~100ms to commit (this was the v66 fix).
+- Every drop target that clears the source (`applyFuelDropOnEngine`,
+  the smelter drop handler, `dispatchTouchDropOnZone`) has an explicit
+  `if (draggedItem.fromSatchel) { ... }` branch that decrements the
+  slot (`slot.count -= 1; if (slot.count <= 0) game.satchel.splice(...)`)
+  instead of clearing a grid cell. Without it, satchel→engine drops
+  were free fuel (this was the v67 fix).
+- `.craft-row[hidden]` and `.ki-modal.ki-modal--hidden` use
+  class+attribute selectors with higher specificity than the bare
+  `.craft-row { display: flex }` and `.ki-modal { display: flex }`
+  rules so the hidden state wins regardless of source order. The
+  `[hidden]` HTML attribute applies `display: none` via the UA
+  stylesheet but loses to a class with equal specificity on source
+  order — the modal-soft-lock and post-craft-button-stuck bugs were
+  both this pattern (v61 and v65 fixes).
+- The grid items array is the source of truth for ingredients on the
+  table. Ingredients never auto-merge: the merge condition in both
+  `handleDrop` and `dispatchTouchDropOnGrid` includes
+  `draggedItem.type !== 'ingredient'` as a guard. Without it, two
+  ingredients with the same `kind` would silently combine to a
+  tier-undefined cell (since `undefined === undefined`).
+
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat
    - 5 ore tiers that merge like fuel
@@ -412,6 +448,18 @@ point at the same items.
   corners, and the home indicator.
 - Game loop pauses on `visibilitychange → hidden` to save battery;
   resuming calls `processOfflineProgress()` to fast-forward.
+- `#furnace-ascii` has `touch-action: none` so the 300ms hold→spark-drag
+  flow stays reliable. Without it, even tiny finger drift during the
+  hold latches the browser to a scroll, leaving the spawned spark ghost
+  stuck (it's `position: fixed` driven by `clientX/clientY`, which don't
+  change while the page scrolls under the finger). Trade-off: can't
+  scroll the page by starting a swipe on the engine — players scroll
+  from elsewhere on screen, the standard pattern for any draggable
+  surface.
+- `hapticTap(ms)` in `game.js` is the centralized vibration helper —
+  defensively wraps `navigator.vibrate` (no-op on browsers without the
+  Vibration API like iOS Safari). Used by the engine-drag commit (25ms)
+  and on every merge (15ms).
 
 ## Development Notes
 
