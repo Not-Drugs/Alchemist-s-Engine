@@ -2484,6 +2484,8 @@ function satchelDropOnCell(targetIndex) {
     if (targetCell === null) {
         // Deploy onto empty cell.
         game.grid[targetIndex] = { type: slot.type, tier: slot.tier };
+        renderGridItem(targetIndex);
+        sfx('kindle');
     } else if (targetCell.type === slot.type && targetCell.tier === slot.tier) {
         // Merge into matching tile.
         const maxTier = slot.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
@@ -2491,6 +2493,14 @@ function satchelDropOnCell(targetIndex) {
             game.grid[targetIndex] = { type: slot.type, tier: slot.tier + 1 };
             if (slot.type === 'fuel' && slot.tier + 1 > game.stats.highestFuelTier) {
                 game.stats.highestFuelTier = slot.tier + 1;
+            }
+            renderGridItem(targetIndex);
+            const newItemEl = document.querySelector(`.grid-cell[data-index="${targetIndex}"] > div`);
+            if (newItemEl) {
+                newItemEl.classList.add('merge-flash');
+                setTimeout(() => newItemEl.classList.remove('merge-flash'), 300);
+                const tierInfo = (slot.type === 'fuel' ? FUEL_TIERS : ORE_TIERS)[slot.tier];
+                if (tierInfo) floatPopup(newItemEl, `+${tierInfo.name}`, 'merge');
             }
             sfx('merge');
         } else {
@@ -2505,7 +2515,6 @@ function satchelDropOnCell(targetIndex) {
     // Decrement the slot.
     slot.count -= 1;
     if (slot.count <= 0) game.satchel.splice(slotIdx, 1);
-    renderGridItem(targetIndex);
     updateUI();
     saveGame();
 }
