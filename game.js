@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v69';
+const APP_VERSION = 'v70';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -764,6 +764,13 @@ function getAudioCtx() {
     return _audioCtx;
 }
 
+// Small haptic pulse — used for merge feedback and the engine-drag commit.
+// No-op on browsers without the Vibration API (notably iOS Safari).
+function hapticTap(ms = 12) {
+    if (!navigator.vibrate) return;
+    try { navigator.vibrate(ms); } catch (_) {}
+}
+
 function tone(freq, duration = 0.15, type = 'triangle', volume = 0.15, attackTime = 0.005, delay = 0) {
     if (!_audioEnabled) return;
     const ctx = getAudioCtx();
@@ -1053,6 +1060,7 @@ function engineDropOnCell(targetIndex) {
             if (tierInfo) floatPopup(newItem, `+${tierInfo.name}`, 'merge');
         }
         sfx('merge', newTier);
+        hapticTap(15);
         game.stats.firstEngineSpark = true;
         updateUI();
         return;
@@ -1164,6 +1172,7 @@ function handleDrop(e) {
                 if (mergedTierInfo) floatPopup(newItem, `+${mergedTierInfo.name}`, 'merge');
             }
             sfx('merge', newTier);
+            hapticTap(15);
             if (newTier >= 4) screenShake('small');
             if (newTier >= 6) screenFlash('var(--accent-fire)');
 
@@ -1342,9 +1351,7 @@ function commitEngineDrag(startX, startY, itemEl) {
         return;
     }
     _dbgLog(`commitEngineDrag → set: from=engine fuel/t1`);
-    if (navigator.vibrate) {
-        try { navigator.vibrate(25); } catch (_) {}
-    }
+    hapticTap(25);
 
     touchDragState = {
         itemEl,
@@ -1676,6 +1683,7 @@ function dispatchTouchDropOnGrid(cell) {
                 if (mergedTierInfo) floatPopup(newItem, `+${mergedTierInfo.name}`, 'merge');
             }
             sfx('merge', newTier);
+            hapticTap(15);
             if (newTier >= 4) screenShake('small');
             if (newTier >= 6) screenFlash('var(--accent-fire)');
 
@@ -2874,6 +2882,7 @@ function satchelDropOnCell(targetIndex) {
                 if (tierInfo) floatPopup(newItemEl, `+${tierInfo.name}`, 'merge');
             }
             sfx('merge');
+            hapticTap(15);
         } else {
             showToast('Already at max tier', 'error');
             return;
