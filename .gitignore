@@ -1,3 +1,6 @@
 .claude/worktrees/
 _research/
 .superpowers/
+cowork/inbox.md
+cowork/attachments/*
+!cowork/attachments/.gitkeep
