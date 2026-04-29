@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v61';
+const APP_VERSION = 'v62';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -1299,6 +1299,8 @@ function handleInvTileTouchStart(e) {
     const count = (game.inventory[kind] || 0);
     if (count <= 0) return;
 
+    e.preventDefault(); // suppress iOS tap/scroll hijack so the drag commits cleanly
+
     const t = e.touches[0];
     touchDragState = {
         itemEl: invTile,
@@ -2506,7 +2508,7 @@ function renderSatchelRail() {
         if (!item) {
             slot.classList.add('is-empty');
             slot.textContent = '_';
-            slot.draggable = false;
+            slot.setAttribute('draggable', 'false');
         } else {
             const glyph = document.createElement('span');
             glyph.className = 'sat-slot-glyph';
@@ -2518,7 +2520,10 @@ function renderSatchelRail() {
                 count.textContent = item.count;
                 slot.appendChild(count);
             }
-            slot.draggable = true;
+            // setAttribute (vs. .draggable property) is more reliable for the
+            // [draggable="true"] selector match across mobile browsers, especially
+            // for nodes just (re)built via replaceChildren.
+            slot.setAttribute('draggable', 'true');
             slot.title = `${item.type === 'fuel' ? 'Fuel' : 'Ore'} tier ${item.tier} ×${item.count}`;
         }
         slotsEl.appendChild(slot);
