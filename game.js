@@ -24,6 +24,60 @@ const ORE_TIERS = [
 ];
 
 const GRID_SIZE = 24; // 6x4 grid
+const GRID_W = 6;
+const GRID_H = 4;
+
+const KEYITEMS_CAP = 8;
+
+const RECIPES = [
+    {
+        id: 'stickGolem',
+        name: 'Stick Golem',
+        output: { type: 'golem' },   // template; craft flow expands with a fresh id
+        pattern: {
+            shape: 'plus',
+            center: { type: 'fuel', tier: 1 },
+            arms: { type: 'ingredient', kind: 'stick' },
+        },
+    },
+];
+
+function matchesSpec(cell, spec) {
+    if (!cell || !spec) return false;
+    if (cell.type !== spec.type) return false;
+    if (spec.tier !== undefined && cell.tier !== spec.tier) return false;
+    if (spec.kind !== undefined && cell.kind !== spec.kind) return false;
+    return true;
+}
+
+function matchPlus(grid, centerSpec, armSpec) {
+    for (let y = 1; y < GRID_H - 1; y++) {
+        for (let x = 1; x < GRID_W - 1; x++) {
+            const ci = y * GRID_W + x;
+            if (!matchesSpec(grid[ci], centerSpec)) continue;
+            const arms = [
+                (y - 1) * GRID_W + x,
+                (y + 1) * GRID_W + x,
+                y * GRID_W + (x - 1),
+                y * GRID_W + (x + 1),
+            ];
+            if (arms.every(i => matchesSpec(grid[i], armSpec))) {
+                return [ci, ...arms];
+            }
+        }
+    }
+    return null;
+}
+
+function findRecipeMatch(grid) {
+    for (const recipe of RECIPES) {
+        if (recipe.pattern.shape === 'plus') {
+            const cells = matchPlus(grid, recipe.pattern.center, recipe.pattern.arms);
+            if (cells) return { recipe, cells };
+        }
+    }
+    return null;
+}
 
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
@@ -2458,6 +2512,51 @@ function renderSatchelRail() {
     }
 }
 
+function updateCraftButton() {
+    const row = document.getElementById('craft-button-row');
+    const btn = document.getElementById('craft-btn');
+    if (!row || !btn) return;
+    const match = findRecipeMatch(game.grid);
+    game._recipeMatch = match;   // transient cache, not persisted
+    if (!match) {
+        row.hidden = true;
+        return;
+    }
+    row.hidden = false;
+    btn.textContent = `Craft ${match.recipe.name}`;
+    const bagFull = (game.keyItems?.length || 0) >= KEYITEMS_CAP;
+    btn.disabled = bagFull;
+    btn.title = bagFull ? 'Key Items Bag full' : `Craft ${match.recipe.name}`;
+}
+
+function randomId() {
+    return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+function performCraft() {
+    const match = findRecipeMatch(game.grid);
+    if (!match) return;   // defensive — button should already be hidden
+    if ((game.keyItems?.length || 0) >= KEYITEMS_CAP) {
+        showToast('Key Items Bag full', 'error');
+        return;
+    }
+    // Consume the matched cells
+    for (const i of match.cells) {
+        game.grid[i] = null;
+        renderGridItem(i);
+    }
+    // Spawn the output
+    const out = { ...match.recipe.output, id: randomId() };
+    game.keyItems.push(out);
+    game.flags.discoveredRecipes[match.recipe.id] = true;
+    // Feedback
+    const btn = document.getElementById('craft-btn');
+    floatPopup(btn, `+${match.recipe.name}`, 'gear');
+    sfx('craft');
+    updateUI();
+    saveGame();
+}
+
 function stashIntoSatchel(item) {
     // Try to merge into an existing stack with same type+tier.
     for (const slot of game.satchel) {
@@ -2962,6 +3061,7 @@ function feedStick(bulk = false) {
 function updateUI() {
     renderInventoryRail();
     renderSatchelRail();
+    updateCraftButton();
 
     // Explore card gating — show the live "X / 50" progress while locked.
     // The locked placeholder is hidden by the exploreUnlock reveal stage
@@ -3291,6 +3391,10 @@ const burnAll = document.getElementById('burn-all-btn');
     if (burnAll) burnAll.addEventListener('click', burnAllFuel);
     const smeltAll = document.getElementById('smelt-all-btn');
     if (smeltAll) smeltAll.addEventListener('click', smeltAllOre);
+
+    // Recipe craft button
+    const craftBtn = document.getElementById('craft-btn');
+    if (craftBtn) craftBtn.addEventListener('click', performCraft);
 
     // Furnace drop zone
     setupFurnaceDropZone();

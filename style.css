@@ -2819,3 +2819,28 @@ button.revealing { display: inline-block; }
 .sat-slot.dragging { opacity: 0.4; }
 .sat-slot-count { font-size: 0.85em; }
 .sat-slot-count::before { content: '\00d7'; color: var(--text-dim); margin-right: 1px; }
+
+/* ---- Craft button row (below merge grid) ---- */
+.craft-row {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0;
+}
+.craft-btn {
+    min-height: 44px;
+    padding: 8px 18px;
+    background: var(--accent-fire);
+    color: var(--bg-dark);
+    border: none;
+    font-family: inherit;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+}
+.craft-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.craft-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
