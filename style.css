@@ -347,6 +347,38 @@ section h2::after {
     padding-bottom: 0;
 }
 
+/* Locked placeholder — shows in place of the world map until the player
+   has gathered EXPLORE_UNLOCK_STICKS (50). Mirrors the dashed-rune look
+   of unlock-slot so the reader recognizes "this is gated content". */
+.explore-locked {
+    border-style: dashed;
+    border-color: var(--text-dim);
+    background: var(--bg-dark);
+}
+
+.explore-locked h2 {
+    color: var(--text-dim);
+}
+
+.explore-locked-prompt {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 8px 8px 10px;
+    font-style: italic;
+}
+
+.explore-locked-progress {
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+.explore-locked-progress span {
+    color: var(--accent-fire);
+}
+
 .explore-map {
     display: flex;
     align-items: center;

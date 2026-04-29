@@ -127,8 +127,17 @@
                      now; future locations join this row as more nodes.
                      Sits below the Alchemical Table so the player has
                      established the engine + merge loop before being
-                     offered an excursion. -->
-                <section id="location-grove" class="explore-section">
+                     offered an excursion.
+
+                     Gated behind 50 cumulative sticks gathered: until then
+                     the locked placeholder shows; the real card reveals on
+                     threshold via the REVEAL_STAGES 'exploreUnlock' entry. -->
+                <section id="location-grove-locked" class="explore-section explore-locked">
+                    <h2>Explore</h2>
+                    <p class="explore-locked-prompt">You must venture further and further to collect kindling from this barren wasteland. Care to explore further?</p>
+                    <p class="explore-locked-progress">Sticks gathered: <span id="explore-locked-count">0</span> / <span id="explore-locked-target">50</span></p>
+                </section>
+                <section id="location-grove" class="explore-section reveal-hidden">
                     <h2>Explore</h2>
                     <div class="explore-map">
                         <div class="explore-node explore-engine" aria-label="The Engine (you are here)">

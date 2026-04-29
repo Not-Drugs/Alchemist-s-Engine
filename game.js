@@ -30,7 +30,7 @@ const GRID_SIZE = 24; // 6x4 grid
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v58';
+const APP_VERSION = 'v59';
 
 // Phase 1 ends when the player has pushed heat to this level once. The
 // peakHeat stat tracks the all-time max so progress is monotonic. The
@@ -39,6 +39,12 @@ const APP_VERSION = 'v58';
 // beats wired up in REVEAL_STAGES (sootBeat1/2/3 and mergeGrid). The
 // engine ASCII visual progression was reverted — it's a TBD redesign.
 const PHASE_1_HEAT_TARGET = 1000;
+
+// The Explore card (world map) is gated behind cumulative sticks gathered.
+// Until the player has hand-gathered this many sticks, the locked
+// placeholder shows in its place. Tracked via game.stats.sticksGathered
+// (monotonic — feeding sticks does NOT roll progress back).
+const EXPLORE_UNLOCK_STICKS = 50;
 
 const UPGRADES = {
     furnace: [
@@ -122,6 +128,18 @@ const REVEAL_STAGES = [
                 const modal = document.getElementById('phase2-modal');
                 if (modal) modal.classList.remove('hidden');
             }
+        } },
+    // Explore card unlocks once the player has gathered EXPLORE_UNLOCK_STICKS
+    // sticks cumulatively. Until then, #location-grove-locked shows the
+    // narrative prompt + progress; reveal hides it and surfaces the real
+    // world-map card (#location-grove).
+    { id: 'exploreUnlock', cond: g => (g.stats.sticksGathered || 0) >= EXPLORE_UNLOCK_STICKS,
+        narrate: 'Far beyond the engine, brittle trees hold what little kindling remains. The path opens.',
+        targets: ['#location-grove'],
+        onReveal: () => {
+            const locked = document.getElementById('location-grove-locked');
+            if (locked) locked.classList.add('hidden');
+            screenFlash('var(--accent-essence)');
         } },
     // Achievements stage intentionally omitted while the achievements UI is
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
@@ -2391,6 +2409,10 @@ function applyRevealedFlags() {
                 document.querySelectorAll(sel).forEach(el => el.classList.remove('reveal-hidden'));
             }
             if (stage.id === 'mergeGrid') hideIntroControls();
+            if (stage.id === 'exploreUnlock') {
+                const locked = document.getElementById('location-grove-locked');
+                if (locked) locked.classList.add('hidden');
+            }
         }
     }
 }
@@ -2516,6 +2538,18 @@ function feedStick(bulk = false) {
 // ============================================
 
 function updateUI() {
+    // Explore card gating — show the live "X / 50" progress while locked.
+    // The locked placeholder is hidden by the exploreUnlock reveal stage
+    // (and by applyRevealedFlags on load) once the threshold is crossed.
+    const exploreLockedEl = document.getElementById('location-grove-locked');
+    if (exploreLockedEl && !game.revealed.exploreUnlock) {
+        const countEl = document.getElementById('explore-locked-count');
+        if (countEl) {
+            const gathered = Math.min(EXPLORE_UNLOCK_STICKS, game.stats.sticksGathered || 0);
+            countEl.textContent = formatNumber(gathered);
+        }
+    }
+
     // Resources — Phase 1 shows the heat bar progressing toward the
     // target; once peakHeat clears it, the bar gives way to an unbounded
     // counter (the bar would be meaningless past 100% fill).

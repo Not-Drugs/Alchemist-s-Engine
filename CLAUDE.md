@@ -272,6 +272,19 @@ embedded in the art (sticks, stones) are clickable and add to the
 player's resources. Items don't respawn yet — this is a proof of
 concept for the picture-as-UI approach.
 
+**Gating.** The Explore card itself is locked until the player has
+gathered `EXPLORE_UNLOCK_STICKS` (50) sticks cumulatively (tracked
+via `game.stats.sticksGathered`, which is monotonic — feeding sticks
+to the furnace does NOT roll progress back). Until then, a
+`#location-grove-locked` placeholder shows the prompt *"You must
+venture further and further to collect kindling from this barren
+wasteland. Care to explore further?"* with a live `Sticks gathered:
+N / 50` readout. Reveal is wired into `REVEAL_STAGES` as the
+`exploreUnlock` stage — fires `screenFlash`, narrates *"Far beyond
+the engine, brittle trees hold what little kindling remains. The
+path opens."*, and hides the locked placeholder while revealing
+`#location-grove`.
+
 **Scene composition.** 40 columns wide, sized for mobile portrait via
 a `clamp()` font-size. Each scene row is a flexbox of three side-by-
 side spans:
