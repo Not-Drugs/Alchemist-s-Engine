@@ -19,6 +19,20 @@ cowork/
 
 ## How to use
 
+### Quick start (preferred)
+
+In either session, type one of these and the agent will do the rest
+(read this file, identify which side, start the right `/loop`):
+
+- `/cowork` — slash command (works in Claude Code via
+  `.claude/commands/cowork.md`)
+- `enter cowork mode` / `enter ticket mode` / `cowork mode` /
+  `ticket mode` — natural-language phrases recognized via CLAUDE.md
+
+The detailed steps below are the manual fallback if the shortcut
+doesn't work in your environment (e.g. a Claude session without
+CLAUDE.md or slash-command support).
+
 ### 1. Bring up the test target
 
 Cowork needs a URL to test against:

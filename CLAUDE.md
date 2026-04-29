@@ -588,6 +588,15 @@ game, files bug tickets, and visually verifies fixes after they're
 pushed. **terminal-Claude** (this session) claims tickets, fixes them in
 code, pushes, and marks `[ready-for-retest]`.
 
+**Quick start.** If the user says **"/cowork"**, **"enter cowork
+mode"**, **"cowork mode"**, **"enter ticket mode"**, or **"ticket
+mode"**, treat it as a request to enter the cowork playtest workflow:
+read `cowork/PROTOCOL.md` and `cowork/README.md`, identify which side
+this session is (terminal vs cowork — ask if unsure), and start the
+appropriate `/loop` from the README. The terminal-side slash command
+is defined at `.claude/commands/cowork.md` and includes the same
+instructions for sessions that load slash commands.
+
 - `cowork/PROTOCOL.md` — ticket format, status lifecycle, reply convention.
 - `cowork/README.md` — bring-up steps and paste-ready `/loop` prompts.
 - `cowork/inbox.md` — runtime state, gitignored, append-only.
