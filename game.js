@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v63';
+const APP_VERSION = 'v64';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -512,7 +512,8 @@ function createGrid() {
             if (draggedIndex === null) return;
             game.grid[draggedIndex] = null;
             renderGridItem(draggedIndex);
-            game.inventory[el.dataset.kind] = (game.inventory[el.dataset.kind] || 0) + 1;
+            const ik = invKeyForKind(el.dataset.kind);
+            game.inventory[ik] = (game.inventory[ik] || 0) + 1;
             sfx('kindle');
             updateUI();
             saveGame();
@@ -875,7 +876,7 @@ function handleDragStart(e) {
     const invTile = e.target.closest && e.target.closest('.inv-tile');
     if (invTile) {
         const kind = invTile.dataset.kind;
-        const count = (game.inventory[kind] || 0);
+        const count = (game.inventory[invKeyForKind(kind)] || 0);
         if (count <= 0) { e.preventDefault(); return; }
         draggedItem = { type: 'ingredient', kind, fromInventory: true };
         draggedIndex = null;
@@ -1069,8 +1070,9 @@ function inventoryDropOnCell(targetIndex) {
         showToast('Cell is occupied.', 'error');
         return;
     }
-    if ((game.inventory[kind] || 0) <= 0) return;
-    game.inventory[kind] -= 1;
+    const ik = invKeyForKind(kind);
+    if ((game.inventory[ik] || 0) <= 0) return;
+    game.inventory[ik] -= 1;
     game.grid[targetIndex] = { type: 'ingredient', kind };
     renderGridItem(targetIndex);
     sfx('kindle');
@@ -1409,7 +1411,7 @@ function handleInvTileTouchStart(e) {
     if (e.touches.length !== 1) return;
     const invTile = e.currentTarget;
     const kind = invTile.dataset.kind;
-    const count = (game.inventory[kind] || 0);
+    const count = (game.inventory[invKeyForKind(kind)] || 0);
     _dbgLog(`touchstart@inv-tile#${invTile.id} kind=${kind} count=${count} | tgt=${e.target.nodeName}#${e.target.id||''}.${[...e.target.classList].slice(0,2).join('.')}`);
     if (count <= 0) { _dbgLog(`  → BLOCKED: count=0`); return; }
 
@@ -1566,7 +1568,8 @@ function handleTouchEnd(e) {
             _dbgLog(`DROP: inv-tile-return kind=${target.dataset.kind} dragKind=${draggedItem&&draggedItem.kind} dragIdx=${draggedIndex}`);
             if (draggedItem && draggedItem.type === 'ingredient' && draggedItem.kind === target.dataset.kind && draggedIndex !== null) {
                 game.grid[draggedIndex] = null;
-                game.inventory[target.dataset.kind] = (game.inventory[target.dataset.kind] || 0) + 1;
+                const ik = invKeyForKind(target.dataset.kind);
+                game.inventory[ik] = (game.inventory[ik] || 0) + 1;
                 renderGridItem(draggedIndex);
                 sfx('kindle');
                 updateUI();
@@ -2598,6 +2601,14 @@ function collectGroveItem(id) {
 
     renderGrove();
     updateUI();
+}
+
+// Map an ingredient kind ('stick' / 'stone') to its inventory bucket key.
+// Singular form lives on grid tiles, recipe arm specs, and rail data-kind
+// attributes; the plural form is the natural English count in game.inventory.
+// Keep this in sync if new ingredient kinds get added.
+function invKeyForKind(kind) {
+    return kind + 's';
 }
 
 function renderInventoryRail() {
