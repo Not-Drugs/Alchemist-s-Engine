@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v66';
+const APP_VERSION = 'v67';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -1693,8 +1693,19 @@ function dispatchTouchDropOnZone(zone) {
     if (zone.id === 'smelter-ore-slot' && draggedItem.type === 'ore' && game.unlockedTiers.smelter) {
         const oreValue = ORE_TIERS[draggedItem.tier - 1].value;
         game.smelter.ore += oreValue;
-        game.grid[draggedIndex] = null;
-        renderGridItem(draggedIndex);
+
+        if (draggedItem.fromSatchel) {
+            const slotIdx = draggedItem.satchelIndex;
+            const slot = game.satchel[slotIdx];
+            if (slot) {
+                slot.count -= 1;
+                if (slot.count <= 0) game.satchel.splice(slotIdx, 1);
+            }
+        } else if (draggedIndex !== null && draggedIndex !== undefined) {
+            game.grid[draggedIndex] = null;
+            renderGridItem(draggedIndex);
+        }
+
         flashDropZone('smelter-ore-slot');
         showToast(`Added ${ORE_TIERS[draggedItem.tier - 1].name} to smelter!`);
         return;
@@ -1828,8 +1839,20 @@ function applyFuelDropOnEngine() {
         return;
     }
     game.furnace.fuel = Math.min(game.furnace.fuel + fuelValue, maxFuel);
-    game.grid[draggedIndex] = null;
-    renderGridItem(draggedIndex);
+
+    // Consume the source. Satchel and grid drags need different bookkeeping.
+    if (draggedItem.fromSatchel) {
+        const slotIdx = draggedItem.satchelIndex;
+        const slot = game.satchel[slotIdx];
+        if (slot) {
+            slot.count -= 1;
+            if (slot.count <= 0) game.satchel.splice(slotIdx, 1);
+        }
+    } else if (draggedIndex !== null && draggedIndex !== undefined) {
+        game.grid[draggedIndex] = null;
+        renderGridItem(draggedIndex);
+    }
+
     flashDropZone('furnace-visual');
     showToast(`Added ${FUEL_TIERS[draggedItem.tier - 1].name} to furnace!`);
     updateUI();
@@ -1860,8 +1883,18 @@ function setupSmelterDropZone() {
         if (draggedItem && draggedItem.type === 'ore') {
             const oreValue = ORE_TIERS[draggedItem.tier - 1].value;
             game.smelter.ore += oreValue;
-            game.grid[draggedIndex] = null;
-            renderGridItem(draggedIndex);
+
+            if (draggedItem.fromSatchel) {
+                const slotIdx = draggedItem.satchelIndex;
+                const slot = game.satchel[slotIdx];
+                if (slot) {
+                    slot.count -= 1;
+                    if (slot.count <= 0) game.satchel.splice(slotIdx, 1);
+                }
+            } else if (draggedIndex !== null && draggedIndex !== undefined) {
+                game.grid[draggedIndex] = null;
+                renderGridItem(draggedIndex);
+            }
             showToast(`Added ${ORE_TIERS[draggedItem.tier - 1].name} to smelter!`);
         }
     });
