@@ -106,6 +106,17 @@
                 <!-- Alchemical Table (Merge Grid) -->
                 <section id="merge-section" class="reveal-hidden">
                     <h2>Alchemical Table</h2>
+                    <div id="inventory-rail" class="inv-rail reveal-hidden" aria-label="Inventory">
+                        <span class="inv-rail-label">Inventory:</span>
+                        <div class="inv-tile" id="inv-tile-stick" data-kind="stick" draggable="false" tabindex="-1" role="button" aria-label="Sticks">
+                            <span class="inv-tile-glyph">/</span>
+                            <span class="inv-tile-count" id="inv-tile-stick-count">0</span>
+                        </div>
+                        <div class="inv-tile" id="inv-tile-stone" data-kind="stone" draggable="false" tabindex="-1" role="button" aria-label="Stones">
+                            <span class="inv-tile-glyph">#</span>
+                            <span class="inv-tile-count" id="inv-tile-stone-count">0</span>
+                        </div>
+                    </div>
                     <div id="merge-grid"></div>
                     <div id="unlocks-area">
                         <div id="unlock-spark" class="unlock-slot drop-zone">

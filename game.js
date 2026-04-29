@@ -117,7 +117,7 @@ const REVEAL_STAGES = [
     { id: 'sootBeat2',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.5,  narrate: 'Symbols rise from the soot. Half-remembered.' },
     { id: 'sootBeat3',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.75, narrate: 'The engine is almost itself again.' },
     { id: 'mergeGrid',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET,
-        targets: ['#merge-section'],
+        targets: ['#merge-section', '#inventory-rail'],
         onReveal: () => {
             hideIntroControls();
             screenFlash('var(--accent-fire)');
@@ -333,35 +333,86 @@ function createGrid() {
             renderGridItem(i);
         }
     }
+
+    // Inventory rail listeners: drag/touch from rail → grid (place ingredient),
+    // or drag ingredient from grid back onto its rail tile (return it).
+    ['inv-tile-stick', 'inv-tile-stone'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        // Mouse drag-over / drop for drop-back-to-rail
+        el.addEventListener('dragover', e => {
+            if (draggedItem && draggedItem.type === 'ingredient' && draggedItem.kind === el.dataset.kind) {
+                e.preventDefault();
+                el.classList.add('drag-over');
+            }
+        });
+        el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+        el.addEventListener('drop', e => {
+            e.preventDefault();
+            el.classList.remove('drag-over');
+            if (!draggedItem || draggedItem.type !== 'ingredient' || draggedItem.kind !== el.dataset.kind) return;
+            if (draggedIndex === null) return;
+            game.grid[draggedIndex] = null;
+            game.inventory[el.dataset.kind] = (game.inventory[el.dataset.kind] || 0) + 1;
+            sfx('kindle');
+            updateUI();
+            saveGame();
+            draggedItem = null;
+            draggedIndex = null;
+        });
+        // Mouse drag (HTML5): the early branch in handleDragStart routes to inventory logic.
+        el.addEventListener('dragstart', handleDragStart);
+        el.addEventListener('dragend', handleDragEnd);
+        // Touch drag-start: immediate drag (no hold needed for inv tiles).
+        el.addEventListener('touchstart', handleInvTileTouchStart, { passive: false });
+    });
 }
 
 function renderGridItem(index) {
     const cell = document.querySelector(`.grid-cell[data-index="${index}"]`);
     if (!cell) return;
 
-    cell.innerHTML = '';
+    while (cell.firstChild) cell.removeChild(cell.firstChild);
     const item = game.grid[index];
 
     if (!item) return;
 
     const itemEl = document.createElement('div');
-    itemEl.className = `${item.type}-item ${item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].color : ORE_TIERS[item.tier - 1].color}`;
-    itemEl.draggable = true;
     itemEl.dataset.index = index;
     itemEl.dataset.type = item.type;
-    itemEl.dataset.tier = item.tier;
 
-    const tierLabel = document.createElement('span');
-    tierLabel.className = 'item-tier-label';
-    tierLabel.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].name : ORE_TIERS[item.tier - 1].name;
-    itemEl.appendChild(tierLabel);
+    if (item.type === 'ingredient') {
+        // Ingredient tiles: raw materials from the grove (sticks, stones).
+        // They never auto-merge; they sit on the grid waiting for recipes.
+        itemEl.className = `ingredient-item ingredient-${item.kind}`;
+        itemEl.draggable = true;
+        itemEl.dataset.kind = item.kind;
+        itemEl.textContent = item.kind === 'stick' ? '/' : '#';
+        itemEl.title = item.kind === 'stick'
+            ? 'Stick — drag back to Inventory rail to return'
+            : 'Stone — drag back to Inventory rail to return';
+    } else {
+        // Fuel or ore tile
+        itemEl.className = `${item.type}-item ${item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].color : ORE_TIERS[item.tier - 1].color}`;
+        itemEl.draggable = true;
+        itemEl.dataset.tier = item.tier;
 
-    // Value badge — temporary debug aid showing how much fuel/ore the tile
-    // is worth. Search "ITEM-VALUE-BADGE" in style.css + game.js to remove.
-    const valueBadge = document.createElement('span');
-    valueBadge.className = 'item-value';
-    valueBadge.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].value : ORE_TIERS[item.tier - 1].value;
-    itemEl.appendChild(valueBadge);
+        const tierLabel = document.createElement('span');
+        tierLabel.className = 'item-tier-label';
+        tierLabel.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].name : ORE_TIERS[item.tier - 1].name;
+        itemEl.appendChild(tierLabel);
+
+        // Value badge — temporary debug aid showing how much fuel/ore the tile
+        // is worth. Search "ITEM-VALUE-BADGE" in style.css + game.js to remove.
+        const valueBadge = document.createElement('span');
+        valueBadge.className = 'item-value';
+        valueBadge.textContent = item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].value : ORE_TIERS[item.tier - 1].value;
+        itemEl.appendChild(valueBadge);
+
+        itemEl.title = item.type === 'fuel'
+            ? `${FUEL_TIERS[item.tier - 1].name} (${FUEL_TIERS[item.tier - 1].value} fuel) — dbl-click or right-click to burn`
+            : `${ORE_TIERS[item.tier - 1].name} (${ORE_TIERS[item.tier - 1].value} ore) — dbl-click or right-click to smelt`;
+    }
 
     // Drag events (desktop HTML5 drag API)
     itemEl.addEventListener('dragstart', handleDragStart);
@@ -371,6 +422,7 @@ function renderGridItem(index) {
     itemEl.addEventListener('touchstart', handleTouchStart, { passive: false });
 
     // Quick-send: double-click sends fuel to furnace, ore to smelter
+    // (ingredient tiles have no quick-send target, so this is a no-op for them)
     itemEl.addEventListener('dblclick', (e) => {
         e.preventDefault();
         quickSendItem(index);
@@ -383,11 +435,6 @@ function renderGridItem(index) {
     });
 
     cell.appendChild(itemEl);
-
-    // Tooltip for clarity
-    itemEl.title = item.type === 'fuel'
-        ? `${FUEL_TIERS[item.tier - 1].name} (${FUEL_TIERS[item.tier - 1].value} fuel) — dbl-click or right-click to burn`
-        : `${ORE_TIERS[item.tier - 1].name} (${ORE_TIERS[item.tier - 1].value} ore) — dbl-click or right-click to smelt`;
 }
 
 function burnAllFuel() {
@@ -595,6 +642,23 @@ function screenFlash(color = 'var(--accent-essence)') {
 // ============================================
 
 function handleDragStart(e) {
+    // Inventory rail drag: pull a stick or stone onto the grid.
+    const invTile = e.target.closest && e.target.closest('.inv-tile');
+    if (invTile) {
+        const kind = invTile.dataset.kind;
+        const count = (game.inventory[kind] || 0);
+        if (count <= 0) { e.preventDefault(); return; }
+        draggedItem = { type: 'ingredient', kind, fromInventory: true };
+        draggedIndex = null;
+        draggedElement = invTile;
+        invTile.classList.add('dragging');
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', `inv:${kind}`);
+        }
+        return;
+    }
+
     draggedIndex = parseInt(e.target.dataset.index);
     draggedItem = game.grid[draggedIndex];
     draggedElement = e.target;
@@ -602,6 +666,9 @@ function handleDragStart(e) {
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', draggedIndex);
+
+    // Ingredient tiles have no tier-based merge targets; skip highlight.
+    if (draggedItem.type === 'ingredient') return;
 
     // Highlight cells with matching same-tier items as valid merge targets
     const maxTier = draggedItem.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
@@ -763,6 +830,23 @@ function engineDropOnCell(targetIndex) {
     showToast('Drop on an empty cell or another Spark.', 'error');
 }
 
+// Inventory rail → grid: decrement the ingredient count and place a tile.
+function inventoryDropOnCell(targetIndex) {
+    const kind = draggedItem && draggedItem.kind;
+    if (!kind) return;
+    if (game.grid[targetIndex] !== null) {
+        showToast('Cell is occupied.', 'error');
+        return;
+    }
+    if ((game.inventory[kind] || 0) <= 0) return;
+    game.inventory[kind] -= 1;
+    game.grid[targetIndex] = { type: 'ingredient', kind };
+    renderGridItem(targetIndex);
+    sfx('kindle');
+    updateUI();
+    saveGame();
+}
+
 function handleDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -785,12 +869,22 @@ function handleDrop(e) {
         return;
     }
 
+    // Drag from inventory rail — place a fresh ingredient tile on the grid.
+    if (draggedItem && draggedItem.fromInventory) {
+        inventoryDropOnCell(targetIndex);
+        if (draggedElement) draggedElement.classList.remove('dragging');
+        draggedItem = null;
+        draggedIndex = null;
+        draggedElement = null;
+        return;
+    }
+
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
     const targetItem = game.grid[targetIndex];
 
-    // Check if we can merge
-    if (targetItem &&
+    // Check if we can merge (ingredients never auto-merge)
+    if (targetItem && draggedItem.type !== 'ingredient' &&
         targetItem.type === draggedItem.type &&
         targetItem.tier === draggedItem.tier) {
 
@@ -882,6 +976,7 @@ function beginTouchDrag() {
     if (!touchDragState || touchDragState.moved) return;
     const { itemEl, index, item } = touchDragState;
     const fromEngine = !!item.fromEngine;
+    const fromInventory = !!item.fromInventory;
 
     draggedIndex = index;
     draggedItem = item;
@@ -900,6 +995,16 @@ function beginTouchDrag() {
         label.textContent = tierInfo.name;
         ghost.appendChild(label);
         const size = 56;
+        ghost.style.left = (touchDragState.startX - size / 2) + 'px';
+        ghost.style.top = (touchDragState.startY - size / 2) + 'px';
+        ghost.style.width = size + 'px';
+        ghost.style.height = size + 'px';
+    } else if (fromInventory) {
+        // Ingredient ghost: show the glyph character so the player sees what they're dragging.
+        ghost = document.createElement('div');
+        ghost.className = `ingredient-item ingredient-${item.kind} touch-ghost`;
+        ghost.textContent = item.kind === 'stick' ? '/' : '#';
+        const size = 52;
         ghost.style.left = (touchDragState.startX - size / 2) + 'px';
         ghost.style.top = (touchDragState.startY - size / 2) + 'px';
         ghost.style.width = size + 'px';
@@ -923,12 +1028,12 @@ function beginTouchDrag() {
     touchDragState.ghost = ghost;
     touchDragState.moved = true;
 
-    // Highlight merge targets
+    // Highlight merge targets — ingredients have no merge targets so skip.
     if (fromEngine) {
         // Tier-1 sparks merge with the engine spark; empty cells become
         // beacons so the player sees where the spark can land.
         highlightEngineDropTargets();
-    } else {
+    } else if (!fromInventory) {
         const maxTier = item.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
         if (item.tier < maxTier) {
             game.grid.forEach((cell, i) => {
@@ -1036,6 +1141,32 @@ function handleEngineTouchStart(e) {
     itemEl.classList.add('engine-charging');
 }
 
+// Touch drag from the inventory rail: immediate drag (like grid items,
+// no hold required). Creates an ingredient ghost tied to the item's glyph.
+function handleInvTileTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    const invTile = e.currentTarget;
+    const kind = invTile.dataset.kind;
+    const count = (game.inventory[kind] || 0);
+    if (count <= 0) return;
+
+    const t = e.touches[0];
+    touchDragState = {
+        itemEl: invTile,
+        index: null,
+        item: { type: 'ingredient', kind, fromInventory: true },
+        startX: t.clientX,
+        startY: t.clientY,
+        moved: false,
+        ghost: null,
+        lastTarget: null
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+}
+
 function handleTouchMove(e) {
     if (!touchDragState || e.touches.length !== 1) return;
     const t = e.touches[0];
@@ -1061,7 +1192,7 @@ function handleTouchMove(e) {
     const under = document.elementFromPoint(t.clientX, t.clientY);
     if (ghost) ghost.style.display = '';
 
-    const target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii');
+    const target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile');
 
     if (touchDragState.lastTarget && touchDragState.lastTarget !== target) {
         touchDragState.lastTarget.classList.remove('drag-over');
@@ -1079,6 +1210,11 @@ function handleTouchMove(e) {
                 target.id === 'smelter-ore-slot' && draggedItem.type === 'ore'
             );
             if (accepts) target.classList.add('drag-over');
+        } else if (target.classList.contains('inv-tile')) {
+            // Inventory rail tile accepts ingredient-kind drops for return.
+            if (draggedItem && draggedItem.type === 'ingredient' && draggedItem.kind === target.dataset.kind) {
+                target.classList.add('drag-over');
+            }
         } else {
             target.classList.add('drag-over');
         }
@@ -1107,7 +1243,7 @@ function handleTouchEnd(e) {
     if (changedTouch) {
         if (ghost) ghost.style.display = 'none';
         const under = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-        target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii');
+        target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile');
     }
 
     if (target) {
@@ -1116,6 +1252,16 @@ function handleTouchEnd(e) {
             // here so a Spark dragged out can't loop back into the furnace.
             if (!draggedItem || !draggedItem.fromEngine) {
                 applyFuelDropOnEngine();
+            }
+        } else if (target.classList.contains('inv-tile')) {
+            // Return an ingredient tile from the grid back to the inventory rail.
+            if (draggedItem && draggedItem.type === 'ingredient' && draggedItem.kind === target.dataset.kind && draggedIndex !== null) {
+                game.grid[draggedIndex] = null;
+                game.inventory[target.dataset.kind] = (game.inventory[target.dataset.kind] || 0) + 1;
+                renderGridItem(draggedIndex);
+                sfx('kindle');
+                updateUI();
+                saveGame();
             }
         } else if (target.classList.contains('drop-zone')) {
             // Engine-source drag releasing on a drop zone is a no-op —
@@ -1150,11 +1296,18 @@ function dispatchTouchDropOnGrid(cell) {
         return;
     }
 
+    // Drag from inventory rail — place an ingredient tile.
+    if (draggedItem && draggedItem.fromInventory) {
+        inventoryDropOnCell(targetIndex);
+        return;
+    }
+
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
     const targetItem = game.grid[targetIndex];
 
-    if (targetItem &&
+    // Ingredients never auto-merge
+    if (targetItem && draggedItem.type !== 'ingredient' &&
         targetItem.type === draggedItem.type &&
         targetItem.tier === draggedItem.tier) {
         const maxTier = draggedItem.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
@@ -2110,6 +2263,20 @@ function collectGroveItem(id) {
     updateUI();
 }
 
+function renderInventoryRail() {
+    const stickEl = document.getElementById('inv-tile-stick');
+    const stoneEl = document.getElementById('inv-tile-stone');
+    if (!stickEl || !stoneEl) return;
+    const sticks = game.inventory && game.inventory.sticks || 0;
+    const stones = game.inventory && game.inventory.stones || 0;
+    document.getElementById('inv-tile-stick-count').textContent = sticks;
+    document.getElementById('inv-tile-stone-count').textContent = stones;
+    stickEl.classList.toggle('is-empty', sticks <= 0);
+    stoneEl.classList.toggle('is-empty', stones <= 0);
+    stickEl.setAttribute('draggable', sticks > 0 ? 'true' : 'false');
+    stoneEl.setAttribute('draggable', stones > 0 ? 'true' : 'false');
+}
+
 function renderUpgrades() {
     function makeRow(cls, text) {
         const el = document.createElement('div');
@@ -2546,6 +2713,8 @@ function feedStick(bulk = false) {
 // ============================================
 
 function updateUI() {
+    renderInventoryRail();
+
     // Explore card gating — show the live "X / 50" progress while locked.
     // The locked placeholder is hidden by the exploreUnlock reveal stage
     // (and by applyRevealedFlags on load) once the threshold is crossed.

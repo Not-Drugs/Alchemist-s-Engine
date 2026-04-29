@@ -2714,3 +2714,60 @@ button.revealing { display: inline-block; }
         visibility: hidden;
     }
 }
+
+/* Inventory rail (raw mats: sticks, stones) — sits above the merge grid */
+.inv-rail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    border: 1px dashed var(--border-color);
+    font-family: inherit;
+    flex-wrap: wrap;
+}
+.inv-rail.revealing { display: flex; }
+.inv-rail-label {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    letter-spacing: 0.05em;
+}
+.inv-tile {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+    padding: 4px 8px;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    border: 1px solid var(--accent-fire);
+    color: var(--accent-fire);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+.inv-tile.is-empty {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.inv-tile.dragging { opacity: 0.4; }
+.inv-tile.drag-over { outline: 2px solid var(--accent-fire); }
+.inv-tile-glyph { font-weight: bold; }
+.inv-tile-count { font-size: 0.9em; }
+.inv-tile-count::before { content: '\00d7'; color: var(--text-dim); margin-right: 1px; }
+
+/* Ingredient tiles on the merge grid (sticks, stones) */
+.ingredient-item {
+    font-weight: bold;
+    color: var(--accent-fire);
+    cursor: grab;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 1.4em;
+}
+.ingredient-stick { letter-spacing: 0; }
+.ingredient-stone { letter-spacing: 0; }
