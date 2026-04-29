@@ -2844,3 +2844,79 @@ button.revealing { display: inline-block; }
 .craft-btn:hover:not(:disabled) {
     filter: brightness(1.1);
 }
+
+/* ---- Crafting extras: recipes accordion + key items button ---- */
+.crafting-extras {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.recipes-panel {
+    border: 1px dashed var(--accent-fire, #ff6600);
+    padding: 6px 10px;
+    min-width: 240px;
+}
+.recipes-panel summary {
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: 0.05em;
+}
+.recipes-list { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+.recipe-card { font-family: inherit; }
+.recipe-card-name { color: var(--accent-fire, #ff6600); }
+.recipe-card-pattern {
+    display: grid;
+    grid-template-columns: repeat(3, 1.2em);
+    grid-template-rows: repeat(3, 1.2em);
+    gap: 1px;
+    margin-top: 4px;
+    font-size: 0.9em;
+}
+.recipe-card-pattern .rc-cell { text-align: center; opacity: 0.85; }
+.recipe-card-pattern .rc-empty { color: var(--text-dim, #888); }
+
+.key-items-btn {
+    min-height: 44px;
+    padding: 6px 14px;
+    background: transparent;
+    color: var(--accent-essence, #ffcc00);
+    border: 1px solid var(--accent-essence, #ffcc00);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* Key Items modal — namespaced .ki-modal to avoid clash with existing .modal rules */
+.ki-modal--hidden { display: none; }
+.ki-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+.ki-modal-content {
+    background: var(--bg-dark, #0c0c0c);
+    border: 1px solid var(--accent-fire, #ff6600);
+    padding: 16px;
+    min-width: 280px;
+    max-width: 80vw;
+}
+.ki-modal-content h3 {
+    margin-bottom: 10px;
+    color: var(--text-bright, #fff);
+}
+.key-items-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.key-item-tile {
+    border: 1px solid var(--accent-essence, #ffcc00);
+    padding: 4px 8px;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-essence, #ffcc00);
+}

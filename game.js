@@ -79,6 +79,10 @@ function findRecipeMatch(grid) {
     return null;
 }
 
+function hasTier1FuelOnGrid(g) {
+    return Array.isArray(g.grid) && g.grid.some(c => c && c.type === 'fuel' && c.tier === 1);
+}
+
 // Keep this in sync with `CACHE` in service-worker.js. Rendered into the
 // version tag at the bottom of the page so a stale build is easy to spot.
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
@@ -195,6 +199,15 @@ const REVEAL_STAGES = [
             if (locked) locked.classList.add('hidden');
             screenFlash('var(--accent-essence)');
         } },
+    // First-recipe hint: fires once the player has 4 sticks and a Spark on the
+    // grid — teaches the golem plus-pattern before they stumble on it by chance.
+    { id: 'golemRecipeHint',
+        cond: g => !g.flags?.golemRecipeTaught
+                && (g.inventory?.sticks || 0) >= 4
+                && hasTier1FuelOnGrid(g),
+        narrate: 'Four sticks crossed about a single spark... place them on the table.',
+        targets: ['#recipes-panel'],
+        onReveal: () => { game.flags.golemRecipeTaught = true; } },
     // Achievements stage intentionally omitted while the achievements UI is
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] },
@@ -2529,6 +2542,75 @@ function updateCraftButton() {
     btn.title = bagFull ? 'Key Items Bag full' : `Craft ${match.recipe.name}`;
 }
 
+// ---- Recipes panel ----
+
+function recipePatternCell(recipe, dx, dy) {
+    // For 'plus' shape: center at (1,1) of a 3x3 mini-grid; arms at (1,0),(1,2),(0,1),(2,1).
+    if (recipe.pattern.shape !== 'plus') return null;
+    if (dx === 1 && dy === 1) return recipe.pattern.center;
+    if ((dx === 1 && dy === 0) || (dx === 1 && dy === 2) ||
+        (dx === 0 && dy === 1) || (dx === 2 && dy === 1)) return recipe.pattern.arms;
+    return null;
+}
+
+function specToGlyph(spec) {
+    if (!spec) return '·';
+    if (spec.type === 'fuel') return FUEL_GLYPHS[(spec.tier || 1) - 1] || '*';
+    if (spec.type === 'ore')  return ORE_GLYPHS[(spec.tier || 1) - 1] || 'o';
+    if (spec.type === 'ingredient') return spec.kind === 'stick' ? '/' : '#';
+    return '?';
+}
+
+function renderRecipesPanel() {
+    const list = document.getElementById('recipes-list');
+    if (!list) return;
+    list.replaceChildren();
+    for (const recipe of RECIPES) {
+        if (!game.flags.discoveredRecipes[recipe.id]) continue;
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        const name = document.createElement('div');
+        name.className = 'recipe-card-name';
+        name.textContent = recipe.name;
+        const pat = document.createElement('div');
+        pat.className = 'recipe-card-pattern';
+        for (let dy = 0; dy < 3; dy++) {
+            for (let dx = 0; dx < 3; dx++) {
+                const cell = document.createElement('span');
+                cell.className = 'rc-cell';
+                const spec = recipePatternCell(recipe, dx, dy);
+                if (spec) {
+                    cell.textContent = specToGlyph(spec);
+                } else {
+                    cell.textContent = '·';
+                    cell.classList.add('rc-empty');
+                }
+                pat.appendChild(cell);
+            }
+        }
+        card.appendChild(name);
+        card.appendChild(pat);
+        list.appendChild(card);
+    }
+}
+
+// ---- Key Items modal ----
+
+function renderKeyItemsModal() {
+    const countEl = document.getElementById('key-items-count');
+    const listEl  = document.getElementById('key-items-list');
+    if (countEl) countEl.textContent = String(game.keyItems?.length || 0);
+    if (!listEl) return;
+    listEl.replaceChildren();
+    for (const item of (game.keyItems || [])) {
+        const tile = document.createElement('div');
+        tile.className = 'key-item-tile';
+        tile.textContent = item.type === 'golem' ? 'G' : '?';
+        tile.title = item.type;
+        listEl.appendChild(tile);
+    }
+}
+
 function randomId() {
     return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -2549,6 +2631,7 @@ function performCraft() {
     const out = { ...match.recipe.output, id: randomId() };
     game.keyItems.push(out);
     game.flags.discoveredRecipes[match.recipe.id] = true;
+    revealEl(document.getElementById('key-items-btn'));
     // Feedback
     const btn = document.getElementById('craft-btn');
     floatPopup(btn, `+${match.recipe.name}`, 'gear');
@@ -3062,6 +3145,8 @@ function updateUI() {
     renderInventoryRail();
     renderSatchelRail();
     updateCraftButton();
+    renderRecipesPanel();
+    renderKeyItemsModal();
 
     // Explore card gating — show the live "X / 50" progress while locked.
     // The locked placeholder is hidden by the exploreUnlock reveal stage
@@ -3395,6 +3480,23 @@ const burnAll = document.getElementById('burn-all-btn');
     // Recipe craft button
     const craftBtn = document.getElementById('craft-btn');
     if (craftBtn) craftBtn.addEventListener('click', performCraft);
+
+    // Key Items modal open/close
+    const keyItemsBtn   = document.getElementById('key-items-btn');
+    const kiModal       = document.getElementById('key-items-modal');
+    const kiModalClose  = document.getElementById('key-items-close');
+    if (keyItemsBtn && kiModal) {
+        keyItemsBtn.addEventListener('click', () => {
+            renderKeyItemsModal();
+            kiModal.classList.remove('ki-modal--hidden');
+        });
+    }
+    if (kiModalClose && kiModal) {
+        kiModalClose.addEventListener('click', () => kiModal.classList.add('ki-modal--hidden'));
+        kiModal.addEventListener('click', e => {
+            if (e.target === kiModal) kiModal.classList.add('ki-modal--hidden');
+        });
+    }
 
     // Furnace drop zone
     setupFurnaceDropZone();
