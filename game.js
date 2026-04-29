@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v67';
+const APP_VERSION = 'v68';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -96,7 +96,7 @@ const APP_VERSION = 'v67';
 // Set to true to show an in-page touch-event overlay — useful on mobile
 // where devtools aren't available. All instrumentation is gated behind this
 // flag; the production path is completely untouched when it's false.
-const DEBUG_TOUCH_LOG = true;
+const DEBUG_TOUCH_LOG = false;
 
 (function initDebugTouchLog() {
     if (!DEBUG_TOUCH_LOG) return;
