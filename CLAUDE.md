@@ -580,6 +580,39 @@ pieces with artist signatures, tags, and game-relevance notes, plus a
 This rule applies even when "just borrowing a small function" looks
 tempting. Always paraphrase by re-deriving the logic in our own style.
 
+## Cowork Playtest Channel
+
+A file-based ticketing channel for browser-automated playtesting lives
+under `cowork/`. **cowork-Claude** runs in a browser session, plays the
+game, files bug tickets, and visually verifies fixes after they're
+pushed. **terminal-Claude** (this session) claims tickets, fixes them in
+code, pushes, and marks `[ready-for-retest]`.
+
+- `cowork/PROTOCOL.md` — ticket format, status lifecycle, reply convention.
+- `cowork/README.md` — bring-up steps and paste-ready `/loop` prompts.
+- `cowork/inbox.md` — runtime state, gitignored, append-only.
+- `cowork/attachments/` — runtime state, gitignored (`.gitkeep` preserves
+  the directory).
+
+Status lifecycle: `[new]` → `[claimed]` → `[ready-for-retest]` →
+`[verified]`, with `[needs-info]` (terminal bounces back) and
+`[reopened]` (retest failed) as branches. `[needs-human]` is an
+escape hatch — either Claude side flips a ticket to it when stuck;
+both loops then skip it and the user adjudicates (reproducing
+on real hardware, calling intended-vs-bug, etc.) before flipping
+the status back. The terminal loop only acts on `[new]` and
+`[reopened]`; the cowork loop only acts on `[ready-for-retest]` and
+`[needs-info]` for tickets it opened.
+
+When fixing a ticket: include the commit SHA in the
+`[ready-for-retest]` comment so cowork knows what build to verify
+against (Pages takes ~30–60s to rebuild after push).
+
+Cowork checks `cowork/inbox.md` at the **start of every turn**, not
+only on `/loop` ticks — replies from terminal should be picked up
+immediately while cowork is mid-playtest, not deferred to the next
+loop firing.
+
 ## Workflow Rules
 
 These are standing instructions from the repo owner:
