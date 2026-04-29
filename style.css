@@ -2771,3 +2771,51 @@ button.revealing { display: inline-block; }
 }
 .ingredient-stick { letter-spacing: 0; }
 .ingredient-stone { letter-spacing: 0; }
+
+/* Satchel rail (stashed fuel/ore stacks) — sits between Inventory rail and merge grid */
+.sat-rail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    border: 1px dashed var(--accent-essence);
+    font-family: inherit;
+    flex-wrap: wrap;
+}
+.sat-rail.revealing { display: flex; }
+.sat-rail.drag-over { background: rgba(255, 204, 0, 0.08); }
+.sat-rail-label {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    letter-spacing: 0.05em;
+}
+.sat-slots {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.sat-slot {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 6px;
+    border: 1px solid var(--accent-essence);
+    color: var(--accent-essence);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+.sat-slot.is-empty {
+    opacity: 0.25;
+    cursor: default;
+    border-style: dashed;
+    color: var(--text-dim);
+}
+.sat-slot.drag-over { background: rgba(255, 204, 0, 0.15); }
+.sat-slot.dragging { opacity: 0.4; }
+.sat-slot-count { font-size: 0.85em; }
+.sat-slot-count::before { content: '\00d7'; color: var(--text-dim); margin-right: 1px; }

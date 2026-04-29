@@ -117,7 +117,7 @@ const REVEAL_STAGES = [
     { id: 'sootBeat2',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.5,  narrate: 'Symbols rise from the soot. Half-remembered.' },
     { id: 'sootBeat3',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET * 0.75, narrate: 'The engine is almost itself again.' },
     { id: 'mergeGrid',     cond: g => (g.stats.peakHeat || 0) >= PHASE_1_HEAT_TARGET,
-        targets: ['#merge-section', '#inventory-rail'],
+        targets: ['#merge-section', '#inventory-rail', '#satchel-rail'],
         onReveal: () => {
             hideIntroControls();
             screenFlash('var(--accent-fire)');
@@ -367,6 +367,48 @@ function createGrid() {
         // Touch drag-start: immediate drag (no hold needed for inv tiles).
         el.addEventListener('touchstart', handleInvTileTouchStart, { passive: false });
     });
+
+    // Satchel rail: mouse drag-over/drop for stash (grid → satchel).
+    // The sat-slot drag-start (satchel → grid deploy) is handled by
+    // handleDragStart via the .sat-slot[draggable="true"] branch, and
+    // touch is handled by handleSatSlotTouchStart wired up in renderSatchelRail
+    // via event delegation on #sat-slots.
+    const satRailEl = document.getElementById('satchel-rail');
+    if (satRailEl) {
+        satRailEl.addEventListener('dragover', e => {
+            if (draggedItem && (draggedItem.type === 'fuel' || draggedItem.type === 'ore') && !draggedItem.fromEngine && !draggedItem.fromSatchel) {
+                e.preventDefault();
+                satRailEl.classList.add('drag-over');
+            }
+        });
+        satRailEl.addEventListener('dragleave', () => satRailEl.classList.remove('drag-over'));
+        satRailEl.addEventListener('drop', e => {
+            e.preventDefault();
+            satRailEl.classList.remove('drag-over');
+            if (!draggedItem || (draggedItem.type !== 'fuel' && draggedItem.type !== 'ore')) return;
+            if (draggedItem.fromEngine || draggedItem.fromSatchel) return;
+            if (draggedIndex === null) return;
+            const item = game.grid[draggedIndex];
+            if (!item || (item.type !== 'fuel' && item.type !== 'ore')) return;
+            const ok = stashIntoSatchel(item);
+            if (!ok) {
+                showToast('Satchel full', 'error');
+            } else {
+                game.grid[draggedIndex] = null;
+                renderGridItem(draggedIndex);
+                sfx('kindle');
+                updateUI();
+                saveGame();
+            }
+            draggedItem = null;
+            draggedIndex = null;
+        });
+        // Sat-slot drag-start (deploy): delegate from #sat-slots container.
+        satRailEl.addEventListener('dragstart', handleDragStart);
+        satRailEl.addEventListener('dragend', handleDragEnd);
+        // Touch start for deploy (sat-slot → grid): delegate via event bubbling.
+        document.getElementById('sat-slots').addEventListener('touchstart', handleSatSlotTouchStart, { passive: false });
+    }
 }
 
 function renderGridItem(index) {
@@ -643,6 +685,23 @@ function screenFlash(color = 'var(--accent-essence)') {
 // ============================================
 
 function handleDragStart(e) {
+    // Satchel rail drag: pull a stashed fuel/ore stack onto the grid.
+    const satSlot = e.target.closest && e.target.closest('.sat-slot[draggable="true"]');
+    if (satSlot) {
+        const slotIndex = parseInt(satSlot.dataset.slotIndex);
+        const item = game.satchel[slotIndex];
+        if (!item) { e.preventDefault(); return; }
+        draggedItem = { type: item.type, tier: item.tier, fromSatchel: true, satchelIndex: slotIndex };
+        draggedIndex = null;
+        draggedElement = satSlot;
+        satSlot.classList.add('dragging');
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', `sat:${slotIndex}`);
+        }
+        return;
+    }
+
     // Inventory rail drag: pull a stick or stone onto the grid.
     const invTile = e.target.closest && e.target.closest('.inv-tile');
     if (invTile) {
@@ -880,6 +939,16 @@ function handleDrop(e) {
         return;
     }
 
+    // Drag from satchel rail — deploy a stashed tile onto the grid.
+    if (draggedItem && draggedItem.fromSatchel) {
+        satchelDropOnCell(targetIndex);
+        if (draggedElement) draggedElement.classList.remove('dragging');
+        draggedItem = null;
+        draggedIndex = null;
+        draggedElement = null;
+        return;
+    }
+
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
     const targetItem = game.grid[targetIndex];
@@ -978,6 +1047,7 @@ function beginTouchDrag() {
     const { itemEl, index, item } = touchDragState;
     const fromEngine = !!item.fromEngine;
     const fromInventory = !!item.fromInventory;
+    const fromSatchel = !!item.fromSatchel;
 
     draggedIndex = index;
     draggedItem = item;
@@ -1005,6 +1075,17 @@ function beginTouchDrag() {
         ghost = document.createElement('div');
         ghost.className = `ingredient-item ingredient-${item.kind} touch-ghost`;
         ghost.textContent = item.kind === 'stick' ? '/' : '#';
+        const size = 52;
+        ghost.style.left = (touchDragState.startX - size / 2) + 'px';
+        ghost.style.top = (touchDragState.startY - size / 2) + 'px';
+        ghost.style.width = size + 'px';
+        ghost.style.height = size + 'px';
+    } else if (fromSatchel) {
+        // Satchel ghost: show the fuel/ore glyph so the player sees what they're deploying.
+        ghost = document.createElement('div');
+        ghost.className = 'sat-slot touch-ghost';
+        ghost.style.color = 'var(--accent-essence)';
+        ghost.textContent = satchelGlyph(item);
         const size = 52;
         ghost.style.left = (touchDragState.startX - size / 2) + 'px';
         ghost.style.top = (touchDragState.startY - size / 2) + 'px';
@@ -1168,6 +1249,35 @@ function handleInvTileTouchStart(e) {
     document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 }
 
+// Touch drag from the satchel rail: immediate drag (no hold required).
+// Delegates via the #sat-slots container so we only need one listener.
+function handleSatSlotTouchStart(e) {
+    if (e.touches.length !== 1) return;
+    const satSlot = e.target.closest && e.target.closest('.sat-slot[draggable="true"]');
+    if (!satSlot) return;
+    const slotIndex = parseInt(satSlot.dataset.slotIndex);
+    const item = game.satchel[slotIndex];
+    if (!item) return;
+
+    e.preventDefault(); // prevent scroll hijack when starting a drag
+
+    const t = e.touches[0];
+    touchDragState = {
+        itemEl: satSlot,
+        index: null,
+        item: { type: item.type, tier: item.tier, fromSatchel: true, satchelIndex: slotIndex },
+        startX: t.clientX,
+        startY: t.clientY,
+        moved: false,
+        ghost: null,
+        lastTarget: null
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+}
+
 function handleTouchMove(e) {
     if (!touchDragState || e.touches.length !== 1) return;
     const t = e.touches[0];
@@ -1193,7 +1303,7 @@ function handleTouchMove(e) {
     const under = document.elementFromPoint(t.clientX, t.clientY);
     if (ghost) ghost.style.display = '';
 
-    const target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile');
+    const target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile, #satchel-rail');
 
     if (touchDragState.lastTarget && touchDragState.lastTarget !== target) {
         touchDragState.lastTarget.classList.remove('drag-over');
@@ -1214,6 +1324,11 @@ function handleTouchMove(e) {
         } else if (target.classList.contains('inv-tile')) {
             // Inventory rail tile accepts ingredient-kind drops for return.
             if (draggedItem && draggedItem.type === 'ingredient' && draggedItem.kind === target.dataset.kind) {
+                target.classList.add('drag-over');
+            }
+        } else if (target.id === 'satchel-rail') {
+            // Satchel rail accepts fuel/ore stash drops (not from engine or satchel itself).
+            if (draggedItem && (draggedItem.type === 'fuel' || draggedItem.type === 'ore') && !draggedItem.fromEngine && !draggedItem.fromSatchel) {
                 target.classList.add('drag-over');
             }
         } else {
@@ -1244,7 +1359,7 @@ function handleTouchEnd(e) {
     if (changedTouch) {
         if (ghost) ghost.style.display = 'none';
         const under = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
-        target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile');
+        target = under && under.closest('.grid-cell, .drop-zone, #furnace-ascii, .inv-tile, #satchel-rail');
     }
 
     if (target) {
@@ -1263,6 +1378,23 @@ function handleTouchEnd(e) {
                 sfx('kindle');
                 updateUI();
                 saveGame();
+            }
+        } else if (target.id === 'satchel-rail') {
+            // Stash a fuel/ore tile from the grid into the satchel.
+            if (draggedItem && (draggedItem.type === 'fuel' || draggedItem.type === 'ore') && !draggedItem.fromEngine && !draggedItem.fromSatchel && draggedIndex !== null) {
+                const item = game.grid[draggedIndex];
+                if (item && (item.type === 'fuel' || item.type === 'ore')) {
+                    const ok = stashIntoSatchel(item);
+                    if (!ok) {
+                        showToast('Satchel full', 'error');
+                    } else {
+                        game.grid[draggedIndex] = null;
+                        renderGridItem(draggedIndex);
+                        sfx('kindle');
+                        updateUI();
+                        saveGame();
+                    }
+                }
             }
         } else if (target.classList.contains('drop-zone')) {
             // Engine-source drag releasing on a drop zone is a no-op —
@@ -1300,6 +1432,12 @@ function dispatchTouchDropOnGrid(cell) {
     // Drag from inventory rail — place an ingredient tile.
     if (draggedItem && draggedItem.fromInventory) {
         inventoryDropOnCell(targetIndex);
+        return;
+    }
+
+    // Drag from satchel rail — deploy a stashed tile onto the grid.
+    if (draggedItem && draggedItem.fromSatchel) {
+        satchelDropOnCell(targetIndex);
         return;
     }
 
@@ -2278,6 +2416,100 @@ function renderInventoryRail() {
     stoneEl.setAttribute('draggable', stones > 0 ? 'true' : 'false');
 }
 
+const SATCHEL_CAP = 8;
+// Glyph arrays parallel FUEL_TIERS and ORE_TIERS by index.
+const FUEL_GLYPHS = ['*', '**', '~', '#', '##', '^', '^^', '@'];
+const ORE_GLYPHS  = ['o', 'O', '0', '()', '<>'];
+
+function satchelGlyph(item) {
+    if (item.type === 'fuel') return FUEL_GLYPHS[item.tier - 1] || '*';
+    if (item.type === 'ore')  return ORE_GLYPHS[item.tier - 1]  || 'o';
+    return '?';
+}
+
+function renderSatchelRail() {
+    const slotsEl = document.getElementById('sat-slots');
+    if (!slotsEl) return;
+    slotsEl.replaceChildren();
+    for (let i = 0; i < SATCHEL_CAP; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'sat-slot';
+        slot.dataset.slotIndex = String(i);
+        const item = game.satchel[i];
+        if (!item) {
+            slot.classList.add('is-empty');
+            slot.textContent = '_';
+            slot.draggable = false;
+        } else {
+            const glyph = document.createElement('span');
+            glyph.className = 'sat-slot-glyph';
+            glyph.textContent = satchelGlyph(item);
+            slot.appendChild(glyph);
+            if (item.count > 1) {
+                const count = document.createElement('span');
+                count.className = 'sat-slot-count';
+                count.textContent = item.count;
+                slot.appendChild(count);
+            }
+            slot.draggable = true;
+            slot.title = `${item.type === 'fuel' ? 'Fuel' : 'Ore'} tier ${item.tier} ×${item.count}`;
+        }
+        slotsEl.appendChild(slot);
+    }
+}
+
+function stashIntoSatchel(item) {
+    // Try to merge into an existing stack with same type+tier.
+    for (const slot of game.satchel) {
+        if (slot.type === item.type && slot.tier === item.tier) {
+            slot.count += 1;
+            return true;
+        }
+    }
+    // Append a new stack if there's room.
+    if (game.satchel.length < SATCHEL_CAP) {
+        game.satchel.push({ type: item.type, tier: item.tier, count: 1 });
+        return true;
+    }
+    return false;
+}
+
+function satchelDropOnCell(targetIndex) {
+    const slotIdx = draggedItem && draggedItem.satchelIndex;
+    if (slotIdx === undefined || slotIdx === null) return;
+    const slot = game.satchel[slotIdx];
+    if (!slot) return;
+    const targetCell = game.grid[targetIndex];
+
+    if (targetCell === null) {
+        // Deploy onto empty cell.
+        game.grid[targetIndex] = { type: slot.type, tier: slot.tier };
+    } else if (targetCell.type === slot.type && targetCell.tier === slot.tier) {
+        // Merge into matching tile.
+        const maxTier = slot.type === 'fuel' ? FUEL_TIERS.length : ORE_TIERS.length;
+        if (slot.tier < maxTier) {
+            game.grid[targetIndex] = { type: slot.type, tier: slot.tier + 1 };
+            if (slot.type === 'fuel' && slot.tier + 1 > game.stats.highestFuelTier) {
+                game.stats.highestFuelTier = slot.tier + 1;
+            }
+            sfx('merge');
+        } else {
+            showToast('Already at max tier', 'error');
+            return;
+        }
+    } else {
+        showToast('Cell is occupied', 'error');
+        return;
+    }
+
+    // Decrement the slot.
+    slot.count -= 1;
+    if (slot.count <= 0) game.satchel.splice(slotIdx, 1);
+    renderGridItem(targetIndex);
+    updateUI();
+    saveGame();
+}
+
 function renderUpgrades() {
     function makeRow(cls, text) {
         const el = document.createElement('div');
@@ -2720,6 +2952,7 @@ function feedStick(bulk = false) {
 
 function updateUI() {
     renderInventoryRail();
+    renderSatchelRail();
 
     // Explore card gating — show the live "X / 50" progress while locked.
     // The locked placeholder is hidden by the exploreUnlock reveal stage
