@@ -2826,6 +2826,8 @@ button.revealing { display: inline-block; }
     justify-content: center;
     margin: 8px 0;
 }
+/* Higher specificity than .craft-row so the hidden state wins regardless of source order. */
+.craft-row[hidden] { display: none; }
 .craft-btn {
     min-height: 44px;
     padding: 8px 18px;
