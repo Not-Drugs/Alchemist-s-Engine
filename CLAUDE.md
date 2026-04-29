@@ -163,6 +163,50 @@ the stick phase and seeds two Sparks on the grid as a tutorial nudge.
      engine, drag fuel to engine, and drag ore to smelter remain
      available pre-unlock so the player is never blocked.
 
+### Crafting (v1)
+
+The Alchemical Table doubles as a crafting surface. Three storages drive
+the economy:
+
+- **Inventory rail** (above the grid) — raw mats: `sticks`, `stones`.
+  Tiles are draggable. Drag onto an empty grid cell to place a new
+  `ingredient` tile. Drag an ingredient back onto its matching rail tile
+  to return it. Sticks/stones are no longer in the top resource bar.
+- **Alchemy Satchel rail** (below Inventory) — 8 slots that hold any
+  fuel/ore tile from the grid. Stash by dragging a fuel/ore tile onto
+  the rail; matching `type+tier` stacks share a slot with a count badge.
+  Deploy by dragging a slot back onto the grid (empty cell or matching
+  merge target). Toast "Satchel full" when 8 stacks exist with no merge
+  match.
+- **Key Items Bag** — modal opened by `[Key Items: N]` below the grid.
+  Inert read-only list of crafted items. Soft cap 8.
+
+A new tile kind `ingredient` (`{type:'ingredient', kind:'stick'|'stone'}`)
+sits on the grid without auto-merging. Fuel/ore merging is unchanged
+(merge code now explicitly skips when `draggedItem.type === 'ingredient'`).
+
+**Pattern matcher** (`findRecipeMatch` in `game.js`) runs after every
+grid mutation via `updateUI`. Anchor-free — a `+` shape can appear
+anywhere on the 6×4 grid (excluding cells where arms would fall off).
+When matched, a contextual `[Craft <name>]` button surfaces below the
+grid; tap consumes the 5 cells and pushes the output to `keyItems`.
+
+**First recipe — Stick Golem.** Pattern: 4 sticks orthogonal around a
+tier-1 fuel (Spark). The recipe is taught by a one-shot narration beat
+(`golemRecipeHint` in `REVEAL_STAGES`) the first time the player holds
+4 sticks AND has a tier-1 fuel on the grid. Subsequent recipes are
+discovered on first craft and listed in the `[Recipes ▾]` accordion
+(`#recipes-panel`, rendered by `renderRecipesPanel()`). Golems are
+inert in the bag for v1 — assignment, chores, and heat drain are
+deferred (see design spec at
+`docs/superpowers/specs/2026-04-29-crafting-design.md`).
+
+**Save state.** New top-level fields: `game.inventory`, `game.satchel`,
+`game.keyItems`, `game.flags.discoveredRecipes`,
+`game.flags.golemRecipeTaught`. Migration on load moves any legacy
+`game.resources.sticks`/`.stones` into `game.inventory.sticks`/`.stones`
+(taking the max defensively if both exist) and removes the old fields.
+
 2. **Smelter** (Unlocks at 500 Heat)
    - Spawn ore for 10 Heat
    - 5 ore tiers that merge like fuel
