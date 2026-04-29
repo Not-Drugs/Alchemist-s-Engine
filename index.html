@@ -129,20 +129,12 @@
                     </div>
                     <div id="crafting-extras" class="crafting-extras">
                       <details id="recipes-panel" class="recipes-panel reveal-hidden">
-                        <summary>Recipes</summary>
+                        <summary>Recipes ▾</summary>
                         <div id="recipes-list" class="recipes-list"><!-- populated by renderRecipesPanel() --></div>
                       </details>
                       <button id="key-items-btn" class="key-items-btn reveal-hidden" type="button">
                         Key Items: <span id="key-items-count">0</span>
                       </button>
-                    </div>
-
-                    <div id="key-items-modal" class="ki-modal ki-modal--hidden" role="dialog" aria-labelledby="key-items-modal-title">
-                      <div class="ki-modal-content">
-                        <h3 id="key-items-modal-title">Key Items</h3>
-                        <div id="key-items-list" class="key-items-list"><!-- populated by renderKeyItemsModal() --></div>
-                        <button id="key-items-close" class="modal-close" type="button">Close</button>
-                      </div>
                     </div>
 
                     <div id="unlocks-area">
@@ -468,6 +460,15 @@
                 <button id="export-close">[CLOSE]</button>
             </div>
         </div>
+    </div>
+
+    <!-- Key Items Modal -->
+    <div id="key-items-modal" class="ki-modal ki-modal--hidden" role="dialog" aria-labelledby="key-items-modal-title">
+      <div class="ki-modal-content">
+        <h3 id="key-items-modal-title">Key Items</h3>
+        <div id="key-items-list" class="key-items-list"><!-- populated by renderKeyItemsModal() --></div>
+        <button id="key-items-close" class="ki-modal-close" type="button">Close</button>
+      </div>
     </div>
 
     <script src="qrcode.js"></script>

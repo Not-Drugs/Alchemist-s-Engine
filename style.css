@@ -2896,7 +2896,7 @@ button.revealing { display: inline-block; }
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 1000;
 }
 .ki-modal-content {
     background: var(--bg-dark, #0c0c0c);
@@ -2920,3 +2920,15 @@ button.revealing { display: inline-block; }
     justify-content: center;
     color: var(--accent-essence, #ffcc00);
 }
+.ki-modal-close {
+    margin-top: 12px;
+    min-height: 44px;
+    padding: 6px 14px;
+    background: transparent;
+    color: var(--accent-fire, #ff6600);
+    border: 1px solid var(--accent-fire, #ff6600);
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.05em;
+}
+.ki-modal-close:hover { filter: brightness(1.15); }
