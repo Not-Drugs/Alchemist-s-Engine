@@ -936,6 +936,12 @@ section h2::after {
     -webkit-touch-callout: none;
     border-radius: 2px;
     transition: background 0.15s ease;
+    /* Block the browser from committing to scroll during the 300ms hold —
+       without this, small finger drift during the hold can latch the page
+       to scroll, leaving the spawned spark ghost stuck (it's position:fixed
+       so it tracks viewport coords, which don't change while the page
+       scrolls under the finger). The drag handler claims the touch instead. */
+    touch-action: none;
 }
 
 #furnace-ascii:active {
