@@ -454,6 +454,24 @@ implement in our own voice. Never copy code verbatim.**
   `repo/` underneath, and update `docs/inspiration-notes.md` with the
   patterns we plan to lift.
 
+**ASCII art references** are a separate kind of source — not cloned
+repos but curated per-category indexes. They live flat under
+`_research/ascii-<category>/INDEX.md` (e.g. `ascii-trees/`, `ascii-fire/`,
+`ascii-skull/`). Each `INDEX.md` carries the source URL, attributed
+pieces with artist signatures, tags, and game-relevance notes, plus a
+"style takeaways" section for reusable patterns.
+
+- Master index: `_research/ascii-co-uk-INDEX.md` lists 23+ categories
+  pulled from ascii.co.uk grouped by theme (engine, grove, sanctum,
+  buildings, UI), and logs URLs that returned typography-only so we
+  don't refetch them.
+- Licensing posture: `_research/ascii-co-uk-LICENSING.md`. The site
+  publishes no license, no copyright notice, and no contact info, so
+  we treat every piece as **study-only** and paraphrase. Pieces carry
+  individual artist signatures (jgs, ejm, hjw, jrei, ldb, etc.); when
+  a hand-authored piece is recognizably derived, cite the source piece
+  and artist in the commit message.
+
 This rule applies even when "just borrowing a small function" looks
 tempting. Always paraphrase by re-deriving the logic in our own style.
 
