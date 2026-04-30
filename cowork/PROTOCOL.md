@@ -136,6 +136,18 @@ If a ticket needs `[needs-info]`, the comment must say what's missing:
 
 ## Lean-up
 
-Either side may delete `[verified]` ticket blocks periodically to keep
-`inbox.md` small. **Never** delete tickets in any other status. Don't
+Either side may evict `[verified]` ticket blocks periodically to keep
+`inbox.md` small. **Never** evict tickets in any other status. Don't
 delete attachments referenced by un-`verified` tickets.
+
+Eviction is a **two-step move, not a delete**:
+
+1. **Append the full ticket block** (heading, body, every comment) to
+   `cowork/archive.md`, prefixed with `archived <local time> (by
+   claude-terminal|claude-cowork):` so the audit trail survives.
+2. **Then remove the block from `inbox.md`.** Verify the archive
+   write landed before deleting.
+
+`cowork/archive.md` is append-only and gitignored, same as `inbox.md`.
+Don't rewrite or trim older archive entries — fold the oldest year
+into `archive-YYYY.md` if the file gets unwieldy.

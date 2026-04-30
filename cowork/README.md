@@ -14,6 +14,7 @@ cowork/
 ├── README.md       you are here
 ├── PROTOCOL.md     ticket format + status lifecycle reference
 ├── inbox.md        runtime state, gitignored, append-only
+├── archive.md      verified tickets evicted during lean-up, gitignored
 └── attachments/    runtime state, gitignored
 ```
 

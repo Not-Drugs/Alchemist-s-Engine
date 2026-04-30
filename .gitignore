@@ -2,5 +2,6 @@
 _research/
 .superpowers/
 cowork/inbox.md
+cowork/archive.md
 cowork/attachments/*
 !cowork/attachments/.gitkeep
