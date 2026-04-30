@@ -34,6 +34,30 @@ Cowork appends a new heading block per ticket:
 - `ATTACHMENTS` is optional. Files live at `cowork/attachments/<name>`.
   Path is repo-relative.
 
+### ID convention — who can use which range
+
+To prevent the "ticket hijack" race condition where two sides write the
+same ID concurrently and one side overwrites the other's body (this
+happened with ticket-20260430-0040 — terminal opened it for a stone fix
+and cowork overwrote the body with the AAA visual plan), each side
+reserves its own slot:
+
+- **Cowork** files standard 4-digit IDs: `ticket-YYYYMMDD-NNNN` (e.g.
+  `ticket-20260430-0042`). This is the bulk of traffic.
+- **Terminal-on-user-behalf** files prefixed IDs:
+  `ticket-YYYYMMDD-U-NNN` where the `U-` marks "user-direct" (a
+  Nicholas-originated request that terminal converted into a ticket
+  for the cowork channel). Three digits after the prefix is enough.
+  Example: `ticket-20260430-U-041`.
+- **Self-collisions are still avoided** by checking the inbox before
+  filing — pick the next free number in your range.
+
+Either side reads BOTH ranges as actionable; the prefix is only about
+write-side ownership. Cowork shouldn't repurpose a `U-` ticket's body;
+terminal shouldn't repurpose an unprefixed cowork ticket's body. If
+either side disagrees with a ticket's framing, file a NEW one and
+cross-reference, don't rewrite.
+
 ## Status lifecycle
 
 | Status               | Meaning                                                | Next actor       |

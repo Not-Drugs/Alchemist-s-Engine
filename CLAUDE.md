@@ -663,10 +663,11 @@ what the orchestrator is editing on `main`), use this pattern:
    "worktree", ... })`.** The Agent tool creates a fresh worktree under
    `.claude/worktrees/agent-<id>/` on a new branch
    `worktree-agent-<id>`.
-2. **Agent receives a self-contained prompt** with: project context
-   (this CLAUDE.md), the ticket text inline, and hard rules — don't
-   push, don't bump APP_VERSION/CACHE, don't touch `cowork/inbox.md`,
-   don't skip hooks, no emojis.
+2. **Agent receives a self-contained prompt** that references
+   `cowork/agent-template.md` (the standing rules — don't push, don't
+   bump version, don't touch inbox, etc.) plus the specific ticket
+   text and any implementation hints. The template carries the
+   reusable rules so dispatch prompts stay short.
 3. **Agent commits one atomic commit** to its branch and returns the
    SHA + a ≤200-word report. It does NOT push.
 4. **Orchestrator merges the branch into `main`** with `git merge
