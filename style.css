@@ -252,6 +252,27 @@ header h1::after {
     }
 }
 
+/* Desktop-only width caps on the standalone full-width rows so they
+   don't sprawl across a 1920px+ monitor. The 2-col #game-area keeps
+   the full container width (so each engine/merge column gets a
+   comfortable ~600px); single-column rows above/below are pulled in
+   to a narrower band that reads better on wide displays. The cap is
+   above any phone viewport so mobile layout is untouched. */
+@media (min-width: 901px) {
+    header,
+    #resources,
+    .narration,
+    .explore-section,
+    #upgrades-section,
+    #achievements-section,
+    #stats-section,
+    footer {
+        max-width: 960px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
 /* Sections */
 section {
     border: 1px solid var(--box-char);
