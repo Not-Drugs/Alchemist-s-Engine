@@ -108,11 +108,11 @@
                     <h2>Alchemical Table</h2>
                     <div id="inventory-rail" class="inv-rail reveal-hidden" aria-label="Inventory">
                         <span class="inv-rail-label">Inventory:</span>
-                        <div class="inv-tile" id="inv-tile-stick" data-kind="stick" draggable="false" tabindex="-1" role="button" aria-label="Sticks">
+                        <div class="inv-tile" id="inv-tile-stick" data-kind="stick" draggable="false" tabindex="0" role="button" aria-label="Sticks. Drag to place on the table.">
                             <span class="inv-tile-glyph">/</span>
                             <span class="inv-tile-count" id="inv-tile-stick-count">0</span>
                         </div>
-                        <div class="inv-tile" id="inv-tile-stone" data-kind="stone" draggable="false" tabindex="-1" role="button" aria-label="Stones">
+                        <div class="inv-tile" id="inv-tile-stone" data-kind="stone" draggable="false" tabindex="0" role="button" aria-label="Stones. Drag to place on the table.">
                             <span class="inv-tile-glyph">#</span>
                             <span class="inv-tile-count" id="inv-tile-stone-count">0</span>
                         </div>
@@ -138,10 +138,10 @@
                     </div>
 
                     <div id="unlocks-area">
-                        <div id="unlock-spark" class="unlock-slot drop-zone">
+                        <div id="unlock-spark" class="unlock-slot drop-zone" role="button" tabindex="0" aria-label="Drop a Blazite (fuel tier 6) here to unlock the [+] Spark button.">
                             <div class="unlock-label">Drop a <strong>Blazite</strong> to forge<br>[+] Spark</div>
                         </div>
-                        <div id="unlock-burn-all" class="unlock-slot drop-zone">
+                        <div id="unlock-burn-all" class="unlock-slot drop-zone" role="button" tabindex="0" aria-label="Drop an Infernite (fuel tier 7) here to unlock the [»] Burn All Fuel button.">
                             <div class="unlock-label">Drop an <strong>Infernite</strong> to forge<br>[&raquo;] Burn All Fuel</div>
                         </div>
                     </div>
@@ -203,7 +203,7 @@
                         <div id="smelter-ore-slot" class="drop-zone">
                             <span>Drop Ore Here<br><small>(or dbl/right-click)</small></span>
                         </div>
-                        <div id="unlock-smelt-all" class="unlock-slot drop-zone">
+                        <div id="unlock-smelt-all" class="unlock-slot drop-zone" role="button" tabindex="0" aria-label="Drop a Pure Crystal (ore tier 5) here to unlock the [»] Smelt All Ore button.">
                             <div class="unlock-label">Drop a <strong>Pure Crystal</strong> to forge<br>[&raquo;] Smelt All Ore</div>
                         </div>
                         <button id="smelt-all-btn" class="spawn-btn reveal-hidden" title="Queue all ore from the grid into the smelter.">[»] Smelt All Ore</button>

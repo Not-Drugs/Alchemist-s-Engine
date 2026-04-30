@@ -217,11 +217,11 @@ before touching any of this:
   silently reads as `count === 0` and bails the drag (this was the
   v64 fix).
 - Satchel slots update **in place** — `renderSatchelRail` creates the
-  8 slot DIVs once and never replaces them, only their contents. On
-  Android Chrome and iOS Safari, removing a touched element fires
-  `touchcancel` and clears the in-progress drag, so `replaceChildren()`
-  every tick on a touch source breaks any drag that takes longer than
-  ~100ms to commit (this was the v66 fix).
+  8 slot `<button>` elements once and never replaces them, only their
+  contents. On Android Chrome and iOS Safari, removing a touched
+  element fires `touchcancel` and clears the in-progress drag, so
+  `replaceChildren()` every tick on a touch source breaks any drag
+  that takes longer than ~100ms to commit (this was the v66 fix).
 - Every drop target that clears the source (`applyFuelDropOnEngine`,
   the smelter drop handler, `dispatchTouchDropOnZone`) has an explicit
   `if (draggedItem.fromSatchel) { ... }` branch that decrements the

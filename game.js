@@ -2568,19 +2568,12 @@ function renderGrove() {
         if (collected.includes(id)) return document.createTextNode(' ');
         const item = GROVE_ITEMS[id];
         if (!item) return document.createTextNode(' ');
-        const btn = document.createElement('span');
+        const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = `grove-item grove-${item.type}`;
-        btn.setAttribute('role', 'button');
-        btn.tabIndex = 0;
         btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
         btn.textContent = item.type === 'stick' ? '/' : '#';
         btn.addEventListener('click', () => collectGroveItem(id));
-        btn.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                collectGroveItem(id);
-            }
-        });
         return btn;
     }
 
@@ -2703,7 +2696,8 @@ function renderSatchelRail() {
     // touchcancel when the touched element is removed mid-drag, which would
     // cancel the user's deploy gesture before they crossed the move threshold.
     while (slotsEl.children.length < SATCHEL_CAP) {
-        const slot = document.createElement('div');
+        const slot = document.createElement('button');
+        slot.type = 'button';
         slot.className = 'sat-slot';
         slotsEl.appendChild(slot);
     }
@@ -2719,6 +2713,7 @@ function renderSatchelRail() {
             slot.textContent = '_';
             slot.setAttribute('draggable', 'false');
             slot.removeAttribute('title');
+            slot.setAttribute('aria-label', `Satchel slot ${i + 1}: empty`);
         } else {
             slot.classList.remove('is-empty');
             const glyph = document.createElement('span');
@@ -2734,7 +2729,9 @@ function renderSatchelRail() {
             // setAttribute (vs. .draggable property) is more reliable for the
             // [draggable="true"] selector match across mobile browsers.
             slot.setAttribute('draggable', 'true');
-            slot.title = `${item.type === 'fuel' ? 'Fuel' : 'Ore'} tier ${item.tier} ×${item.count}`;
+            const typeLabel = item.type === 'fuel' ? 'Fuel' : 'Ore';
+            slot.title = `${typeLabel} tier ${item.tier} ×${item.count}`;
+            slot.setAttribute('aria-label', `Satchel slot ${i + 1}: ${item.count} ${typeLabel} tier ${item.tier}. Drag to deploy.`);
         }
     }
 }
@@ -2821,6 +2818,9 @@ function renderKeyItemsModal() {
         tile.className = 'key-item-tile';
         tile.textContent = item.type === 'golem' ? 'G' : '?';
         tile.title = item.type;
+        tile.tabIndex = 0;
+        const itemName = item.type === 'golem' ? 'Stick Golem' : item.type;
+        tile.setAttribute('aria-label', itemName);
         listEl.appendChild(tile);
     }
 }
@@ -2930,7 +2930,8 @@ function renderUpgrades() {
         panel.textContent = '';
 
         for (const upgrade of upgrades) {
-            const div = document.createElement('div');
+            const div = document.createElement('button');
+            div.type = 'button';
             div.className = 'upgrade-item';
             div.dataset.id = upgrade.id;
 
@@ -2939,8 +2940,14 @@ function renderUpgrades() {
 
             if (purchased) {
                 div.classList.add('purchased');
+                div.disabled = true;
+                div.setAttribute('aria-label', `${upgrade.name} — purchased`);
             } else if (!hasRequirement) {
                 div.classList.add('locked');
+                div.disabled = true;
+                div.setAttribute('aria-label', `${upgrade.name} — locked. Requires another upgrade.`);
+            } else {
+                div.setAttribute('aria-label', `Buy ${upgrade.name} for ${formatNumber(upgrade.cost)} ${upgrade.costType}`);
             }
 
             div.appendChild(makeRow('upgrade-name', upgrade.name));

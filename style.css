@@ -700,9 +700,14 @@ section h2::after {
     font-family: inherit;
     font-size: inherit;
     line-height: inherit;
+    color: inherit;
     font-weight: bold;
     transition: text-shadow 0.12s ease, color 0.12s ease;
     outline: none;
+}
+.grove-item:focus-visible {
+    outline: 1px dashed var(--text-bright, #fff);
+    outline-offset: 1px;
 }
 
 .grove-stick {
@@ -1031,6 +1036,11 @@ section h2::after {
     border-style: solid;
     border-color: var(--text-bright);
     background: rgba(255, 204, 0, 0.18);
+}
+
+.unlock-slot:focus-visible {
+    outline: 2px solid var(--text-bright);
+    outline-offset: 2px;
 }
 
 #furnace-ascii.burning {
@@ -1440,11 +1450,26 @@ section h2::after {
 }
 
 .upgrade-item {
+    /* Element is a <button> — reset UA defaults so the existing visual carries over. */
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
     background: var(--bg-medium);
     padding: 12px;
     border: 1px solid var(--border-color);
     cursor: pointer;
     transition: all 0.15s ease;
+}
+.upgrade-item:focus-visible {
+    outline: 2px solid var(--text-bright);
+    outline-offset: 2px;
+}
+.upgrade-item:disabled {
+    /* Keep .purchased / .locked visuals; just suppress button-default disabled greying. */
+    cursor: inherit;
 }
 
 @media (hover: hover) {
@@ -2786,6 +2811,10 @@ button.revealing { display: inline-block; }
 }
 .inv-tile.dragging { opacity: 0.4; }
 .inv-tile.drag-over { outline: 2px solid var(--accent-fire); }
+.inv-tile:focus-visible {
+    outline: 2px solid var(--text-bright);
+    outline-offset: 2px;
+}
 .inv-tile-glyph { font-weight: bold; }
 .inv-tile-count { font-size: 0.9em; }
 .inv-tile-count::before { content: '\00d7'; color: var(--text-dim); margin-right: 1px; }
@@ -2830,6 +2859,10 @@ button.revealing { display: inline-block; }
     flex-wrap: wrap;
 }
 .sat-slot {
+    /* Element is a <button> — reset UA defaults so the existing visual carries over. */
+    font-family: inherit;
+    font-size: inherit;
+    background: transparent;
     display: inline-flex;
     align-items: baseline;
     justify-content: center;
@@ -2842,6 +2875,10 @@ button.revealing { display: inline-block; }
     cursor: grab;
     user-select: none;
     touch-action: none;
+}
+.sat-slot:focus-visible {
+    outline: 2px solid var(--text-bright);
+    outline-offset: 2px;
 }
 .sat-slot.is-empty {
     opacity: 0.25;
@@ -2957,4 +2994,8 @@ button.revealing { display: inline-block; }
     align-items: center;
     justify-content: center;
     color: var(--accent-essence, #ffcc00);
+}
+.key-item-tile:focus-visible {
+    outline: 2px solid var(--text-bright, #fff);
+    outline-offset: 2px;
 }
