@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v78';
+const APP_VERSION = 'v79';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2530,17 +2530,19 @@ const GROVE_SCENE_ROWS = buildGroveScene();
 // system continues to work as before.
 const GROVE_GROUND_ROW = '. , ~ . , ~ . , ~ . , ~ . , ~ . , ~ . , ';
 const GROVE_ITEM_ROWS = [
-    '   $    $        #         $   $       ',
-    '       $    $        $        #    $   ',
+    '   $    $        $         $   $       ',
+    '       $    $        $        $    $   ',
     '   $        $    $        $        $   '
 ];
 
 // One entry per `$` in GROVE_ITEM_ROWS, in left-to-right / top-to-bottom
-// order. Re-tuned for the 40-col scene; existing saves auto-reset their
-// grove.collected on load (see save migration in load/processSave).
+// order. The 3rd $ in row 1 and 4th $ in row 2 used to be literal `#`
+// characters — they looked like stones but weren't clickable. Now they
+// are real stone items, so 4 stones / 11 sticks visible. Existing saves
+// auto-reset grove.collected on load via GROVE_LAYOUT_V bump.
 const GROVE_ITEMS = [
-    { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stick' }, { type: 'stick' },
-    { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stick' },
+    { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stone' }, { type: 'stick' },
+    { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stone' },
     { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }
 ];
 
@@ -2572,7 +2574,7 @@ function renderGrove() {
         btn.type = 'button';
         btn.className = `grove-item grove-${item.type}`;
         btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
-        btn.textContent = item.type === 'stick' ? '/' : '#';
+        btn.textContent = item.type === 'stick' ? '/' : '()';
         btn.addEventListener('click', () => collectGroveItem(id));
         return btn;
     }
@@ -4068,7 +4070,7 @@ function loadGame() {
             // collected indices no longer point at the same items, so
             // reset on saves that predate the new layout. groveLayoutV
             // is bumped whenever GROVE_ITEM_ROWS changes.
-            const GROVE_LAYOUT_V = 2;
+            const GROVE_LAYOUT_V = 3;
             if ((game.locations.grove.layoutV || 1) < GROVE_LAYOUT_V) {
                 game.locations.grove.collected = [];
                 game.locations.grove.layoutV = GROVE_LAYOUT_V;
