@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v86';
+const APP_VERSION = 'v87';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2733,6 +2733,49 @@ function renderGrove() {
         const stoneCount = (game.inventory.stones || 0);
         found.textContent = stoneCount > 0 ? `Stones gathered: ${stoneCount}` : '';
     }
+
+    // Auto-fit pass: measure the actual rendered container, compute the
+    // exact font-size that packs every row. Runs after layout settles
+    // (next frame) so .grove-scene's flex-allocated height is real.
+    requestAnimationFrame(autofitGroveScene);
+}
+
+// Compute and apply a font-size to every grove-row that makes the
+// whole scene (35 scene rows + ground + 3 item rows) fit the
+// .grove-scene container exactly. Beats the CSS clamp() formula in
+// the file because it measures actual container size — accounts for
+// browser chrome, dynamic safe-area, the flex layout, fonts that
+// aren't pure 1.0 line-height, etc.
+//
+// Runs from renderGrove (after each render) and from a window
+// resize listener wired up in setupGroveAutofit.
+function autofitGroveScene() {
+    const modal = document.getElementById('grove-modal');
+    // Don't try to measure a hidden modal — clientHeight will be 0.
+    if (!modal || modal.classList.contains('hidden')) return;
+    const scene = document.getElementById('grove-scene');
+    if (!scene) return;
+    const rows = scene.querySelectorAll('.grove-row');
+    if (!rows.length) return;
+
+    const containerH = scene.clientHeight;
+    const containerW = scene.clientWidth;
+    if (containerH <= 0 || containerW <= 0) return;
+
+    // Each row's height ≈ font-size × line-height (1.0). Pack rows.length
+    // rows into containerH with a 4px slack so the last row doesn't kiss
+    // the bottom border.
+    const heightBound = (containerH - 4) / rows.length;
+    // Each row is 40 chars wide. IBM Plex Mono's char-to-em ratio is
+    // ~0.6 — to fit 40 chars in containerW: font ≤ containerW / 24.
+    // Add 2px slack to dodge sub-pixel rounding at edges.
+    const widthBound  = (containerW - 2) / 24;
+
+    // Pick the more restrictive bound, clamp to legibility range.
+    let fontSize = Math.min(heightBound, widthBound);
+    fontSize = Math.max(6, Math.min(24, fontSize));
+
+    rows.forEach(r => { r.style.fontSize = fontSize + 'px'; });
 }
 
 function collectGroveItem(id) {
@@ -3993,6 +4036,19 @@ const burnAll = document.getElementById('burn-all-btn');
             unlockBodyScroll();
         });
     }
+
+    // Window resize → re-fit grove rows. Cheap, only acts when the
+    // grove modal is open (autofitGroveScene bails otherwise).
+    // No debounce — autofit is just a measure-and-set, fast enough
+    // for native resize cadence.
+    window.addEventListener('resize', autofitGroveScene);
+    // Orientation change on phones often fires resize, but some
+    // browsers don't fire resize on rotate — listen separately.
+    window.addEventListener('orientationchange', () => {
+        // Defer to next frame; rotation triggers layout shifts that
+        // settle a few frames later.
+        requestAnimationFrame(() => requestAnimationFrame(autofitGroveScene));
+    });
 
     // Intro modal — first-load awakening beat. Honors the Story Prompts
     // toggle: if the player has narrations off, the intro is silently
