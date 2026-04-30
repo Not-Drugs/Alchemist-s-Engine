@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v80';
+const APP_VERSION = 'v81';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -1954,7 +1954,7 @@ function processFurnace(delta) {
         // Generate heat
         const efficiency = game.bonuses.furnaceEfficiency;
         const heatMult = game.bonuses.heatMultiplier * getWisdomMultiplier();
-        const amplifierBonus = 1 + (game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
+        const amplifierBonus = 1 + ((game.automation.amplifiers || 0) * 0.5 * game.bonuses.automationEfficiency);
         const heat = burned * 10 * efficiency * heatMult * amplifierBonus;
 
         game.resources.heat += heat;
@@ -3105,7 +3105,7 @@ function processOfflineProgress() {
         game.furnace.fuel -= fuelBurned;
         const heatPerFuel = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier
             * getWisdomMultiplier()
-            * (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
+            * (1 + (game.automation.amplifiers || 0) * 0.5 * game.bonuses.automationEfficiency);
         gained.heat += fuelBurned * heatPerFuel * eff;
     }
 
@@ -3420,7 +3420,7 @@ function updateUI() {
     if (heatRateEl) {
         if (game.furnace.fuel > 0) {
             const heatRate = 10 * game.bonuses.furnaceEfficiency * game.bonuses.heatMultiplier * getWisdomMultiplier() *
-                (1 + game.automation.amplifiers * 0.5 * game.bonuses.automationEfficiency);
+                (1 + (game.automation.amplifiers || 0) * 0.5 * game.bonuses.automationEfficiency);
             heatRateEl.textContent = `+${formatRate(heatRate)}/s`;
             heatRateEl.classList.remove('decaying');
         } else {
@@ -4004,6 +4004,17 @@ function loadGame() {
             game.stats = { ...defaultGame.stats, ...loaded.stats };
             game.unlockedTiers = { ...defaultGame.unlockedTiers, ...loaded.unlockedTiers };
             game.automation = { ...defaultGame.automation, ...loaded.automation };
+            // Migration: ensure every automation counter is a finite number.
+            // An undefined or NaN value here propagates into the heat
+            // calc as NaN (e.g. `undefined * 0.5 === NaN`) and corrupts
+            // game.resources.heat permanently because `NaN += anything`
+            // stays NaN and `NaN > 0` is false (so decay can't rescue it).
+            // See cowork ticket 0060.
+            for (const k of Object.keys(defaultGame.automation)) {
+                if (typeof game.automation[k] !== 'number' || !Number.isFinite(game.automation[k])) {
+                    game.automation[k] = defaultGame.automation[k];
+                }
+            }
             game.inventory = { ...defaultGame.inventory, ...(loaded.inventory || {}) };
             game.satchel = Array.isArray(loaded.satchel) ? loaded.satchel : [];
             game.keyItems = Array.isArray(loaded.keyItems) ? loaded.keyItems : [];
@@ -4089,6 +4100,23 @@ function loadGame() {
                         upgrade.effect();
                     }
                 }
+            }
+
+            // One-time NaN scrub: rescue saves that already have NaN
+            // propagated into resources or furnace state from the
+            // pre-fix amplifier bug (ticket 0060). Without this, the
+            // guard above prevents new corruption but existing saves
+            // stay broken because NaN is sticky through arithmetic.
+            for (const k of Object.keys(game.resources)) {
+                if (typeof game.resources[k] !== 'number' || !Number.isFinite(game.resources[k])) {
+                    game.resources[k] = 0;
+                }
+            }
+            if (typeof game.furnace.fuel !== 'number' || !Number.isFinite(game.furnace.fuel)) {
+                game.furnace.fuel = 0;
+            }
+            if (typeof game.furnace.temperature !== 'number' || !Number.isFinite(game.furnace.temperature)) {
+                game.furnace.temperature = 0;
             }
 
             game.lastUpdate = Date.now();
