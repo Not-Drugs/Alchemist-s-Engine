@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v92';
+const APP_VERSION = 'v93';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2621,12 +2621,12 @@ function buildGroveScene() {
 
     // Full-width distant row: mirror a 20-char distant constant to 40
     // chars, then OVERLAY the framing-tree canopy chars (LEFT/RIGHT_NEAR_TREE
-    // rows 0-3) onto the side spans. Both the canopy chars and the
-    // distant content render at the same depthCls — the canopy
-    // silhouette is visible (you can see the framing-tree shape) but
-    // it BLENDS with the distant treeline rather than standing out at
-    // stark near-opacity. Whitespace in the canopy lets distant content
-    // peek through, so the distant horizon still spans 40 cols visually.
+    // rows 0-3) onto the side spans. The canopy chars render at a
+    // slightly brighter depth class than the surrounding distant
+    // content (one notch: horizon→far for row 0; far→midfar for rows
+    // 1-3) — the framing-tree silhouette stands out gently from the
+    // distant treeline without snapping to stark `near` opacity.
+    // Whitespace in the canopy lets distant content peek through.
     function pushFullWidthRow(content20, depthCls, sceneR) {
         const padded = padTo(content20, GROVE_CTR_W);
         const full = padded + padded;  // 40 chars, mirrored
@@ -2635,21 +2635,37 @@ function buildGroveScene() {
         const rightDistant = full.slice(GROVE_SIDE_W + GROVE_CTR_W);
         const leftCanopy   = LEFT_NEAR_TREE[sceneR]  || ' '.repeat(GROVE_SIDE_W);
         const rightCanopy  = RIGHT_NEAR_TREE[sceneR] || ' '.repeat(GROVE_SIDE_W);
-        // Overlay: where canopy has a non-space char, use it; else fall
-        // through to the distant content. Both at the same depth class
-        // so they blend.
-        function overlay(distant, canopy) {
-            let out = '';
+        // Canopy depth class — one notch brighter than the surrounding
+        // distant content. Keeps continuity with the depth gradient.
+        const canopyCls = (depthCls === 'horizon') ? 'far' : 'midfar';
+        // Build groups of {chars, cls} so adjacent same-class chars
+        // collapse into a single span. Switching class implies a new
+        // span sibling, which in turn enables independent per-class
+        // opacity + color (CSS rules are scoped on .grove-cell.grove-X).
+        function overlayGroups(distant, canopy) {
+            const groups = [];
+            let curChars = '';
+            let curCls = null;
             for (let c = 0; c < GROVE_SIDE_W; c++) {
                 const cChar = canopy[c];
-                out += (cChar && cChar !== ' ') ? cChar : (distant[c] || ' ');
+                const useCanopy = cChar && cChar !== ' ';
+                const ch  = useCanopy ? cChar : (distant[c] || ' ');
+                const cls = useCanopy ? canopyCls : depthCls;
+                if (cls === curCls) {
+                    curChars += ch;
+                } else {
+                    if (curChars) groups.push({chars: curChars, cls: curCls});
+                    curChars = ch;
+                    curCls = cls;
+                }
             }
-            return out;
+            if (curChars) groups.push({chars: curChars, cls: curCls});
+            return groups;
         }
         pushRow(
-            overlay(leftDistant, leftCanopy),
+            overlayGroups(leftDistant, leftCanopy),
             centerDist,
-            overlay(rightDistant, rightCanopy),
+            overlayGroups(rightDistant, rightCanopy),
             depthCls, depthCls, depthCls
         );
     }
@@ -2735,7 +2751,24 @@ function renderGrove() {
 
     // Helper: produce a span containing this string. If the string has
     // $ characters they become clickable item buttons inline.
-    function buildSpan(text, depthCls) {
+    //
+    // `content` can be a string (single span, uniform depth class) OR
+    // an array of `{chars, cls}` groups (multiple sibling spans, each
+    // with its own depth class). The array form is used by the canopy
+    // overlay at scene rows 0-3 so the framing-tree silhouette can
+    // render at a slightly brighter depth class than the surrounding
+    // distant content. Returns a single span OR a DocumentFragment.
+    function buildSpan(content, defaultCls) {
+        if (Array.isArray(content)) {
+            const frag = document.createDocumentFragment();
+            for (const {chars, cls} of content) {
+                frag.appendChild(buildSingleSpan(chars, cls));
+            }
+            return frag;
+        }
+        return buildSingleSpan(content, defaultCls);
+    }
+    function buildSingleSpan(text, depthCls) {
         const span = document.createElement('span');
         span.className = `grove-cell grove-${depthCls}`;
         for (const ch of text) {
@@ -2749,14 +2782,33 @@ function renderGrove() {
     // [ left near-tree | center depth band | right near-tree ].
     // The center span carries the row's depth class (horizon / far /
     // midfar / mid / midnear / sky) so atmospheric perspective comes
-    // through CSS opacity + size on the center span only. The framing
-    // trees stay full-bright and full-size at all heights.
-    GROVE_SCENE_ROWS.forEach((rowSpec) => {
+    // through CSS opacity + size on the center span only.
+    //
+    // Trunk fade gradient: scene rows 4..TRUNK_FADE_END get a graduated
+    // inline opacity on the framing-tree spans, lerping from 0.55 just
+    // below the canopy band up to 1.0 (full `near`). Visually the
+    // framing trees rise out of the haze as if their tops disappear
+    // into the distant treeline.
+    const TRUNK_FADE_START = 4;
+    const TRUNK_FADE_END   = 11;
+    GROVE_SCENE_ROWS.forEach((rowSpec, rowIdx) => {
         const row = document.createElement('div');
         row.className = 'grove-row grove-scene-row';
-        row.appendChild(buildSpan(rowSpec.left,   rowSpec.leftCls   || 'near'));
-        row.appendChild(buildSpan(rowSpec.center, rowSpec.centerCls));
-        row.appendChild(buildSpan(rowSpec.right,  rowSpec.rightCls  || 'near'));
+        const leftEl   = buildSpan(rowSpec.left,   rowSpec.leftCls   || 'near');
+        const centerEl = buildSpan(rowSpec.center, rowSpec.centerCls);
+        const rightEl  = buildSpan(rowSpec.right,  rowSpec.rightCls  || 'near');
+        // Trunk opacity gradient (only applies to single-span left/right;
+        // canopy rows 0-3 use a DocumentFragment, no `.style` property —
+        // skipped via the type check).
+        if (rowIdx >= TRUNK_FADE_START && rowIdx <= TRUNK_FADE_END) {
+            const t = (rowIdx - TRUNK_FADE_START) / (TRUNK_FADE_END - TRUNK_FADE_START);
+            const op = (0.55 + t * (1.0 - 0.55)).toFixed(2);
+            if (leftEl.style)  leftEl.style.opacity  = op;
+            if (rightEl.style) rightEl.style.opacity = op;
+        }
+        row.appendChild(leftEl);
+        row.appendChild(centerEl);
+        row.appendChild(rightEl);
         scene.appendChild(row);
     });
 
