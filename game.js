@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v92';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2620,31 +2620,50 @@ function buildGroveScene() {
     }
 
     // Full-width distant row: mirror a 20-char distant constant to 40
-    // chars, then slice into left (10c) / center (20c) / right (10c)
-    // so all three spans paint the same depth-class content. Used for
-    // the top 4 rows of the scene; the framing trees' canopy is
-    // hidden so the distant content can span all 40 cols.
-    function pushFullWidthRow(content20, depthCls) {
+    // chars, then OVERLAY the framing-tree canopy chars (LEFT/RIGHT_NEAR_TREE
+    // rows 0-3) onto the side spans. Both the canopy chars and the
+    // distant content render at the same depthCls — the canopy
+    // silhouette is visible (you can see the framing-tree shape) but
+    // it BLENDS with the distant treeline rather than standing out at
+    // stark near-opacity. Whitespace in the canopy lets distant content
+    // peek through, so the distant horizon still spans 40 cols visually.
+    function pushFullWidthRow(content20, depthCls, sceneR) {
         const padded = padTo(content20, GROVE_CTR_W);
         const full = padded + padded;  // 40 chars, mirrored
+        const leftDistant  = full.slice(0, GROVE_SIDE_W);
+        const centerDist   = full.slice(GROVE_SIDE_W, GROVE_SIDE_W + GROVE_CTR_W);
+        const rightDistant = full.slice(GROVE_SIDE_W + GROVE_CTR_W);
+        const leftCanopy   = LEFT_NEAR_TREE[sceneR]  || ' '.repeat(GROVE_SIDE_W);
+        const rightCanopy  = RIGHT_NEAR_TREE[sceneR] || ' '.repeat(GROVE_SIDE_W);
+        // Overlay: where canopy has a non-space char, use it; else fall
+        // through to the distant content. Both at the same depth class
+        // so they blend.
+        function overlay(distant, canopy) {
+            let out = '';
+            for (let c = 0; c < GROVE_SIDE_W; c++) {
+                const cChar = canopy[c];
+                out += (cChar && cChar !== ' ') ? cChar : (distant[c] || ' ');
+            }
+            return out;
+        }
         pushRow(
-            full.slice(0, GROVE_SIDE_W),
-            full.slice(GROVE_SIDE_W, GROVE_SIDE_W + GROVE_CTR_W),
-            full.slice(GROVE_SIDE_W + GROVE_CTR_W),
+            overlay(leftDistant, leftCanopy),
+            centerDist,
+            overlay(rightDistant, rightCanopy),
             depthCls, depthCls, depthCls
         );
     }
 
-    // The framing trees' canopy (rows 0-3 of LEFT/RIGHT_NEAR_TREE) is
-    // hidden so distant content can span the full 40-col width.
-    // Direct index into the framing-tree arrays — at scene row r we
-    // pull array row r, which means scene rows 0..3 (where the distant
-    // content lives) never reach into the array.
+    // Top of scene: distant content edge-to-edge with framing-tree canopy
+    // overlaid onto the side spans (blended at the same depth class —
+    // see pushFullWidthRow comment above). The framing-tree array's
+    // rows 0-3 are now USED for the overlay rather than hidden.
     let r = 0;
-    pushFullWidthRow(HORIZON_STIPPLE, 'horizon'); r++;
-    for (const line of DISTANT_TREELINE) { pushFullWidthRow(line, 'far'); r++; }
-    pushFullWidthRow(FOG_ROW, 'far'); r++;
-    // r is now 4. From here, scene rows reach into the framing trees.
+    pushFullWidthRow(HORIZON_STIPPLE, 'horizon', r); r++;
+    for (const line of DISTANT_TREELINE) { pushFullWidthRow(line, 'far', r); r++; }
+    pushFullWidthRow(FOG_ROW, 'far', r); r++;
+    // r is now 4. From here, scene rows reach into the framing trees
+    // for the regular rendering path (canopy already consumed for r=0..3).
 
     for (const line of farBand)  { pushRow(leftCol(r), line, rightCol(r), 'midfar');  r++; }
     pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'midfar'); r++;
