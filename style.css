@@ -1849,11 +1849,21 @@ footer button:active {
     display: none !important;
 }
 
-/* Phase 2 awakening modal — fires when peakHeat hits target. */
+/* Phase 2 awakening modal — fires when peakHeat hits target.
+   Scoped backdrop overrides for this modal only: fully opaque black +
+   a soft blur sell the "everything else is paused for this moment"
+   read that the generic 0.9-alpha .modal backdrop didn't quite hit
+   over a near-black page. Cowork ticket 0013. */
+#phase2-modal {
+    background: #000;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
 .phase2-modal-content {
     max-width: 480px;
     text-align: center;
     padding: 32px 28px 24px;
+    border: 1px solid var(--accent-fire);
 }
 .phase2-modal-content h3 {
     color: var(--accent-fire);
