@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v96';
+const APP_VERSION = 'v97';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2690,22 +2690,6 @@ function buildGroveScene() {
     for (const line of midBand)  { pushRow(leftCol(r), line, rightCol(r), 'mid');     r++; }
     pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'mid'); r++;
     for (const line of nearBand) { pushRow(leftCol(r), line, rightCol(r), 'midnear'); r++; }
-
-    // Pass D of cowork ticket 0040 — litter rows in the empty middle.
-    // Two rows of forest-floor detail (fallen branch + leaning sapling,
-    // bracken + low stump) sit between the near mid-band and the
-    // empty-trunk sky rows. Reads as forest understory instead of
-    // empty space the eye glides over. Rendered at 'midnear' so they
-    // belong to the closest mid-distance depth tier.
-    const LITTER_ROWS = [
-        '   .  \\__,    /,    .  ',  // fallen branch + leaning sapling
-        '  ,;\'  .   |_|   ,;\'   ', // bracken + low stump
-    ];
-    for (const line of LITTER_ROWS) {
-        pushRow(leftCol(r), padTo(line, GROVE_CTR_W), rightCol(r), 'midnear');
-        r++;
-    }
-
     while (r < LEFT_NEAR_TREE.length) {
         pushRow(leftCol(r), blankCtr, rightCol(r), 'sky'); r++;
     }

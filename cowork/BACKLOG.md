@@ -11,6 +11,46 @@ When a backlog item is ready to ship, file it as a fresh ticket in
 
 ---
 
+## Grove: litter rows in the forest-floor zone (was pass D of ticket-0040)
+
+**Idea (Nicholas, 2026-04-30, after testing v96):**
+"I like the idea but the fallen branch doesn't look great we can
+re try later." Initial implementation reverted from main; revisiting
+with better ASCII later.
+
+**Concept:** Two rows of forest-floor detail sit between the near
+mid-band and the trunks-only sky rows of the grove scene — fallen
+branches, low stumps, bracken. Reads as forest understory you walk
+through, not empty space the eye glides past.
+
+**v96 attempt (commit 8800e4d, reverted):**
+```
+'   .  \__,    /,    .  '   fallen branch + leaning sapling
+'  ,;'  .   |_|   ,;'   '   bracken + low stump
+```
+Rendered at `'midnear'` depth class. The fallen-branch silhouette
+specifically didn't read clearly — the `\__,` shape is ambiguous,
+could be branch / arrow / random punctuation. Stump (`|_|`) and
+bracken (`,;'`) tufts read better but together with the bad branch
+the row felt cluttered.
+
+**Iteration ideas:**
+- Try clearer fallen-log glyphs: `===` or `~~~~` for a horizontal
+  log; `|=|` chunks for cut wood. Avoid backslash-comma combos.
+- Three rows instead of two? Spread the elements so each gets
+  breathing room.
+- Match the depth tinting of the framing-tree trunks at the same
+  height — currently `midnear` (~0.85), but maybe `mid` (0.68)
+  would push the litter further back so it's atmosphere, not focus.
+- Reference some real ASCII tree-litter art from `_research/ascii-trees/`
+  if there's anything there.
+
+**Trade-off if shipped:** total scene rows would push from 35 to 37,
+shrinking the trunks-only sky from 8 rows to 6. Auto-fit JS handles
+the size change but it tightens the visual breathing room.
+
+---
+
 ## Grove: mountain range as final background layer
 
 **Idea (Nicholas, 2026-04-30, after pass C of ticket-0040):**
