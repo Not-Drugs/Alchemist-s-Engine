@@ -539,16 +539,19 @@ section h2::after {
 }
 
 .grove-modal-content .grove-row {
-    /* Auto-fit row sizing. The scene is ~38 rows tall (35 framing +
-       ground + 3 item rows) plus title (~32px) + desc (~16px) + scene
-       padding (~24px) + safe-area-inset overhead (~24px on average) =
-       ~96px reserved. Divide remaining vertical space by 42 to leave
-       slack and pick the smaller of (vw bound) and (vh-derived bound)
-       so neither axis clips. The 8px floor stays legible for ASCII
-       silhouettes; the 22px cap keeps framing trees from pixelating
-       on big screens. Uniform scaling — per-cell variation still
-       forbidden (v45 lesson). */
-    font-size: clamp(8px, min(3.8vw, calc((100vh - 96px) / 42)), 22px);
+    /* Auto-fit row sizing. The scene is now ~39 rows tall — 35 scene
+       rows (4 distant + 27 mid-band/sky stack) + 1 ground + 3 item
+       rows. Above the scene: title h3 (~32px) + location-desc (~16px)
+       + scene padding top+bottom (~24px) + safe-area-inset top/bottom
+       (~48px combined on notched devices) + scene container margin
+       (~20px) = ~140px reserved overhead. Divide remaining viewport
+       height by 42 (39 rows + 3 slack) and pick the smaller of (vw
+       bound) and (vh-derived bound) so neither axis clips. The 7px
+       floor allows tiny-viewport phones to still render readably; the
+       22px cap keeps framing trees from pixelating on big screens.
+       Uniform scaling — per-cell variation still forbidden (v45
+       lesson). */
+    font-size: clamp(7px, min(3.8vw, calc((100vh - 140px) / 42)), 22px);
     line-height: 1.0;
     text-align: center;
     white-space: pre;
