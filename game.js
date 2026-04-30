@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v101';
+const APP_VERSION = 'v102';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2693,6 +2693,78 @@ function buildGroveScene() {
     while (r < LEFT_NEAR_TREE.length) {
         pushRow(leftCol(r), blankCtr, rightCol(r), 'sky'); r++;
     }
+
+    // Pass B of cowork ticket 0040 — foreground tree overlay.
+    // Paint a couple of tree sprites ON TOP of the existing center
+    // band content so trunks physically cross earlier-band canopies.
+    // This is what creates real depth-overlap rather than just stacked
+    // bands — eyes register the foreground tree silhouette as
+    // happening "in front of" the mid/near bands rather than "after".
+    //
+    // overlaySprite walks each sprite row, replaces non-space chars
+    // in the target row's center span at the given column offset, and
+    // re-classes the row to the sprite's depth class — but ONLY if the
+    // row had at least one painted character, so blank sprite rows
+    // don't accidentally up-tint the underlying band.
+    function overlaySprite(sprite, atSceneRow, atCenterCol, centerCls) {
+        for (let i = 0; i < sprite.length; i++) {
+            const tr = atSceneRow + i;
+            if (tr < 0 || tr >= rows.length) continue;
+            const t = rows[tr];
+            // Only the canopy overlay rows (0-3) have non-string center;
+            // they shouldn't be sprite targets, but guard anyway.
+            if (typeof t.center !== 'string') continue;
+            let c = t.center;
+            let painted = false;
+            for (let j = 0; j < sprite[i].length; j++) {
+                const ch = sprite[i][j];
+                if (ch === ' ') continue;  // transparent
+                const col = atCenterCol + j;
+                if (col < 0 || col >= c.length) continue;
+                c = c.slice(0, col) + ch + c.slice(col + 1);
+                painted = true;
+            }
+            if (painted) {
+                rows[tr] = { ...t, center: c, centerCls };
+            }
+        }
+    }
+
+    // Foreground sprites — pulled forward to 'midnear' so they read
+    // as the closest tree before the framing trees take over on the
+    // sides. The sprites cross multiple bands intentionally; cowork
+    // calls these the "scraggly" and "leaning" foreground trees.
+    const FG_SCRAGGLY = [
+        '   ^   ',
+        '  /|\\  ',
+        ' / |   ',
+        '   |   ',
+        '   |\\  ',
+        '   |   ',
+        '   o   ',  // knot
+        '   |   ',
+        '  _|_  '
+    ];
+    const FG_LEAN = [
+        ' \\\\,/ ',
+        '  \\|  ',
+        '   \\  ',
+        '   |  ',
+        '   \\_ '
+    ];
+    // Positions tuned for the post-pass-A.5 layout:
+    //   far mid-band: rows 4-6
+    //   fog row:      7
+    //   mid mid-band: 8-14   (was 8-11 pre-A.5)
+    //   fog row:      15
+    //   near mid-band: 16-26 (was 13-18 pre-A.5)
+    // FG_SCRAGGLY (9 rows) at row 10 col 4: crown emerges in mid band,
+    // trunk descends through fog into the near band — readable as a
+    // tree growing up from the near floor with its top in mid distance.
+    // FG_LEAN (5 rows) at row 18 col 13: leans into the near band,
+    // off to the right, fills empty space without overlapping FG_SCRAGGLY.
+    overlaySprite(FG_SCRAGGLY, 10,  4, 'midnear');
+    overlaySprite(FG_LEAN,     18, 13, 'midnear');
 
     return rows;
 }
