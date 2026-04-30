@@ -456,12 +456,30 @@ section h2::after {
     outline-offset: 2px;
 }
 
+/* Full-bleed override on the modal backdrop. The shared `.modal` rule
+   paints a 90%-opaque black overlay, but the Grove takes over the
+   entire viewport — make the backdrop itself opaque so no engine /
+   inventory bleed-through is visible at any moment of the open
+   transition (and in case the content card ever fails to size for
+   some odd viewport, the backdrop alone is enough). */
+#grove-modal.modal {
+    background: var(--bg-dark);
+}
+
 .grove-modal-content {
     width: 100vw;
-    max-width: 100vw;
+    max-width: none;
     height: 100vh;
     max-height: 100vh;
-    padding: 0;
+    /* Safe-area-inset padding keeps the title, [X], and scene clear of
+       notches, rounded corners, and the home indicator on devices
+       that report insets. The base values still carry the layout
+       breathing room when the device reports zero insets. */
+    padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
     margin: 0;
     border: none;
     box-shadow: none;
@@ -478,17 +496,31 @@ section h2::after {
     touch-action: pan-y;
 }
 
-.grove-modal-content h3 {
+/* Header and flavor text are kept but de-emphasized so the scene
+   itself dominates the viewport. The title still anchors the
+   location for accessibility and screen orientation; the flavor
+   line still sets the tone before the player parses the picture.
+   The `#grove-modal` id-prefix bumps specificity above the base
+   `.modal-content h3 { color: var(--text-bright); ... }` rule
+   (which appears later in the file and would otherwise win on
+   source order at equal specificity). */
+#grove-modal .grove-modal-content h3 {
     text-align: center;
     flex-shrink: 0;
-    margin: 24px 0 8px;
+    margin: 12px 0 4px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    opacity: 0.75;
+    letter-spacing: 0.5px;
 }
 
 .grove-modal-content .location-desc {
     text-align: center;
     padding: 0 24px;
     flex-shrink: 0;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    font-size: 0.75rem;
+    opacity: 0.6;
 }
 
 .grove-modal-content .grove-scene {
@@ -504,11 +536,16 @@ section h2::after {
 
 .grove-modal-content .grove-row {
     /* Base font sizing for the scene rows. We size relative to BOTH
-       width and height so the scene fills the modal on any phone:
-       min() picks whichever dimension is the binding constraint.
-       3.6vw keeps 40 chars within ~360px viewports; 2.6vh ensures
-       ~30 rows fill ~700px viewports. */
-    font-size: min(3.6vw, 2.6vh);
+       width and height so the scene scales UP to fill the now-
+       fullscreen viewport on any phone: min() picks whichever
+       dimension is the binding constraint. The vw bound keeps the
+       40-col scene from clipping horizontally on narrow phones; the
+       vh bound lets the 35+ row scene grow tall on roomy displays
+       (modern phones at 800–900 css px tall, tablets, desktop). The
+       cap stops the framing trees from looking pixelated on huge
+       monitors. Uniform scaling — per-cell font-size variation is
+       still off-limits (see the .grove-scene-row comment). */
+    font-size: clamp(11px, min(3.8vw, 2.4vh), 22px);
     line-height: 1.0;
     text-align: center;
     white-space: pre;
@@ -666,28 +703,17 @@ section h2::after {
     line-height: 1.3;
 }
 
-/* Phone tweaks: tighten the title block so the scene gets more
-   vertical real estate, keep font scaling via clamp on the scene
-   itself rather than hard sizes here. */
+/* Phone tweaks: tighten the title block padding so the scene gets
+   even more vertical real estate at narrow widths. The base rules
+   already pick small font sizes (de-emphasized header, viewport-
+   scaled scene), so we only need to tighten margins/padding here.
+   The ticket-0012 small-viewport `.grove-scene` font-size override
+   was deleted with the move to full-bleed (cowork ticket 0031) —
+   the scene now owns the whole viewport so the modal-overflow
+   problem 0012 worked around no longer exists. */
 @media (max-width: 600px) {
-    .grove-modal-content h3 {
-        margin: 18px 0 4px;
-        font-size: 1rem;
-    }
     .grove-modal-content .location-desc {
-        font-size: 0.8rem;
         padding: 0 16px;
-    }
-    /* Small-viewport scaling: the default min(3.6vw, 2.6vh) leaves the
-       40-col scene + 35+ rows overflowing the modal on iPhone-SE-class
-       phones (clientW≈401, scrollW≈432; clientH≈513, scrollH≈630).
-       Tighten both bounds by ~19% so the height-driven overflow clears
-       and the items at the bottom stay reachable without scrolling.
-       Uniform scaling only — composition, framing-tree widths, and
-       per-band depth tinting are untouched. Desktop (>600px) keeps
-       the original sizing so the scene fills a tall viewport. */
-    .grove-modal-content .grove-row {
-        font-size: min(2.9vw, 2.1vh);
     }
 }
 
