@@ -2098,9 +2098,13 @@ footer button:active {
     display: none !important;
 }
 
-/* Progressive reveal: hidden by default, fade in when .revealed added */
+/* Progressive reveal: hidden by default, fade in when .revealed added.
+   Uses !important so id-scoped display rules (e.g. `#resources { display: flex }`)
+   don't keep an empty padded strip visible underneath a reveal-gated section.
+   The reveal flow removes this class before adding .revealing, so the two
+   never coexist on a node. */
 .reveal-hidden {
-    display: none;
+    display: none !important;
 }
 
 .revealing {
