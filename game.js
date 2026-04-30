@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v81';
+const APP_VERSION = 'v82';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2086,67 +2086,27 @@ function spawnItem(type, showMessage = true) {
 
 const SPARK_HEAT_COST = 1;
 
-function spawnFuel(bulk = false) {
-    if (!bulk) {
-        if (game.resources.heat < SPARK_HEAT_COST) {
-            showToast('Not enough heat — gather sticks to rekindle.', 'error');
-            sfx('error');
-            return;
-        }
-        if (spawnItem('fuel')) {
-            game.resources.heat -= SPARK_HEAT_COST;
-            updateUI();
-        }
+function spawnFuel() {
+    if (game.resources.heat < SPARK_HEAT_COST) {
+        showToast('Not enough heat — gather sticks to rekindle.', 'error');
+        sfx('error');
         return;
     }
-    // Bulk spawn: spark until heat or cells run out
-    let count = 0;
-    while (game.resources.heat >= SPARK_HEAT_COST) {
-        const emptyIndex = game.grid.findIndex(c => c === null);
-        if (emptyIndex === -1) break;
-        if (spawnItem('fuel', false)) {
-            game.resources.heat -= SPARK_HEAT_COST;
-            count++;
-        } else break;
-    }
-    if (count === 0) {
-        showToast(game.resources.heat < SPARK_HEAT_COST
-            ? 'Not enough heat — gather sticks.'
-            : 'Grid is full!', 'error');
-    } else {
-        showToast(`Spawned ${count} sparks!`, 'success');
+    if (spawnItem('fuel')) {
+        game.resources.heat -= SPARK_HEAT_COST;
         updateUI();
     }
 }
 
-function spawnOre(bulk = false) {
+function spawnOre() {
     const cost = 10;
-    if (!bulk) {
-        if (game.resources.heat >= cost) {
-            if (spawnItem('ore')) {
-                game.resources.heat -= cost;
-                updateUI();
-            }
-        } else {
-            showToast('Not enough heat!', 'error');
-        }
-        return;
-    }
-    // Bulk: spawn as many as heat + empty cells allow
-    let count = 0;
-    while (game.resources.heat >= cost) {
-        const emptyIndex = game.grid.findIndex(c => c === null);
-        if (emptyIndex === -1) break;
-        if (spawnItem('ore', false)) {
+    if (game.resources.heat >= cost) {
+        if (spawnItem('ore')) {
             game.resources.heat -= cost;
-            count++;
-        } else break;
-    }
-    if (count === 0) {
-        showToast('No room or not enough heat!', 'error');
+            updateUI();
+        }
     } else {
-        showToast(`Spawned ${count} ore!`, 'success');
-        updateUI();
+        showToast('Not enough heat!', 'error');
     }
 }
 
@@ -3321,8 +3281,8 @@ function cancelStickGather(deliver = false) {
     checkReveals();
 }
 
-// Consume stored sticks, converting each into STICK_FUEL_VALUE fuel.
-function feedStick(bulk = false) {
+// Consume one stored stick, converting it into STICK_FUEL_VALUE fuel.
+function feedStick() {
     if ((game.inventory.sticks || 0) <= 0) {
         showToast('No sticks to feed — gather some first.', 'error');
         return;
@@ -3333,29 +3293,20 @@ function feedStick(bulk = false) {
         return;
     }
 
-    let fed = 0;
-    const limit = bulk ? game.inventory.sticks : 1;
-    for (let i = 0; i < limit; i++) {
-        if (game.furnace.fuel >= maxFuel) break;
-        if (game.inventory.sticks <= 0) break;
-        const added = Math.min(STICK_FUEL_VALUE, maxFuel - game.furnace.fuel);
-        game.furnace.fuel += added;
-        game.inventory.sticks -= 1;
-        game.stats.kindlingAdded++;
-        fed++;
-    }
+    const added = Math.min(STICK_FUEL_VALUE, maxFuel - game.furnace.fuel);
+    game.furnace.fuel += added;
+    game.inventory.sticks -= 1;
+    game.stats.kindlingAdded++;
 
-    if (fed > 0) {
-        const furnaceVisual = document.getElementById('furnace-visual');
-        floatPopup(furnaceVisual, fed === 1 ? '+stick' : `+${fed} sticks`, 'heat');
-        flashDropZone('furnace-visual');
-        sfx('feed');
+    const furnaceVisual = document.getElementById('furnace-visual');
+    floatPopup(furnaceVisual, '+stick', 'heat');
+    flashDropZone('furnace-visual');
+    sfx('feed');
 
-        // The 'firstStick' reveal stage fires the first-stick narration.
-        // Later beats live here.
-        if (game.stats.kindlingAdded === 3) {
-            setNarration('The iron grows warm. Keep feeding it.');
-        }
+    // The 'firstStick' reveal stage fires the first-stick narration.
+    // Later beats live here.
+    if (game.stats.kindlingAdded === 3) {
+        setNarration('The iron grows warm. Keep feeding it.');
     }
     updateUI();
     checkReveals();
@@ -3688,13 +3639,13 @@ function setupEventListeners() {
     // delivers one stick to the resource pool.
     const gatherBtn = document.getElementById('gather-stick-btn');
     if (gatherBtn) gatherBtn.addEventListener('click', startStickGather);
-    // Feed-stick: tap = 1 stick, shift-tap = feed all
+    // Feed-stick: tap = 1 stick. Bulk feed will return as an upgrade.
     const feedBtn = document.getElementById('feed-stick-btn');
-    if (feedBtn) feedBtn.addEventListener('click', (e) => feedStick(e.shiftKey));
+    if (feedBtn) feedBtn.addEventListener('click', () => feedStick());
 
-    // Spawn buttons (shift-click = bulk fill)
-    document.getElementById('spawn-fuel').addEventListener('click', (e) => spawnFuel(e.shiftKey));
-    document.getElementById('spawn-ore').addEventListener('click', (e) => spawnOre(e.shiftKey));
+    // Spawn buttons (one tap = one spawn; bulk spawn returns as an upgrade)
+    document.getElementById('spawn-fuel').addEventListener('click', () => spawnFuel());
+    document.getElementById('spawn-ore').addEventListener('click', () => spawnOre());
 
 const burnAll = document.getElementById('burn-all-btn');
     if (burnAll) burnAll.addEventListener('click', burnAllFuel);

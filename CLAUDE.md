@@ -79,7 +79,7 @@ saves past Phase 1 are auto-migrated (`peakHeat = target`) on load.
 - **Gather Stick** — 3-second progress-bar action that yields
   `bonuses.sticksPerGather` sticks (default 1). Always visible.
 - **Feed Stick** — consumes 1 stick, adds `STICK_FUEL_VALUE` (3) fuel to the
-  furnace. Shift-click (desktop) feeds every stored stick at once.
+  furnace. One tap = one stick; bulk feed will return as an upgrade.
 - Sticks are a counted resource (`game.resources.sticks`), not a grid item.
 
 The Engine column lays out as: stick controls (top) → engine ASCII visual
