@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v90';
+const APP_VERSION = 'v91';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2846,8 +2846,8 @@ function renderInventoryRail() {
     const stickEl = document.getElementById('inv-tile-stick');
     const stoneEl = document.getElementById('inv-tile-stone');
     if (!stickEl || !stoneEl) return;
-    const sticks = game.inventory && game.inventory.sticks || 0;
-    const stones = game.inventory && game.inventory.stones || 0;
+    const sticks = Math.max(0, game.inventory && game.inventory.sticks || 0);
+    const stones = Math.max(0, game.inventory && game.inventory.stones || 0);
     document.getElementById('inv-tile-stick-count').textContent = sticks;
     document.getElementById('inv-tile-stone-count').textContent = stones;
     stickEl.classList.toggle('is-empty', sticks <= 0);
@@ -3557,11 +3557,12 @@ function updateUI() {
     // target; once peakHeat clears it, the bar gives way to an unbounded
     // counter (the bar would be meaningless past 100% fill).
     const phase1Active = (game.stats.peakHeat || 0) < PHASE_1_HEAT_TARGET;
-    const heatTxt = formatNumber(Math.floor(game.resources.heat));
-    document.getElementById('metal-value').textContent = formatNumber(Math.floor(game.resources.metal));
-    document.getElementById('alloy-value').textContent = formatNumber(Math.floor(game.resources.alloy));
-    document.getElementById('gear-value').textContent = formatNumber(Math.floor(game.resources.gears));
-    document.getElementById('essence-value').textContent = formatNumber(Math.floor(game.resources.essence));
+    const heatNow = Math.max(0, game.resources.heat);
+    const heatTxt = formatNumber(Math.floor(heatNow));
+    document.getElementById('metal-value').textContent = formatNumber(Math.max(0, Math.floor(game.resources.metal)));
+    document.getElementById('alloy-value').textContent = formatNumber(Math.max(0, Math.floor(game.resources.alloy)));
+    document.getElementById('gear-value').textContent = formatNumber(Math.max(0, Math.floor(game.resources.gears)));
+    document.getElementById('essence-value').textContent = formatNumber(Math.max(0, Math.floor(game.resources.essence)));
 
     // Heat readout (engine column, above fuel). During Phase 1 the bar
     // tracks progress toward PHASE_1_HEAT_TARGET; afterwards the bar
@@ -3574,7 +3575,7 @@ function updateUI() {
     if (heatBarEl) {
         if (phase1Active) {
             const heatBarWidth = 14;
-            const heatFilled = Math.min(heatBarWidth, Math.floor((game.resources.heat / PHASE_1_HEAT_TARGET) * heatBarWidth));
+            const heatFilled = Math.max(0, Math.min(heatBarWidth, Math.floor((heatNow / PHASE_1_HEAT_TARGET) * heatBarWidth)));
             heatBarEl.textContent = '[' + '▓'.repeat(heatFilled) + '░'.repeat(heatBarWidth - heatFilled) + ']';
             heatBarEl.style.display = '';
         } else {
@@ -3632,7 +3633,7 @@ function updateUI() {
         else label = `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}m left`;
         fuelTimeEl.textContent = label;
     }
-    document.getElementById('furnace-temp').textContent = `${Math.floor(game.furnace.temperature)}*`;
+    document.getElementById('furnace-temp').textContent = `${Math.max(0, Math.floor(game.furnace.temperature))}*`;
 
     // First-spark prompt: a twinkling glyph appears inside the engine the
     // moment Phase 1 ends, drawing the eye to the engine so the player
@@ -3739,8 +3740,8 @@ function updateUI() {
 
     // Smelter
     if (game.unlockedTiers.smelter) {
-        document.getElementById('smelter-ore').textContent = formatNumber(Math.floor(game.smelter.ore));
-        document.getElementById('smelter-progress').textContent = Math.floor(game.smelter.progress);
+        document.getElementById('smelter-ore').textContent = formatNumber(Math.max(0, Math.floor(game.smelter.ore)));
+        document.getElementById('smelter-progress').textContent = Math.max(0, Math.floor(game.smelter.progress));
 
         // ASCII progress bar (matches fuel meter style — 14-char ▓░)
         const progressBar = document.getElementById('smelter-progress-bar');
@@ -3810,7 +3811,7 @@ function updateUI() {
 
     // Stick counter and feed button
     const stickCountEl = document.getElementById('stick-count');
-    if (stickCountEl) stickCountEl.textContent = game.inventory.sticks || 0;
+    if (stickCountEl) stickCountEl.textContent = Math.max(0, game.inventory.sticks || 0);
     const feedStickBtn = document.getElementById('feed-stick-btn');
     if (feedStickBtn) {
         const canFeed = (game.inventory.sticks || 0) > 0 && game.furnace.fuel < game.bonuses.furnaceCapacity;
@@ -4292,12 +4293,26 @@ function loadGame() {
             for (const k of Object.keys(game.resources)) {
                 if (typeof game.resources[k] !== 'number' || !Number.isFinite(game.resources[k])) {
                     game.resources[k] = 0;
+                } else if (game.resources[k] < 0) {
+                    // Negative resources can't arise in normal play; treat as
+                    // corruption (save edit, console injection, future bug)
+                    // and clamp on load so the UI and downstream math start
+                    // from a clean floor.
+                    game.resources[k] = 0;
                 }
             }
-            if (typeof game.furnace.fuel !== 'number' || !Number.isFinite(game.furnace.fuel)) {
+            if (game.inventory && typeof game.inventory === 'object') {
+                for (const k of Object.keys(game.inventory)) {
+                    if (typeof game.inventory[k] === 'number'
+                        && (!Number.isFinite(game.inventory[k]) || game.inventory[k] < 0)) {
+                        game.inventory[k] = 0;
+                    }
+                }
+            }
+            if (typeof game.furnace.fuel !== 'number' || !Number.isFinite(game.furnace.fuel) || game.furnace.fuel < 0) {
                 game.furnace.fuel = 0;
             }
-            if (typeof game.furnace.temperature !== 'number' || !Number.isFinite(game.furnace.temperature)) {
+            if (typeof game.furnace.temperature !== 'number' || !Number.isFinite(game.furnace.temperature) || game.furnace.temperature < 0) {
                 game.furnace.temperature = 0;
             }
 
