@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "av=$(awk -F\"'\" '/^const APP_VERSION/{print $2}' game.js); cv=$(awk -F\"'\" '/^const CACHE/{print $2}' service-worker.js | sed 's/alchemists-engine-//'); [ \"$av\" = \"$cv\" ] || { echo \"BLOCKED: APP_VERSION='$av' (game.js) does not match CACHE suffix='$cv' (service-worker.js). Bump BOTH in lock-step before committing -- see CLAUDE.md and cowork ticket 0030.\" >&2; exit 2; }"
+          }
+        ]
+      }
+    ]
+  }
+}

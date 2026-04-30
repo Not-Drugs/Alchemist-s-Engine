@@ -632,7 +632,65 @@ These are standing instructions from the repo owner:
 - **Atomic commits.** One logical change per commit. Prefer several small
   commits to one large one.
 - **Work on `main` by default.** Only use a separate branch if explicitly
-  told to.
+  told to (or when dispatching a worktree-isolated agent — see below).
 - **Always push after a commit** so the GitHub Pages deploy stays current.
-- Bump `CACHE` in `service-worker.js` whenever any shell file changes so
-  PWA installs pick up the update on next load.
+- Bump `CACHE` in `service-worker.js` AND `APP_VERSION` in `game.js`
+  together whenever any shell file changes. They MUST stay in lock-step;
+  drift means the on-page version label disagrees with the served code
+  and players can't tell stale-cache from current-build (cowork ticket
+  0030 documents the bug this prevents).
+
+### Pre-commit guard: `APP_VERSION` ↔ `CACHE` lock-step
+
+`.claude/settings.json` carries a `PreToolUse` hook on `Bash(git commit*)`
+that greps both files and blocks the commit if they disagree. The block
+exits 2 with a `BLOCKED:` stderr message naming both versions, so a
+forgotten or silently-failed bump can't ship. The hook is committed and
+travels with the repo — any Claude Code session in this worktree
+inherits it.
+
+If you ever need to bypass it (you almost never should — fix the
+underlying drift instead), pass `--no-verify` only with the user's
+explicit OK.
+
+### Orchestrator + worktree-isolated agents
+
+For tickets that are big enough to keep a Claude session productive in
+parallel (≥15 min of focused work, touching a different file region than
+what the orchestrator is editing on `main`), use this pattern:
+
+1. **Orchestrator dispatches a coding agent with `Agent({ isolation:
+   "worktree", ... })`.** The Agent tool creates a fresh worktree under
+   `.claude/worktrees/agent-<id>/` on a new branch
+   `worktree-agent-<id>`.
+2. **Agent receives a self-contained prompt** with: project context
+   (this CLAUDE.md), the ticket text inline, and hard rules — don't
+   push, don't bump APP_VERSION/CACHE, don't touch `cowork/inbox.md`,
+   don't skip hooks, no emojis.
+3. **Agent commits one atomic commit** to its branch and returns the
+   SHA + a ≤200-word report. It does NOT push.
+4. **Orchestrator merges the branch into `main`** with `git merge
+   --squash <branch>`, bumps APP_VERSION + CACHE once for the combined
+   delta, composes one commit on `main`, pushes. The squash gives clean
+   linear history (one commit per ticket on main, no merge bubbles).
+5. **Orchestrator updates `cowork/inbox.md`** with the ready-for-retest
+   status + the SHA. Cowork retests the live build.
+6. **Cleanup** — `git worktree remove <path>` and `git branch -D
+   <branch>` are destructive; ask the user before running either.
+
+Why the discipline:
+- **Agents never bump APP_VERSION/CACHE.** Two agents bumping in
+  parallel branches conflict on every merge. Orchestrator bumps once
+  on merge, eliminating the most common conflict shape.
+- **Agents never touch `cowork/inbox.md`.** The inbox is gitignored,
+  so its changes don't propagate via merge anyway. Orchestrator owns
+  claim and ready-for-retest writes; agents own code only.
+- **Domain-split prompts.** Tell agent A "you're in JS renderers" and
+  agent B "you're in CSS." The further apart their territories, the
+  fewer merge conflicts. When they DO touch the same file, git's
+  auto-merge handles disjoint-rule cases cleanly.
+
+Skip this pattern for sub-5-min fixes — dispatch + merge overhead
+exceeds the work. Skip it for serial single-agent runs — the win only
+shows up when the orchestrator is committing in parallel on disjoint
+surfaces.
