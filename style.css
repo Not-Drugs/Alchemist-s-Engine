@@ -488,10 +488,22 @@ section h2::after {
 }
 
 .grove-modal-content {
-    width: 100vw;
-    max-width: none;
-    height: 100vh;
-    max-height: 100vh;
+    /* Bypass the parent .modal's flex-center layout with explicit
+       position:fixed so the content stays glued to the actual visible
+       viewport edges on iOS Safari. The .modal backdrop's
+       `height: 100%` measures the layout viewport (taller than visual
+       on iOS when the address bar is showing), so flex-centering
+       inside it would push our content half-behind the address bar.
+       Position-fixed + dvh sidesteps the whole problem. */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100dvw;
+    height: 100dvh;
+    /* dvh fallback for browsers without dvh support (pre-iOS 15.4 /
+       pre-Chrome 108): svh is always the small viewport. */
+    max-height: 100svh;
+    max-width: 100svw;
     /* Safe-area-inset padding keeps the title, [X], and scene clear of
        notches, rounded corners, and the home indicator on devices
        that report insets. The base values still carry the layout

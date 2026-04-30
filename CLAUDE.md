@@ -8,6 +8,15 @@ runs in desktop browsers, but design decisions favor the mobile experience
 that mirrors HTML5 drag for mouse users. When something has to choose, choose
 the touch interaction.
 
+**Primary playtest device: Chrome on Google Pixel** (Android). When fixing
+mobile layout bugs, assume Chrome's viewport quirks — the address bar
+shrinks/grows the visible viewport, so `100vh` overshoots the visible
+height when the bar is showing. Prefer `100dvh` (dynamic viewport height,
+adjusts to chrome) for full-bleed layouts on this primary device. Cowork
+runs DOM-measurement verification in browser emulation, but Nicholas's
+playtest is the canonical visual check, and that's a real Pixel running
+real Chrome.
+
 ## Project Structure
 
 ```
