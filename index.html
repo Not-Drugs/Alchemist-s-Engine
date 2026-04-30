@@ -365,12 +365,12 @@
     <!-- Import Modal -->
     <div id="import-modal" class="modal hidden">
         <div class="modal-content">
+            <button id="import-cancel" class="modal-close-x" type="button" aria-label="Cancel import">[X]</button>
             <h3>Import Save</h3>
             <p class="modal-hint">Paste a save code below. This will overwrite your current progress.</p>
             <textarea id="import-textarea" placeholder="Paste save code here..."></textarea>
             <div class="modal-buttons">
                 <button id="import-confirm">[IMPORT]</button>
-                <button id="import-cancel">[CANCEL]</button>
             </div>
         </div>
     </div>
@@ -378,7 +378,7 @@
     <!-- Dead Grove fullscreen scene — opens when the teaser card is tapped -->
     <div id="grove-modal" class="modal hidden">
         <div class="modal-content grove-modal-content">
-            <button id="grove-leave" class="grove-leave" type="button" aria-label="Leave the Grove">[X]</button>
+            <button id="grove-leave" class="modal-close-x" type="button" aria-label="Leave the Grove">[X]</button>
             <h3>The Dead Grove</h3>
             <p class="location-desc">Branches without leaves, brittle as bone. Sticks and stones lie scattered at their feet.</p>
             <div id="grove-scene" class="grove-scene"></div>
@@ -415,6 +415,7 @@
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content settings-modal-content">
+            <button id="settings-close" class="modal-close-x" type="button" aria-label="Close settings">[X]</button>
             <h3>Settings</h3>
             <div class="settings-section">
                 <div class="settings-row">
@@ -442,22 +443,19 @@
                 <p class="modal-hint">Reset</p>
                 <button id="reset-btn" class="danger-btn">[CLEAR SAVE DATA]</button>
             </div>
-            <div class="modal-buttons">
-                <button id="settings-close">[CLOSE]</button>
-            </div>
         </div>
     </div>
 
     <!-- Export Modal -->
     <div id="export-modal" class="modal hidden">
         <div class="modal-content export-modal-content">
+            <button id="export-close" class="modal-close-x" type="button" aria-label="Close export modal">[X]</button>
             <h3>Export Save</h3>
             <p class="modal-hint">Copy this save code to transfer your progress, or scan the QR from another device.</p>
             <div id="export-qr" class="export-qr"></div>
             <textarea id="export-textarea" readonly></textarea>
             <div class="modal-buttons">
                 <button id="export-copy">[COPY CODE]</button>
-                <button id="export-close">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -465,9 +463,9 @@
     <!-- Key Items Modal -->
     <div id="key-items-modal" class="ki-modal ki-modal--hidden" role="dialog" aria-labelledby="key-items-modal-title">
       <div class="ki-modal-content">
+        <button id="key-items-close" class="modal-close-x" type="button" aria-label="Close Key Items">[X]</button>
         <h3 id="key-items-modal-title">Key Items</h3>
         <div id="key-items-list" class="key-items-list"><!-- populated by renderKeyItemsModal() --></div>
-        <button id="key-items-close" class="ki-modal-close" type="button">Close</button>
       </div>
     </div>
 
