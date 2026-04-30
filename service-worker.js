@@ -1,7 +1,7 @@
 // Alchemist's Engine — minimal offline-first service worker
 // Cache-first for the tiny shell, network-first for everything else.
 
-const CACHE = 'alchemists-engine-v72';
+const CACHE = 'alchemists-engine-v73';
 const SHELL = [
     './',
     './index.html',

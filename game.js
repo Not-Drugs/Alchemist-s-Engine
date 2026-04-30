@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v72';
+const APP_VERSION = 'v73';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -308,7 +308,9 @@ const defaultGame = {
     resources: {
         heat: 0,
         metal: 0,
+        metalFrac: 0,
         alloy: 0,
+        alloyFrac: 0,
         gears: 0,
         essence: 0
     },
@@ -2009,8 +2011,15 @@ function processSmelter(delta) {
         game.smelter.progress += smeltRate;
 
         if (game.smelter.progress >= 100) {
-            // Complete smelting
-            const metalGain = Math.floor(game.smelter.ore * (1 + game.bonuses.metalYield) * getWisdomMultiplier());
+            // Complete smelting. metalYield is a multiplier (default 1 = baseline);
+            // upgrade descs say "+50%/+100%" so they shift it to 1.5/2.5. The
+            // earlier formula used (1 + metalYield), double-counting the base
+            // and making the upgrade text dishonest. Fractional remainder is
+            // accumulated in metalFrac so percentage gains never get truncated.
+            const expected = game.smelter.ore * game.bonuses.metalYield * getWisdomMultiplier();
+            game.resources.metalFrac = (game.resources.metalFrac || 0) + expected;
+            const metalGain = Math.floor(game.resources.metalFrac);
+            game.resources.metalFrac -= metalGain;
             game.resources.metal += metalGain;
             game.smelter.ore = 0;
             game.smelter.progress = 0;
@@ -2149,7 +2158,16 @@ function craftAlloy() {
     const cost = 5;
     if (game.resources.metal >= cost) {
         game.resources.metal -= cost;
-        const yield_ = Math.floor(1 * (1 + game.bonuses.alloyYield) * getWisdomMultiplier());
+        // alloyYield is a multiplier (default 1 = baseline). Upgrade descs say
+        // "+25%/+50%" so they push it to 1.25/1.75. The earlier formula used
+        // (1 + alloyYield), giving 2x baseline AND making the +25% upgrade
+        // produce zero observable effect at base wisdom (floor 2.25 = 2).
+        // Carry fractional remainder in alloyFrac so percentage gains roll
+        // forward instead of being floored away.
+        const expected = game.bonuses.alloyYield * getWisdomMultiplier();
+        game.resources.alloyFrac = (game.resources.alloyFrac || 0) + expected;
+        const yield_ = Math.floor(game.resources.alloyFrac);
+        game.resources.alloyFrac -= yield_;
         game.resources.alloy += yield_;
         game.forge.count++;
         showToast(`Forged ${yield_} alloy!`, 'success');
