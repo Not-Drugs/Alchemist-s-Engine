@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v93';
+const APP_VERSION = 'v94';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2539,7 +2539,11 @@ const MID_NEAR_E = [
 // rows use the 20-char constants below mirrored to 40 by helper code
 // in buildGroveScene. The 20-char center versions are also still used
 // for the inter-band fog rows where framing-tree trunks own the sides.
-const HORIZON_STIPPLE  = '. , . , . , . , . ,';
+// Pass C of cowork ticket 0040: replace the flat stipple with a
+// silhouetted ridge / distant-canopy break. Reads as a far horizon
+// landmark — eyes have something to land on at the very top of the
+// scene rather than just dotted whitespace.
+const HORIZON_STIPPLE  = '. , -/\\.--..--/\\- , .';   // 21 chars; padTo trims to GROVE_CTR_W
 const DISTANT_TREELINE = [
     '. ^ . /\\ . ^ /^\\ . ',
     '^ /\\^./\\^^/\\.^/\\^.'
