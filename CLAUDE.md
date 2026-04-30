@@ -374,9 +374,11 @@ the engine, brittle trees hold what little kindling remains. The
 path opens."*, and hides the locked placeholder while revealing
 `#location-grove`.
 
-**Scene composition.** 40 columns wide, sized for mobile portrait via
-a `clamp()` font-size. Each scene row is a flexbox of three side-by-
-side spans:
+**Scene composition.** 40 columns wide, full-bleed (the modal sizes
+to `100dvh × 100dvw` on `position: fixed` so it fills the visible
+viewport on Chrome / Pixel even when the address bar is showing —
+plain `100vh` overshoots on iOS Safari and Chrome Android). Each
+scene row is a flexbox of three side-by-side spans:
 
 ```
 [ left near-tree (10c) | center depth band (20c) | right near-tree (10c) ]
@@ -389,51 +391,111 @@ stubs (`-`, `,`), broken branches at the crown, and root flare at the
 base. Inspired by the ejm winter and nabis gnarled-tree references on
 ascii.co.uk, paraphrased not copied (per the Clean Room Protocol).
 
-The center span rotates through depth bands as you read top to bottom:
+The center span rotates through depth bands as you read top to bottom.
+The current scene layout (post ticket-0040 polish) is:
 
-| Scene rows | Center content                  | CSS class       |
-|-----------:|----------------------------------|-----------------|
-| 0          | horizon stipple `. , . , .`      | `.grove-horizon`|
-| 1–2        | distant treeline (2 micro rows)  | `.grove-far`    |
-| 3          | fog stipple (haze separator)     | `.grove-far`    |
-| 4–6        | far mid-band (5 tiny trees A/B/C)| `.grove-midfar` |
-| 7          | fog stipple                      | `.grove-midfar` |
-| 8–11       | mid mid-band (4 small trees)     | `.grove-mid`    |
-| 12         | fog stipple                      | `.grove-mid`    |
-| 13–18      | near mid-band (3 detailed trees) | `.grove-midnear`|
-| 19–34      | empty sky (only trunks visible)  | `.grove-sky`    |
+| Scene rows | Center content                                    | Center class    |
+|-----------:|---------------------------------------------------|-----------------|
+| 0          | horizon ridge silhouette `. , -/\.--..--/\\- , .` | `.grove-horizon`|
+| 1–2        | distant treeline (2 micro rows)                   | `.grove-far`    |
+| 3          | fog stipple (haze separator)                      | `.grove-far`    |
+| 4–6        | far mid-band (5 tiny trees, A/D/B/E/C variants)   | `.grove-midfar` |
+| 7          | fog stipple                                       | `.grove-midfar` |
+| 8–14       | mid mid-band (4 trees, A/F/D/B; 7 rows tall each) | `.grove-mid`    |
+| 15         | fog stipple                                       | `.grove-mid`    |
+| 16–26      | near mid-band (3 trees, E/A/D; 11 rows tall each) | `.grove-midnear`|
+| 27–34      | empty sky (only framing trunks visible)           | `.grove-sky`    |
 
-Each band has THREE variants (A/B/C) cycling so adjacent trees don't
-read as repeated stamps. Fog rows between bands sell atmospheric
-depth — the eye reads horizontal haze between tree-mass bands as
-distance.
+Each band has multiple variants (FAR/NEAR have A–E, MID has A–F)
+rotating so adjacent trees break the repeated-stamp look. Fog rows
+between bands sell atmospheric depth.
 
-Atmospheric perspective comes from per-cell CSS opacity + color
-tinting only — `font-size` is intentionally NOT varied per cell
-because differing cell sizes inside a flex row collapse the row's
-total width and pull the framing trees inward, making trunks
-zig-zag (caught and fixed in the v45 polish pass). The framing
-trees stay full-bright at every height, anchoring the player's eye.
+Atmospheric perspective comes from per-cell CSS opacity + color tinting
+on the depth-class span — `font-size` is intentionally NOT varied per
+cell, because differing cell sizes inside a flex row collapse the row's
+total width and pull the framing trees inward, making trunks zig-zag
+(the v45 polish-pass fix).
+
+**Top-of-scene canopy overlay.** Scene rows 0–3 render the distant
+content edge-to-edge across the full 40 cols (mirroring the 20-char
+constant). The framing trees' canopy chars (`LEFT/RIGHT_NEAR_TREE`
+rows 0–3) overlay onto the side spans at one notch brighter than the
+surrounding distant content (horizon → far, far → midfar). The
+framing-tree silhouette is visible against the treeline without
+standing out at stark `near` opacity. Whitespace in the canopy lets
+distant content show through, so the horizon still reads continuously
+across the top.
+
+**Trunk fade gradient.** Scene rows 4–11 of the framing trees get an
+inline opacity that lerps from `0.55` (just above the canopy's midfar
+~0.52) up to `1.0` (full near). Below row 11 stays at full `near`. The
+visual is "trees rising out of the haze" — tops disappear into the
+distance, bases anchor the foreground.
+
+**Foreground sprite overlay (pass B).** After the rows are composed,
+two foreground tree sprites paint ON TOP of the center band content
+via `overlaySprite()`:
+- `FG_SCRAGGLY` (9 rows × 7 cols) at scene row 10, col 4 — crown in
+  mid band, trunk descends through fog into the near band
+- `FG_LEAN` (5 rows × 6 cols) at scene row 18, col 13 — leans into
+  the near band on the right side
+
+Both painted at `'midnear'` depth class, but `overlaySprite` only
+re-classes a row when at least one sprite char actually painted on
+it (so blank sprite rows don't accidentally up-tint the underlying
+band).
+
+**Auto-fit sizing.** `autofitGroveScene()` (in `game.js`) measures
+`#grove-scene`'s actual `clientHeight` / `clientWidth` after layout
+settles, computes the exact font-size that packs every `.grove-row`
+into the available space (height-bound `(containerH - 4) /
+rows.length`, width-bound `(containerW - 2) / 24` for the IBM Plex
+Mono char-to-em ratio of ~0.6), and sets it inline on each row.
+Runs at the end of `renderGrove()` via `requestAnimationFrame` and
+on `window resize` / `orientationchange`. The CSS `clamp()` formula
+on `.grove-row` is the first-paint fallback; JS overrides it as soon
+as layout is real.
 
 Modal lifecycle locks body scroll on open via `lockBodyScroll()` /
 `unlockBodyScroll()` (saves and restores `window.scrollY`) so the
 page underneath can't bleed-scroll on touch.
 
-Below the scene, a ground row and three item rows sit at the bottom.
+**Below the scene** sit the ground row, an underbrush row, and the
+item rows. Stones render as `()` and sticks as `/`. When all items
+are collected, the three item rows are replaced by spacer / empty
+message / spacer so "The grove is empty for now." lands centered
+where the item rows used to sit, without the scene's row count
+jumping (auto-fit gives the same font-size in both states).
+
 `$` placeholders in item rows are replaced at render with clickable
-spans (`renderGrove()` in `game.js`). Item layout is versioned via
-`game.locations.grove.layoutV` — bumping `GROVE_LAYOUT_V` in the save
-migration resets `collected` for old saves whose indices no longer
-point at the same items.
+button elements (`renderGrove()` in `game.js`). Item layout is
+versioned via `game.locations.grove.layoutV` — bumping
+`GROVE_LAYOUT_V` in the save migration resets `collected` for old
+saves whose indices no longer point at the same items. Current item
+distribution: 4 stones + 11 sticks = 15 collectibles per grove pass.
 
 **Building blocks** (`game.js`):
 - `LEFT_NEAR_TREE` / `RIGHT_NEAR_TREE` — 35-row framing trees
-- `MID_FAR_*`, `MID_MID_*`, `MID_NEAR_*` — slot-width primitives for
-  the three mid-bands; `buildBand()` concatenates them into rows
+- `MID_FAR_*` (A–E), `MID_MID_*` (A–F), `MID_NEAR_*` (A–E) —
+  slot-width primitives for the three mid-bands; `buildBand()`
+  concatenates them
+- `HORIZON_STIPPLE`, `DISTANT_TREELINE`, `FOG_ROW` — 20-char distant
+  constants, mirrored to 40 by `pushFullWidthRow` for the top 4 rows
+- `FG_SCRAGGLY`, `FG_LEAN` — foreground tree sprites, painted onto
+  the center band by `overlaySprite()`
+- `GROVE_GROUND_ROW`, `GROVE_UNDERBRUSH_ROW` — single-span rows
+  below the scene
 - `GROVE_SCENE_ROWS` — pre-computed array of `{left, center, right,
-  centerCls}` consumed by `renderGrove()`
+  leftCls, centerCls, rightCls}` consumed by `renderGrove()`. Each
+  side can be a string (uniform class) or an array of `{chars, cls}`
+  groups (per-char class for the canopy overlay rows)
 - `GROVE_ITEM_ROWS` + `GROVE_ITEMS` — placeholder rows + the
   positional item table
+- `autofitGroveScene()` — measures + sets inline font-size on every
+  `.grove-row` so the scene fits the actual viewport
+
+Future grove ideas live in `cowork/BACKLOG.md` (mountain range
+behind the horizon ridge; litter rows retry with cleaner ASCII).
 
 ## Mobile & PWA
 
@@ -455,6 +517,17 @@ point at the same items.
   `screen.orientation.lock('portrait')` is attempted in fullscreen/PWA.
 - `safe-area-inset-*` padding keeps content clear of notches, rounded
   corners, and the home indicator.
+- **Use `100dvh` / `100dvw` on full-bleed elements** instead of
+  `100vh` / `100vw`. The static `vh`/`vw` units measure the
+  chromeless viewport — Chrome on Android (the primary playtest
+  device) and iOS Safari both overlay the address bar on top, so
+  `100vh` overshoots the visible area when the bar is showing,
+  pushing content (e.g. the grove modal's [X] button, framing-tree
+  canopy) behind chrome. `dvh`/`dvw` track the dynamic viewport
+  and adjust as the bar shows/hides. `svh`/`svw` are the safe
+  fallback on older browsers (assume the smaller chrome-visible
+  viewport always). Combined with `position: fixed; top: 0;
+  left: 0;` the content stays glued to the visible edges.
 - Game loop pauses on `visibilitychange → hidden` to save battery;
   resuming calls `processOfflineProgress()` to fast-forward.
 - `#furnace-ascii` has `touch-action: none` so the 300ms hold→spark-drag
@@ -608,9 +681,23 @@ instructions for sessions that load slash commands.
 
 - `cowork/PROTOCOL.md` — ticket format, status lifecycle, reply convention.
 - `cowork/README.md` — bring-up steps and paste-ready `/loop` prompts.
-- `cowork/inbox.md` — runtime state, gitignored, append-only.
-- `cowork/attachments/` — runtime state, gitignored (`.gitkeep` preserves
-  the directory).
+- `cowork/agent-template.md` — standing rules every dispatched coding
+  agent follows (don't push, don't bump version, don't touch inbox,
+  one atomic commit, etc.). Orchestrator prompts reference this
+  instead of restating rules.
+- `cowork/BACKLOG.md` — Nicholas-flagged deferred design ideas
+  (mountain range behind horizon, litter rows retry, etc.). Not
+  active tickets; promoted into the inbox when ready to ship.
+- `cowork/PRE_PROD_CHECKLIST.md` — hardening items deferred to
+  before public launch (anti-injection: hide `game` from window
+  + save-load range validation + `?dev=1` for cowork's test URL).
+- `cowork/FEEDBACK.md` — cowork-Claude's playtest design / balance
+  observations (separate from bugs).
+- `cowork/inbox.md` — active runtime state, gitignored, append-only.
+- `cowork/archive.md` — verified tickets evicted from inbox during
+  lean-up. Gitignored; local history only.
+- `cowork/attachments/` — runtime state, gitignored (`.gitkeep`
+  preserves the directory).
 
 Status lifecycle: `[new]` → `[claimed]` → `[ready-for-retest]` →
 `[verified]`, with `[needs-info]` (terminal bounces back) and
