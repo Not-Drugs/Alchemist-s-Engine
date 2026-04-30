@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v98';
+const APP_VERSION = 'v99';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2845,19 +2845,24 @@ function renderGrove() {
     scene.appendChild(underbrushRow);
 
     // Item rows — placeholder $ characters become clickable buttons.
-    GROVE_ITEM_ROWS.forEach((line) => {
-        const row = document.createElement('div');
-        row.className = 'grove-row grove-items-row';
-        row.appendChild(buildSpan(line, 'items'));
-        scene.appendChild(row);
-    });
-
+    // When all items are picked up there's nothing to render in the
+    // item rows (every $ resolves to a blank), so collapse all three
+    // rows into a single "the grove is empty for now" line that's a
+    // proper .grove-row — that way the auto-fit pass counts it and
+    // it doesn't overflow into the grove-found UI below.
     const allCollected = collected.length >= GROVE_ITEMS.length;
     if (allCollected) {
         const empty = document.createElement('div');
-        empty.className = 'grove-empty';
+        empty.className = 'grove-row grove-empty-row';
         empty.textContent = 'The grove is empty for now.';
         scene.appendChild(empty);
+    } else {
+        GROVE_ITEM_ROWS.forEach((line) => {
+            const row = document.createElement('div');
+            row.className = 'grove-row grove-items-row';
+            row.appendChild(buildSpan(line, 'items'));
+            scene.appendChild(row);
+        });
     }
 
     const found = document.getElementById('grove-found');

@@ -809,6 +809,21 @@ section h2::after {
     text-align: center;
 }
 
+/* "The grove is empty for now" message — replaces the item rows when
+   every collectible is gone. Counted as a .grove-row so the auto-fit
+   pass (autofitGroveScene) packs it inside .grove-scene rather than
+   pushing it past the bottom into the grove-found UI. Italic + dim
+   for the same hush as .grove-empty. */
+.grove-row.grove-empty-row {
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: center;
+    opacity: 0.6;
+    /* font-size is set inline by the auto-fit JS to match the other
+       grove-row elements; declaring it here would be overridden but
+       we leave it untouched so the auto-fit math works the same. */
+}
+
 .grove-found {
     margin-top: 8px;
     color: var(--text-dim);
