@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v85';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2363,36 +2363,104 @@ const MID_FAR_C = [' ^^ ', '  | ', ' _|_'];
 const MID_FAR_D = ['    ', '    ', ' _|_'];          // stump only — open sky above
 const MID_FAR_E = [' .  ', ' |  ', ' |_ '];          // half-canopy snag
 
-// MID mid-tree: 5 cols wide, trunk col 2.
-const MID_MID_A = [' \\|/ ', '  |  ', '  |  ', '__|__'];
-const MID_MID_B = ['  ^  ', ' /|\\ ', '  |  ', ' _|_ '];
-const MID_MID_C = [' /^\\ ', ' \\|/ ', '  |  ', '__|__'];
-const MID_MID_D = [' /\\/ ', '  V  ', '  |  ', ' _|_ ']; // forked top
-const MID_MID_E = ['     ', '     ', '  ^  ', '  |  ']; // tall skeleton, no canopy
-const MID_MID_F = ['     ', '     ', '     ', ' _|_ ']; // pure stump — open sky
+// MID mid-tree: 5 cols wide, 7 rows tall, trunk col 2.
+// Bumped 4→7 rows so they read as a distinct depth from the FAR band
+// (which stays at 3 rows). At 7 rows they're ~20% of framing-tree
+// height — clearly mid-distance, not "tiny background tree."
+const MID_MID_A = [
+    '     ',
+    ' /^\\ ',
+    ' \\|/ ',
+    '  |  ',
+    '  |  ',
+    '  |  ',
+    '__|__'
+];
+const MID_MID_B = [
+    '  ^  ',
+    ' /|\\ ',
+    '  |  ',
+    ' /|\\ ',
+    '  |  ',
+    '  |  ',
+    ' _|_ '
+];
+const MID_MID_C = [
+    ' /^\\ ',
+    ' /|\\ ',
+    ' \\|/ ',
+    '  |  ',
+    '  |  ',
+    '  |  ',
+    '__|__'
+];
+const MID_MID_D = [
+    ' /\\/ ',  // forked top
+    '  V  ',
+    '  |  ',
+    '  |  ',
+    '  |  ',
+    '  |  ',
+    ' _|_ '
+];
+const MID_MID_E = [
+    '     ',
+    '     ',
+    '     ',
+    '     ',
+    '  ^  ',  // tall skeleton, mostly open sky above
+    '  |  ',
+    '  |  '
+];
+const MID_MID_F = [
+    '     ',
+    '     ',
+    '     ',
+    '     ',
+    '     ',
+    '     ',
+    ' _|_ '   // pure stump
+];
 
-// NEAR mid-tree: 7 cols wide, trunk col 3, more branching detail.
+// NEAR mid-tree: 7 cols wide, 11 rows tall, trunk col 3, more branching detail.
+// Bumped 6→11 rows. ~30% of framing-tree height — clearly the closest
+// "mid-distance" tree before the foreground framing trees take over.
 // These are the closest mid-trees, so they get a hint of bark texture.
 const MID_NEAR_A = [
+    '  /^\\  ',
+    ' /^|^\\ ',
     '  \\|/  ',
     ' \\\\|// ',
     '   |   ',
+    '   |   ',
     '   O   ',  // knot ON trunk (matches framing-tree style)
     '   |   ',
+    '   |   ',
+    '  /|\\  ',
     ' _/|\\_ '
 ];
 const MID_NEAR_B = [
     '   ^   ',
     '  \\|/  ',
+    ' /\\|/\\ ',
+    '   |   ',
     '   |   ',
     '   (   ',  // small knot
     '   |   ',
+    '   |   ',
+    '   |   ',
+    '  /|\\  ',
     '  /|\\  '
 ];
 const MID_NEAR_C = [
     '  /^\\  ',
+    ' / | \\ ',
     '  \\|/  ',
     '  /|\\  ',
+    '   |   ',
+    '   |   ',
+    '   |   ',
+    '   |   ',
     '   |   ',
     '   |   ',
     ' _/|\\_ '
@@ -2401,17 +2469,27 @@ const MID_NEAR_D = [
     '       ',
     '       ',
     '       ',
+    '       ',
+    '       ',
+    '       ',
+    '       ',
     '   ^   ',
     '   |   ',
+    '   |   ',
     '  _|_  '
-];                              // sapling — most of the row is open sky
+];                              // sapling — mostly open sky above
 const MID_NEAR_E = [
     '  /^\\  ',
     ' /^|^\\ ',
     ' \\\\|// ',
+    '  /|\\  ',
+    '   |   ',
+    '   |   ',
+    '   |   ',
     '   Y   ',  // visible fork in trunk
     '  / \\  ',
-    ' /   \\ '
+    ' /   \\ ',
+    '/     \\'
 ];                              // forked, splayed roots
 
 // ----- Distant horizon ----------------------------------------------
@@ -2420,6 +2498,12 @@ const MID_NEAR_E = [
 // FOG_ROW — sparse stipple used between bands to suggest atmospheric
 // haze (the eye reads this as distance because real distant forests
 // fade into hazy negative space between tree-mass bands).
+//
+// At the top of the scene (rows 0-3) the framing trees' canopy is
+// hidden so distant content can span the full 40-col width — those
+// rows use the 20-char constants below mirrored to 40 by helper code
+// in buildGroveScene. The 20-char center versions are also still used
+// for the inter-band fog rows where framing-tree trunks own the sides.
 const HORIZON_STIPPLE  = '. , . , . , . , . ,';
 const DISTANT_TREELINE = [
     '. ^ . /\\ . ^ /^\\ . ',
@@ -2488,14 +2572,45 @@ function buildGroveScene() {
     // empty sky/trunks-only at the bottom — gives the eye breathing
     // room and lets the framing trees dominate the lower half.
 
-    function pushRow(left, center, right, centerCls) {
-        rows.push({ left, center, right, centerCls });
+    function pushRow(left, center, right, centerCls, leftCls, rightCls) {
+        // leftCls/rightCls default to 'near' (full-bright framing trees).
+        // Full-width-distant rows at the top override all three so the
+        // skyline reads continuously edge-to-edge.
+        rows.push({
+            left, center, right,
+            leftCls:   leftCls   || 'near',
+            centerCls,
+            rightCls:  rightCls  || 'near'
+        });
     }
 
+    // Full-width distant row: mirror a 20-char distant constant to 40
+    // chars, then slice into left (10c) / center (20c) / right (10c)
+    // so all three spans paint the same depth-class content. Used for
+    // the top 4 rows of the scene; the framing trees' canopy is
+    // hidden so the distant content can span all 40 cols.
+    function pushFullWidthRow(content20, depthCls) {
+        const padded = padTo(content20, GROVE_CTR_W);
+        const full = padded + padded;  // 40 chars, mirrored
+        pushRow(
+            full.slice(0, GROVE_SIDE_W),
+            full.slice(GROVE_SIDE_W, GROVE_SIDE_W + GROVE_CTR_W),
+            full.slice(GROVE_SIDE_W + GROVE_CTR_W),
+            depthCls, depthCls, depthCls
+        );
+    }
+
+    // The framing trees' canopy (rows 0-3 of LEFT/RIGHT_NEAR_TREE) is
+    // hidden so distant content can span the full 40-col width.
+    // Direct index into the framing-tree arrays — at scene row r we
+    // pull array row r, which means scene rows 0..3 (where the distant
+    // content lives) never reach into the array.
     let r = 0;
-    pushRow(leftCol(r), padTo(HORIZON_STIPPLE, GROVE_CTR_W), rightCol(r), 'horizon'); r++;
-    for (const line of DISTANT_TREELINE) { pushRow(leftCol(r), padTo(line, GROVE_CTR_W), rightCol(r), 'far'); r++; }
-    pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'far'); r++;
+    pushFullWidthRow(HORIZON_STIPPLE, 'horizon'); r++;
+    for (const line of DISTANT_TREELINE) { pushFullWidthRow(line, 'far'); r++; }
+    pushFullWidthRow(FOG_ROW, 'far'); r++;
+    // r is now 4. From here, scene rows reach into the framing trees.
+
     for (const line of farBand)  { pushRow(leftCol(r), line, rightCol(r), 'midfar');  r++; }
     pushRow(leftCol(r), padTo(FOG_ROW, GROVE_CTR_W), rightCol(r), 'midfar'); r++;
     for (const line of midBand)  { pushRow(leftCol(r), line, rightCol(r), 'mid');     r++; }
@@ -2585,9 +2700,9 @@ function renderGrove() {
     GROVE_SCENE_ROWS.forEach((rowSpec) => {
         const row = document.createElement('div');
         row.className = 'grove-row grove-scene-row';
-        row.appendChild(buildSpan(rowSpec.left,   'near'));
+        row.appendChild(buildSpan(rowSpec.left,   rowSpec.leftCls   || 'near'));
         row.appendChild(buildSpan(rowSpec.center, rowSpec.centerCls));
-        row.appendChild(buildSpan(rowSpec.right,  'near'));
+        row.appendChild(buildSpan(rowSpec.right,  rowSpec.rightCls  || 'near'));
         scene.appendChild(row);
     });
 
