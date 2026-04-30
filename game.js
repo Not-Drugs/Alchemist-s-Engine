@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v100';
+const APP_VERSION = 'v101';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2852,10 +2852,26 @@ function renderGrove() {
     // it doesn't overflow into the grove-found UI below.
     const allCollected = collected.length >= GROVE_ITEMS.length;
     if (allCollected) {
+        // Spacer-empty-spacer triple so the message lands at row 2
+        // of 3 — visually centered where the 3 item rows used to sit.
+        // Total grove-row count when collected matches the not-
+        // collected case (3 either way), so auto-fit gives the same
+        // font-size and there's no jump when the last item is picked.
+        const makeSpacer = () => {
+            const s = document.createElement('div');
+            s.className = 'grove-row grove-empty-spacer';
+            // Non-breaking space (U+00A0) keeps the row from
+            // collapsing to zero height. textContent (not innerHTML)
+            // for XSS safety per the project's lint rules.
+            s.textContent = ' ';
+            return s;
+        };
+        scene.appendChild(makeSpacer());
         const empty = document.createElement('div');
         empty.className = 'grove-row grove-empty-row';
         empty.textContent = 'The grove is empty for now.';
         scene.appendChild(empty);
+        scene.appendChild(makeSpacer());
     } else {
         GROVE_ITEM_ROWS.forEach((line) => {
             const row = document.createElement('div');
