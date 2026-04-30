@@ -678,6 +678,17 @@ section h2::after {
         font-size: 0.8rem;
         padding: 0 16px;
     }
+    /* Small-viewport scaling: the default min(3.6vw, 2.6vh) leaves the
+       40-col scene + 35+ rows overflowing the modal on iPhone-SE-class
+       phones (clientW≈401, scrollW≈432; clientH≈513, scrollH≈630).
+       Tighten both bounds by ~19% so the height-driven overflow clears
+       and the items at the bottom stay reachable without scrolling.
+       Uniform scaling only — composition, framing-tree widths, and
+       per-band depth tinting are untouched. Desktop (>600px) keeps
+       the original sizing so the scene fills a tall viewport. */
+    .grove-modal-content .grove-row {
+        font-size: min(2.9vw, 2.1vh);
+    }
 }
 
 .grove-item {
