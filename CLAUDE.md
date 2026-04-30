@@ -678,6 +678,11 @@ what the orchestrator is editing on `main`), use this pattern:
    status + the SHA. Cowork retests the live build.
 6. **Cleanup** — `git worktree remove <path>` and `git branch -D
    <branch>` are destructive; ask the user before running either.
+   The `/cleanup-worktree` slash command (or
+   `bash scripts/cleanup-worktree.sh`) lists all agent worktrees with
+   merge status (`merged-ff` / `merged-squash` / `unmerged` / `killed`)
+   in read-only preview mode by default; pass `--apply` only after the
+   user confirms.
 
 Why the discipline:
 - **Agents never bump APP_VERSION/CACHE.** Two agents bumping in
