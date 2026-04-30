@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v88';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -1819,7 +1819,9 @@ function setupFurnaceDropZone() {
 
     target.addEventListener('dragover', (e) => {
         if (!draggedItem) return;
-        if (draggedItem.type !== 'fuel') return;
+        const isFuel = draggedItem.type === 'fuel';
+        const isStickIngredient = draggedItem.type === 'ingredient' && draggedItem.kind === 'stick';
+        if (!isFuel && !isStickIngredient) return;
         if (draggedItem.fromEngine) return;
         e.preventDefault(); // permit the drop
         target.classList.add('drag-over');
@@ -1839,7 +1841,40 @@ function setupFurnaceDropZone() {
 // Shared fuel-drop logic for the engine, used by both desktop drop and
 // the touch dispatch path.
 function applyFuelDropOnEngine() {
-    if (!draggedItem || draggedItem.type !== 'fuel' || draggedItem.fromEngine) return;
+    if (!draggedItem || draggedItem.fromEngine) return;
+
+    // Stick ingredients (from inventory rail or grid cell) burn just like
+    // the [Feed Stick] button — anything burnable is accepted regardless
+    // of source. Stones / non-stick ingredients still reject below.
+    if (draggedItem.type === 'ingredient' && draggedItem.kind === 'stick') {
+        const maxFuel = game.bonuses.furnaceCapacity;
+        if (game.furnace.fuel >= maxFuel) {
+            showToast('Furnace is full!', 'error');
+            return;
+        }
+        const added = Math.min(STICK_FUEL_VALUE, maxFuel - game.furnace.fuel);
+        if (added <= 0) {
+            showToast('Furnace is full!', 'error');
+            return;
+        }
+        game.furnace.fuel += added;
+        game.stats.kindlingAdded++;
+
+        if (draggedItem.fromInventory) {
+            game.inventory.sticks = (game.inventory.sticks || 0) - 1;
+        } else if (draggedIndex !== null && draggedIndex !== undefined) {
+            game.grid[draggedIndex] = null;
+            renderGridItem(draggedIndex);
+        }
+
+        floatPopup(document.getElementById('furnace-visual'), '+stick', 'heat');
+        flashDropZone('furnace-visual');
+        sfx('feed');
+        updateUI();
+        return;
+    }
+
+    if (draggedItem.type !== 'fuel') return;
     const fuelValue = FUEL_TIERS[draggedItem.tier - 1].value;
     const maxFuel = game.bonuses.furnaceCapacity;
 
