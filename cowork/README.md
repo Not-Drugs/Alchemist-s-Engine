@@ -53,21 +53,30 @@ In this Claude Code session, paste:
 
 ```
 /loop check cowork/inbox.md for tickets in [new] or [reopened] status.
-For each, in order: read it, claim by setting [claimed] and appending
-a 'claimed' comment with what you intend to investigate. Reproduce in
-the codebase, fix, commit, push to main. Set status to
-[ready-for-retest] and append a comment with the commit SHA. If repro
-is unclear or env is missing, set [needs-info] and ask in a comment
-for what's missing. If you can't reproduce after [needs-info] bounced
-once, or you disagree it's a bug, or you can't tell whether the fix or
-cowork's retest is wrong, set [needs-human] with a comment naming the
-specific decision the user needs to make. Skip tickets in [claimed],
-[needs-info], [ready-for-retest], [verified], or [needs-human]. If
-nothing is actionable, do nothing and exit until the next tick.
+On the very first tick, also arm a persistent Monitor that emits a
+line whenever cowork/inbox.md mtime changes (poll stat -c %Y every
+~3s, skip the baseline) so subsequent ticks fire on cowork's writes
+rather than on a fixed timer; use TaskList to skip re-arming if a
+monitor with that description is already running. ScheduleWakeup
+becomes the fallback heartbeat — pick ~1800s. For each actionable
+ticket, in order: read it, claim by setting [claimed] and appending
+a 'claimed' comment with what you intend to investigate. Reproduce
+in the codebase, fix, commit, push to main. Set status to
+[ready-for-retest] and append a comment with the commit SHA. If
+repro is unclear or env is missing, set [needs-info] and ask in a
+comment for what's missing. If you can't reproduce after [needs-info]
+bounced once, or you disagree it's a bug, or you can't tell whether
+the fix or cowork's retest is wrong, set [needs-human] with a comment
+naming the specific decision the user needs to make. Skip tickets in
+[claimed], [needs-info], [ready-for-retest], [verified], or
+[needs-human]. If nothing is actionable, do nothing and exit until
+the next event or fallback tick.
 ```
 
-Self-paced — when nothing's actionable, it sleeps ~10–20 min; when
-mid-fix, it sleeps shorter.
+Event-driven — the inbox-Monitor wakes the loop within ~3s of any
+cowork write to inbox.md. The fallback ScheduleWakeup (~30 min) only
+fires when the Monitor has been silent that long, so idle ticks past
+the prompt-cache window are rare.
 
 ### 3. Start the cowork-Claude polling loop
 
@@ -132,19 +141,28 @@ Your responsibilities:
    ## ticket-... [status] heading. Never edit a comment after
    writing it; never delete another side's comment.
 
-The /loop below is the periodic-check fallback for idle moments.
-Most of the work happens via the per-turn check in (2).
+The /loop below is the fallback for idle moments. Most of the work
+happens via the per-turn check in (2). If your environment supports
+the Monitor tool, also arm a persistent watcher on cowork/inbox.md
+that emits a line on every mtime change — that wakes the loop within
+seconds of terminal's writes, so you don't sit on stale tickets while
+playtesting.
 
-/loop check cowork/inbox.md for tickets you opened in
-[ready-for-retest] or [needs-info] status. For [ready-for-retest]:
-hard-refresh the test URL (after waiting if a SHA was just named),
-redo the STEPS, capture a screenshot to cowork/attachments/, then
-mark [verified] or [reopened] with a comment. For [needs-info]:
-answer the question in a comment and set status back to [new]. If
-you've been stuck on a single ticket for 3+ rounds with no progress,
-flip to [needs-human] with a comment naming what the user needs to
-decide. Skip tickets in [claimed], [verified], or [needs-human].
-Between ticks, continue active playtesting and file new tickets.
+/loop on the very first tick, arm a persistent Monitor that emits a
+line whenever cowork/inbox.md mtime changes (poll stat -c %Y every
+~3s, skip the baseline) so subsequent ticks fire on terminal's
+writes; use TaskList to skip re-arming if one is already running.
+ScheduleWakeup becomes the fallback heartbeat (~1800s). Then check
+cowork/inbox.md for tickets you opened in [ready-for-retest] or
+[needs-info] status. For [ready-for-retest]: hard-refresh the test
+URL (after waiting if a SHA was just named), redo the STEPS, capture
+a screenshot to cowork/attachments/, then mark [verified] or
+[reopened] with a comment. For [needs-info]: answer the question in
+a comment and set status back to [new]. If you've been stuck on a
+single ticket for 3+ rounds with no progress, flip to [needs-human]
+with a comment naming what the user needs to decide. Skip tickets in
+[claimed], [verified], or [needs-human]. Between ticks, continue
+active playtesting and file new tickets.
 ```
 
 ### 4. Stopping

@@ -26,25 +26,31 @@ loop prompts live in `cowork/README.md`.
 
 3. **Start the appropriate workflow:**
    - If **terminal-Claude**: paste/start the `/loop` from
-     `cowork/README.md` section 2 ("Start the terminal-Claude polling
-     loop"). Confirm to the user that you're now polling
-     `cowork/inbox.md` for `[new]` and `[reopened]` tickets.
+     `cowork/README.md` section 2. Its first tick arms a persistent
+     Monitor on `cowork/inbox.md` so subsequent ticks fire on cowork's
+     writes (within ~3s) rather than on a fixed timer — ScheduleWakeup
+     stays as the ~30 min fallback heartbeat. Confirm to the user that
+     you're watching `cowork/inbox.md` for `[new]` and `[reopened]`
+     tickets.
    - If **cowork-Claude**: confirm with the user what URL to point at
      (GitHub Pages live deploy by default, or the user's localhost
      server for un-pushed changes). Then follow the responsibilities
      in `cowork/README.md` section 3, which include checking
      `cowork/inbox.md` at the **start of every turn** (not only on
      loop ticks). Start the `/loop` from section 3 as the idle-period
-     fallback.
+     fallback — it also arms a Monitor on `cowork/inbox.md` if your
+     environment supports it.
 
 4. **Confirm the session is live** with a one-line status to the user
-   ("Cowork mode active as terminal-Claude; polling inbox.md.") so they
-   know the loop is running.
+   ("Cowork mode active as terminal-Claude; Monitor armed on inbox.md.")
+   so they know the wake mechanism is in place.
 
 ## Notes
 
-- The `/loop` is the safety net. The real-time mechanism for cowork is
-  the per-turn inbox check; for terminal it's the loop tick.
+- The `/loop` ScheduleWakeup is the safety net. The real-time wake
+  mechanism is the inbox-change Monitor (terminal) and the per-turn
+  inbox check (cowork) — both react to writes within seconds, not the
+  ~30 min fallback interval.
 - Never touch tickets owned by the other side. The status table in
   PROTOCOL.md is the routing rule — terminal owns `[new]`/`[reopened]`,
   cowork owns `[ready-for-retest]`/`[needs-info]` it opened, the user
