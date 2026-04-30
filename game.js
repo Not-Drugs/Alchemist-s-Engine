@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v95';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2702,7 +2702,14 @@ const GROVE_SCENE_ROWS = buildGroveScene();
 // Ground + items rows live below the framing trees' roots. Items are
 // rendered as a single row each (full-width) so the placeholder $/#
 // system continues to work as before.
-const GROVE_GROUND_ROW = '. , ~ . , ~ . , ~ . , ~ . , ~ . , ~ . , ';
+// Pass F of cowork ticket 0040: replace the regular dot-comma-tilde
+// stipple with an asymmetric ground line. Mixed underscores, dashes,
+// backticks, dots, and tildes break the rhythm so the ground reads as
+// uneven dirt + roots + grass tufts rather than a perfect repeating
+// fence. Slightly shorter than 40 chars; the trailing edge fades into
+// the right framing tree's base flare which is fine — looks like the
+// path winding under the tree.
+const GROVE_GROUND_ROW = '_..-`,.  ~  .,_-`. , ~  .,-`_.    ,_-`  ';
 const GROVE_ITEM_ROWS = [
     '   $    $        $         $   $       ',
     '       $    $        $        $    $   ',
