@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v82';
+const APP_VERSION = 'v83';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2360,11 +2360,16 @@ const RIGHT_NEAR_TREE = [
 const MID_FAR_A = [' /^\\', '  | ', '  | '];
 const MID_FAR_B = [' /|\\', '  | ', '  | '];
 const MID_FAR_C = [' ^^ ', '  | ', ' _|_'];
+const MID_FAR_D = ['    ', '    ', ' _|_'];          // stump only — open sky above
+const MID_FAR_E = [' .  ', ' |  ', ' |_ '];          // half-canopy snag
 
 // MID mid-tree: 5 cols wide, trunk col 2.
 const MID_MID_A = [' \\|/ ', '  |  ', '  |  ', '__|__'];
 const MID_MID_B = ['  ^  ', ' /|\\ ', '  |  ', ' _|_ '];
 const MID_MID_C = [' /^\\ ', ' \\|/ ', '  |  ', '__|__'];
+const MID_MID_D = [' /\\/ ', '  V  ', '  |  ', ' _|_ ']; // forked top
+const MID_MID_E = ['     ', '     ', '  ^  ', '  |  ']; // tall skeleton, no canopy
+const MID_MID_F = ['     ', '     ', '     ', ' _|_ ']; // pure stump — open sky
 
 // NEAR mid-tree: 7 cols wide, trunk col 3, more branching detail.
 // These are the closest mid-trees, so they get a hint of bark texture.
@@ -2392,6 +2397,22 @@ const MID_NEAR_C = [
     '   |   ',
     ' _/|\\_ '
 ];
+const MID_NEAR_D = [
+    '       ',
+    '       ',
+    '       ',
+    '   ^   ',
+    '   |   ',
+    '  _|_  '
+];                              // sapling — most of the row is open sky
+const MID_NEAR_E = [
+    '  /^\\  ',
+    ' /^|^\\ ',
+    ' \\\\|// ',
+    '   Y   ',  // visible fork in trunk
+    '  / \\  ',
+    ' /   \\ '
+];                              // forked, splayed roots
 
 // ----- Distant horizon ----------------------------------------------
 // HORIZON_STIPPLE — single faintest row at the very top.
@@ -2444,9 +2465,13 @@ function buildGroveScene() {
 
     // Pre-build the three mid-bands. Three variants (A/B/C) cycle so
     // adjacent trees don't look identical.
-    const farBand  = buildBand({ A: MID_FAR_A,  B: MID_FAR_B,  C: MID_FAR_C  }, ['A','B','C','A','B'],     GROVE_CTR_W);
-    const midBand  = buildBand({ A: MID_MID_A,  B: MID_MID_B,  C: MID_MID_C  }, ['A','C','B','A'],         GROVE_CTR_W);
-    const nearBand = buildBand({ A: MID_NEAR_A, B: MID_NEAR_B, C: MID_NEAR_C }, ['A','B','C'],             GROVE_CTR_W);
+    // Pass-A irregularity: rotate D/E (and F for mid) variants alongside A/B/C
+    // so adjacent slots break the matching-stamps look. Slot count per band
+    // unchanged — the center-band stays exactly GROVE_CTR_W (20) cols wide,
+    // so the framing trees can't zig-zag.
+    const farBand  = buildBand({ A: MID_FAR_A,  B: MID_FAR_B,  C: MID_FAR_C,  D: MID_FAR_D,  E: MID_FAR_E  }, ['A','D','B','E','C'], GROVE_CTR_W);
+    const midBand  = buildBand({ A: MID_MID_A,  B: MID_MID_B,  C: MID_MID_C,  D: MID_MID_D,  E: MID_MID_E,  F: MID_MID_F  }, ['A','F','D','B'],     GROVE_CTR_W);
+    const nearBand = buildBand({ A: MID_NEAR_A, B: MID_NEAR_B, C: MID_NEAR_C, D: MID_NEAR_D, E: MID_NEAR_E }, ['E','A','D'],         GROVE_CTR_W);
 
     // Layout of center per scene row index:
     //   0:     horizon stipple                  (.grove-horizon)

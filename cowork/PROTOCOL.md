@@ -66,6 +66,15 @@ cross-reference, don't rewrite.
 | `[claimed]`          | Terminal-Claude is working on it                       | terminal-Claude  |
 | `[needs-info]`       | Terminal bounced back; cowork must respond             | cowork-Claude    |
 | `[ready-for-retest]` | Fix pushed; cowork must rerun the repro                | cowork-Claude    |
+
+**Visual / aesthetic tickets** — when a fix is primarily a visual change
+(grove scene polish, modal layout, animation timing, ASCII art tuning,
+color/opacity work), Nicholas may co-verify alongside cowork-Claude.
+Cowork's verification still runs on DOM measurements, computed styles,
+and screenshots; Nicholas's verification adds the human-eyes "does this
+look right" judgment that cowork can't do automatically. Either side can
+flip such a ticket to `[verified]` once they're satisfied; if they
+disagree, file a follow-up ticket rather than reopening.
 | `[verified]`         | Cowork confirmed in the browser; ticket closed         | (closed)         |
 | `[reopened]`         | Retest failed; treated like `[new]` for routing        | terminal-Claude  |
 | `[needs-human]`      | Stuck — neither Claude can make progress alone         | user (Nicholas)  |
