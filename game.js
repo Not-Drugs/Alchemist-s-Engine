@@ -88,7 +88,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v97';
+const APP_VERSION = 'v98';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2710,6 +2710,12 @@ const GROVE_SCENE_ROWS = buildGroveScene();
 // the right framing tree's base flare which is fine — looks like the
 // path winding under the tree.
 const GROVE_GROUND_ROW = '_..-`,.  ~  .,_-`. , ~  .,-`_.    ,_-`  ';
+
+// Pass E of cowork ticket 0040: low grass / bracken tufts the player
+// walks through on their way to pick up the items. Sits between the
+// ground line and the item rows. Mixed `v`/`,`/`'`/`;`/`.` glyphs
+// suggest scattered grass + small foliage; gaps suggest worn paths.
+const GROVE_UNDERBRUSH_ROW = '. v . , . \' ; \' , . v .   . ; , .  v . ';
 const GROVE_ITEM_ROWS = [
     '   $    $        $         $   $       ',
     '       $    $        $        $    $   ',
@@ -2828,6 +2834,15 @@ function renderGrove() {
     groundRow.className = 'grove-row grove-ground-row';
     groundRow.appendChild(buildSpan(GROVE_GROUND_ROW, 'ground'));
     scene.appendChild(groundRow);
+
+    // Pass E of cowork ticket 0040 — underbrush row above the item
+    // rows. Low grass / bracken tufts the player walks through to
+    // reach the items. Rendered at 'midnear' so it's clearly closer
+    // than the distant scene but still atmospheric (not full near).
+    const underbrushRow = document.createElement('div');
+    underbrushRow.className = 'grove-row grove-underbrush-row';
+    underbrushRow.appendChild(buildSpan(GROVE_UNDERBRUSH_ROW, 'midnear'));
+    scene.appendChild(underbrushRow);
 
     // Item rows — placeholder $ characters become clickable buttons.
     GROVE_ITEM_ROWS.forEach((line) => {
