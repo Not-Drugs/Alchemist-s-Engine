@@ -1022,7 +1022,11 @@ section h2::after {
     width: 100%;
     max-width: 320px;
     margin: 8px auto 4px;
-    flex-shrink: 0;
+    /* Override .spawn-btn { flex: 1 } — inside the fullscreen quarry
+       modal (a flex-column), letting this button grow split the
+       vertical space with #quarry-scene and crushed the ASCII to a
+       tiny fontSize. Pin the button to its natural height instead. */
+    flex: 0 0 auto;
     align-self: center;
 }
 
