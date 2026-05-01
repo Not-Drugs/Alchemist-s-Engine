@@ -568,6 +568,21 @@ what the orchestrator is editing on `main`), use this pattern:
    in read-only preview mode by default; pass `--apply` only after the
    user confirms.
 
+   **Windows file-lock gotcha (2026-05-01).** On Windows, running
+   Claude Code processes hold open file handles inside their own
+   worktrees, so `git worktree remove --force` succeeds in
+   de-registering the worktree from git but fails to delete the
+   on-disk directory with `Permission denied`. The same lock blocks
+   `rm -rf` on the leftover dir. **Fix: reboot the computer** (or at
+   minimum kill every Claude Code process holding the worktree open),
+   then re-run cleanup — the locks release on logoff/restart and the
+   dirs delete cleanly. Also, the cleanup script only matches
+   `agent-*` worktrees; `claude/*` worktrees (created by other Claude
+   sessions, named like `competent-swartz-c37526`) need manual
+   `git worktree remove` per worktree, plus `git branch -D claude/<name>`
+   per branch. Check with `git worktree list` and `git branch | grep claude`
+   to enumerate.
+
 Why the discipline:
 - **Agents never bump APP_VERSION/CACHE.** Two agents bumping in
   parallel branches conflict on every merge. Orchestrator bumps once
