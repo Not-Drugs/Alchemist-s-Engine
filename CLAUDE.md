@@ -487,14 +487,21 @@ between stones and the satchel. Hidden until any ore has been mined
 ore yet; it's a visible counter only. Future recipe / smelter
 integration is a separate spec.
 
-**Scene composition.** Simpler than the grove: one mountain backdrop
-(15 rows, peak narrowing to a `|____|` cave mouth around row 11), a
-fog/dust transition row, a ground row, three item rows. Single
-full-width span per row (no left/center/right framing-tree split — the
-quarry doesn't need framing trees). Depth tinting reuses the grove's
-`.grove-cell.grove-{horizon|far|midfar|mid|midnear|near|sky|ground}`
-classes. `autofitQuarryScene()` and `autofitLocationScene()` are
-generalized helpers — same auto-fit math as the grove.
+**Scene composition (v2).** Single dominant mountain as the main set
+piece, with a small pair of distant peaks behind for atmospheric
+depth. ~30 scene rows: 3 sky → 4 distant-peak rows (rows 3-6, far →
+midfar) → 1 sky transition → 20 main-mountain rows (rows 8-27, mid
+→ near) with a 7-wide arched cave mouth (`,-----.` / `|     |` /
+`|_____|`) at rows 22-25 → 1 scree row. Then ground row + 3 item
+rows that contain two distinct foreground rock-mound silhouettes
+(6 chars wide × 3 rows tall, peaks aligned vertically) with the 8
+items (5 stones + 3 ore) scattered around them. Single full-width
+span per row (no left/center/right framing-tree split). Depth
+tinting reuses the grove's `.grove-cell.grove-{horizon|far|midfar
+|mid|midnear|near|sky|ground}` classes. `autofitQuarryScene()` and
+`autofitLocationScene()` are generalized helpers — same auto-fit
+math as the grove. `QUARRY_LAYOUT_V` migration resets respawn map
+so old saves see the new layout cleanly.
 
 **Building blocks** (in `game.js`): `_QUARRY_RAW_ROWS` →
 `QUARRY_SCENE_ROWS` (padded to 40c), `QUARRY_GROUND_ROW`,

@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v118';
+const APP_VERSION = 'v119';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3596,50 +3596,78 @@ function collectGroveItem(id) {
 // authoring stays sloppy-friendly. Depth classes match the grove's
 // CSS (.grove-* are reused via the .quarry-cell.grove-* class pair
 // applied at render time).
+// New composition (v2): single dominant mountain with arched cave mouth
+// as the visual focal point, plus two small distant peaks behind for
+// atmospheric depth. Mountain occupies rows 8-27 of a 30-row scene;
+// cave mouth at rows 22-25 (lower-middle, where the eye lands). Distant
+// peaks at rows 3-6 are tiny and faded so they never compete with the
+// main set piece. All rows pre-padded to 40 chars by QUARRY_SCENE_ROWS.
 const _QUARRY_RAW_ROWS = [
     ['', 'sky'],
     ['', 'sky'],
-    ['                /\\', 'far'],
-    ['               /  \\', 'far'],
-    ['              /    \\', 'midfar'],
-    ['             /  /\\  \\', 'midfar'],
-    ['            /  /  \\  \\', 'mid'],
-    ['           /  /    \\  \\', 'mid'],
-    ['          /  / .--. \\  \\', 'mid'],
-    ['         /  / |    | \\  \\', 'midnear'],
-    ['        /  /  |____|  \\  \\', 'midnear'],
-    ['       /  /            \\  \\', 'midnear'],
-    ['      / _/              \\_ \\', 'near'],
-    ['     /                      \\', 'near'],
-    ['____/                        \\_______', 'near'],
-    [' ~.,_  .;.,~  -.,_  .;.,~  -.,_ .;.,~ ', 'midnear']
+    ['', 'sky'],
+    // Distant peaks — pair of small silhouettes behind the main mountain
+    ['        /\\                  /\\        ', 'far'],
+    ['       /  \\                /  \\       ', 'far'],
+    ['      /    \\              /    \\      ', 'midfar'],
+    ['_____/      \\____________/      \\______', 'midfar'],
+    ['', 'sky'],
+    // Main mountain — peak at row 8, base at row 27
+    ['                   /\\                   ', 'mid'],
+    ['                  /  \\                  ', 'mid'],
+    ['                 /    \\                 ', 'mid'],
+    ['                /      \\                ', 'mid'],
+    ['               /        \\               ', 'mid'],
+    ['              /          \\              ', 'midnear'],
+    ['             /            \\             ', 'midnear'],
+    ['            /              \\            ', 'midnear'],
+    ['           /                \\           ', 'midnear'],
+    ['          /                  \\          ', 'midnear'],
+    ['         /                    \\         ', 'near'],
+    ['        /                      \\        ', 'near'],
+    ['       /                        \\       ', 'near'],
+    ['      /                          \\      ', 'near'],
+    // Cave mouth — arched stone entrance, 7 wide × 4 tall, centered
+    ['     /          ,-----.           \\     ', 'near'],
+    ['    /           |     |            \\    ', 'near'],
+    ['   /            |     |             \\   ', 'near'],
+    ['  /             |_____|              \\  ', 'near'],
+    [' /                                    \\ ', 'near'],
+    ['/                                      \\', 'near'],
+    // Scree / rubble transition into the foreground rock band
+    ['~,_.,~`-.,_,~`-.,_,~`-.,_,~`-.,_,~`-.,_,', 'near']
 ];
 const QUARRY_SCENE_ROWS = _QUARRY_RAW_ROWS.map(([row, cls]) => ({
     row: row.padEnd(40, ' '),
     cls
 }));
 
-// Foreground rock-pile band — items embed within these rows. Stones
-// and ore nodes sit nestled in stylized rock debris.
-const QUARRY_GROUND_ROW = '_,~,. ,_-`._,. ~,_.. -`,_, ~,. ., -._, ';
+// Heavier rubble texture for the ground line — more rocky than the
+// grove's grass tufts. Mixed underscores, dots, tildes, commas, and
+// dashes break up the rhythm so it reads as scattered scree rather
+// than a fence rail.
+const QUARRY_GROUND_ROW = '_..,~`-._.,~`-,. ,_-`. ,~`-,_..,~`-._.,~';
+// Foreground rock-pile band — two distinct mound silhouettes sitting in
+// the foreground, 6 chars wide × 3 rows tall each. Mound 1 is centered
+// on cols 7-8 (peak), mound 2 on cols 25-26. 8 item placeholders (5
+// stones + 3 ore) scatter around them — left of mound 1, between the
+// mounds, and right of mound 2.
 const QUARRY_ITEM_ROWS = [
-    '   $        ,_/\\,    $       ,/^\\,    ',
-    '       $          $          $         ',
-    '   $          $                 $      '
+    '  $     /\\        $      /\\     $       ',
+    '       /  \\   $         /  \\        $   ',
+    '  $   /____\\     $     /____\\    $      '
 ];
 // One entry per `$` placeholder, in left-to-right top-to-bottom order.
-// 8 placeholders total (rows 2/3/3) → 5 stones + 3 ore nodes. Sparse
-// enough that the rock-pile band still reads as foreground; dense
-// enough that a single visit nets a useful haul.
+// 8 placeholders total (3/2/3 across rows) → 5 stones + 3 ore nodes.
 const QUARRY_ITEMS = [
-    { type: 'stone' },   // row 1, $1
-    { type: 'ore' },     // row 1, $2
-    { type: 'stone' },   // row 2, $1
-    { type: 'ore' },     // row 2, $2
-    { type: 'stone' },   // row 2, $3
-    { type: 'stone' },   // row 3, $1
-    { type: 'ore' },     // row 3, $2
-    { type: 'stone' }    // row 3, $3
+    { type: 'stone' },   // row 1, $1 (left of mound 1)
+    { type: 'stone' },   // row 1, $2 (between mounds)
+    { type: 'ore' },     // row 1, $3 (right of mound 2)
+    { type: 'stone' },   // row 2, $1 (between mounds, mid)
+    { type: 'ore' },     // row 2, $2 (right of mound 2, mid)
+    { type: 'stone' },   // row 3, $1 (left of mound 1, base)
+    { type: 'stone' },   // row 3, $2 (between mounds, base)
+    { type: 'ore' }      // row 3, $3 (right of mound 2, base)
 ];
 
 function renderQuarry() {
@@ -5708,6 +5736,13 @@ function loadGame() {
             }
             if (typeof game.locations.quarry.respawnAt !== 'object' || game.locations.quarry.respawnAt === null) {
                 game.locations.quarry.respawnAt = {};
+            }
+            // Bump QUARRY_LAYOUT_V whenever QUARRY_ITEM_ROWS / QUARRY_ITEMS
+            // change shape — same migration pattern as the grove's bump.
+            const QUARRY_LAYOUT_V = 2;
+            if ((game.locations.quarry.layoutV || 1) < QUARRY_LAYOUT_V) {
+                game.locations.quarry.respawnAt = {};
+                game.locations.quarry.layoutV = QUARRY_LAYOUT_V;
             }
 
             // Migration: golems used to track a single `active` count
