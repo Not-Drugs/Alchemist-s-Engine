@@ -244,6 +244,14 @@ to look at:
 - **Ingredients never auto-merge.** Both `handleDrop` and
   `dispatchTouchDropOnGrid` guard with `draggedItem.type !== 'ingredient'`
   — without it, two ingredients combine to a tier-undefined cell.
+- **Don't mutate an HTML5 drag source's children mid-drag.** Chrome
+  desktop cancels the drag the instant `furnaceAscii.textContent = …`
+  rewrites children, and the 10Hz game loop reaches that branch within
+  100ms of `dragstart`. `updateUI()` skips the engine animation rebuild
+  while `.engine-dragging` is on the element; `handleEngineDragEnd`
+  removes the class so the next tick repaints. Touch isn't affected
+  (its ghost is a separate element), but the same skip is applied for
+  consistency.
 
 ### Heat Decay (idle)
 

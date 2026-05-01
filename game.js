@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v109';
+const APP_VERSION = 'v110';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -4733,8 +4733,20 @@ function updateUI() {
         furnaceAscii.classList.toggle('cold', cold);
         furnaceAscii.classList.toggle('roaring', temp >= 400);
 
+        // Skip the textContent rebuild while a drag is in flight. Chrome
+        // (desktop) cancels an HTML5 drag the instant its source element's
+        // children are mutated, and the 10Hz game loop reaches this branch
+        // ~100ms after dragstart — before the user can move the mouse to a
+        // grid cell. The dragend handler removes `.engine-dragging`, after
+        // which the next tick repaints the animation. Touch (mobile) uses
+        // its own ghost element so it isn't affected, but we honor the
+        // same skip for consistency. (See cowork ticket: PC engine drag.)
+        const dragInFlight = furnaceAscii.classList.contains('engine-dragging');
+
         const t = Math.floor(Date.now() / 180);
-        if (burning && temp >= 400) {
+        if (dragInFlight) {
+            // leave current frame in place — don't touch textContent or children
+        } else if (burning && temp >= 400) {
             // Roaring inferno
             const a = ['*^*^*', '^*^*^', '*^^*^', '^*^^*'][t % 4];
             const b = ['^^^^^', '*^*^*', '^*^*^', '^^*^^'][t % 4];
