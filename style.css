@@ -2322,29 +2322,57 @@ button.revealing { display: inline-block; }
     text-align: left;
 }
 
-/* Golem status line — sits inside #stick-controls. Hidden until the
-   player has crafted at least one Stick Golem. Read-only — deploy
-   and recall live in the Key Items modal. */
-.golem-status {
+/* Golem assignment row — sits inside #stick-controls (and future
+   resource workstations) next to the manual gather button. Hidden
+   until the player has crafted at least one Stick Golem. The
+   [-]/[+] buttons assign or recall a golem to that station's job. */
+.golem-assign-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
     font-size: 0.85rem;
     color: var(--text-primary);
     letter-spacing: 1px;
     margin-top: 2px;
 }
-.golem-status.reveal-hidden { display: none; }
-.golem-status .golem-glyph { color: var(--accent-essence); }
-.golem-status .golem-status-hint {
+.golem-assign-row.reveal-hidden { display: none; }
+.golem-assign-row .golem-glyph { color: var(--accent-essence); }
+.golem-assign-row .golem-assign-count {
+    min-width: 4ch;
+    text-align: center;
+    color: var(--text-bright);
+}
+.golem-assign-row .golem-assign-hint {
     color: var(--text-dim);
     font-size: 0.78rem;
     font-style: italic;
     margin-left: 2px;
 }
+.golem-assign-btn {
+    background: transparent;
+    border: 1px solid var(--text-dim);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 2px 8px;
+    cursor: pointer;
+    min-width: 32px;
+    min-height: 32px;
+}
+.golem-assign-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+@media (hover: hover) {
+    .golem-assign-btn:hover:not(:disabled) {
+        border-color: var(--accent-essence);
+        color: var(--accent-essence);
+    }
+}
 
-/* Key Items modal — golem tile gets a deploy/recall control row
-   beneath the icon. */
+/* Key Items modal — golem tile is a passive status display now;
+   assignment lives at workstations. */
 .key-item-tile.golem-tile {
     display: flex;
     flex-direction: column;
@@ -2358,32 +2386,6 @@ button.revealing { display: inline-block; }
     font-weight: bold;
     color: var(--accent-essence);
     font-size: 1.2rem;
-}
-.golem-controls {
-    display: flex;
-    gap: 4px;
-    margin-top: 2px;
-}
-.golem-controls button {
-    background: transparent;
-    border: 1px solid var(--text-dim);
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: 0.8rem;
-    padding: 2px 6px;
-    cursor: pointer;
-    min-width: 28px;
-    min-height: 28px;
-}
-.golem-controls button:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-}
-@media (hover: hover) {
-    .golem-controls button:hover:not(:disabled) {
-        border-color: var(--accent-essence);
-        color: var(--accent-essence);
-    }
 }
 
 #gather-stick-btn,

@@ -171,22 +171,35 @@ logs. `startLogGather` / `cancelLogGather` mirror the stick-gather pattern
 with a warm-amber `.log-btn-fill`. `cancelLogGather(false)` is called in
 `onPageHide` alongside `cancelStickGather(false)`.
 
-**Functional golems (`game.golems.active`).** Stick Golems are deployable
-workers — each performs one action every `GOLEM_ACTION_MS` (5s), costing
+**Functional golems (`game.golems.assignments`).** Stick Golems are
+explicitly assigned to a resource workstation. Each assigned golem
+performs one action every `GOLEM_ACTION_MS` (5s), costing
 `GOLEM_HEAT_COST` (1 heat):
 
-- If `inventory.sticks > 0` and furnace has room → **feed** (–1 stick,
-  +`STICK_FUEL_VALUE` fuel, +1 `kindlingAdded`)
-- Else → **gather** (+1 stick, +1 `sticksGathered`)
-- If `resources.heat < GOLEM_HEAT_COST` → idle silently; status shows
-  "no heat — paused"
+- `sticks` job → **gather** (+1 stick, +1 `sticksGathered`). Stick
+  Golems do not feed the engine — feeding stays a player action until
+  a future automation upgrade ships.
+- If `resources.heat < GOLEM_HEAT_COST` → idle silently; row hint shows
+  "no heat — paused".
 
+`game.golems.assignments` is a `{ jobKey: count }` map. The only job
+today is `sticks`; future variants (logs, stones) will add their own
+keys without a schema change. Cap is enforced globally:
+`sum(assignments) ≤ min(getGolemMaxActive(), countGolemsInBag())`.
 `getGolemMaxActive()` returns 1 by default, 2 once
-`GOLEM_LEVEL2_UPGRADE_ID` (`'efficiency3'`, Arcane Vents at 1000 heat) is
-purchased. Cap also respects `countGolemsInBag()`. Deploy/Recall live in
-the Key Items modal as a grouped `Nx (active/max)` tile with `[+]`/`[-]`.
-Per-golem `_golemAccums` and `_golemLastActions` are module-level transients
-rebuilt by `ensureGolemTransient()` — only the active count persists.
+`GOLEM_LEVEL2_UPGRADE_ID` (`'efficiency3'`, Arcane Vents at 1000 heat).
+
+UI: a `[G] Gatherers: [-] N / max [+]` row sits inside `#stick-controls`
+right next to the manual `[Gather Stick]` button — assignment is
+contextual to the workstation, not centralized in the bag. The Key
+Items modal renders a passive count tile only ("Assign at workstations").
+`_golemAccums` / `_golemLastActions` are module-level transients
+keyed by job (`{ sticks: [ms,...] }`) rebuilt by
+`ensureGolemTransient()` — only the assignment counts persist.
+
+Migration on load: any legacy `game.golems.active` (single-count
+auto-decide model) is rolled into `game.golems.assignments.sticks`,
+then deleted from save.
 
 **Save state.** New top-level fields: `game.inventory`, `game.satchel`,
 `game.keyItems`, `game.flags.discoveredRecipes`,

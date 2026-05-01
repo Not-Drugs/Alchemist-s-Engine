@@ -11,6 +11,41 @@ When a backlog item is ready to ship, file it as a fresh ticket in
 
 ---
 
+## Split `game.js` into focused modules (token efficiency)
+
+**Concept (Nicholas, 2026-05-01):** `game.js` is ~5000 lines and gets
+re-read in fragments by every Claude session. Splitting into focused
+files (candidates: `golems.js`, `grove.js`, `crafting.js`, `save.js`,
+`ui.js`, plus a slim `game.js` core) would let future sessions Read
+just the relevant slice instead of paging through the whole file.
+
+No build step needed — vanilla `<script>` tags in dependency order
+work fine. Biggest single token-efficiency win available, but
+invasive: bump `CACHE` shell list, every cross-module reference
+becomes a global, and the migration commit will be huge. Plan as
+its own ticket when ready; do not bundle with feature work.
+
+Secondary cuts to consider in the same pass: `.claudeignore` at
+repo root for `_research/` and shipped `docs/superpowers/plans/*`,
+and archive the crafting plan (1300+ lines) under
+`docs/superpowers/archive/` once it's no longer load-bearing.
+
+---
+
+## Stronger golem variants for log + stone gathering
+
+**Concept (Nicholas, 2026-05-01):** The Stick Golem only gathers
+sticks. To unlock log-chopping (axe-tier) and stone-quarrying
+(quarry-tier) the player crafts more powerful golem variants —
+each with its own recipe, key-item type, and assignment job. The
+infrastructure is already in place: `game.golems.assignments` is a
+`{ jobKey: count }` map and `processGolems` iterates `GOLEM_JOBS`,
+so adding a `logs` or `stones` job is a small extension once the
+new craftable golem types exist. Recipes and gating TBD; likely
+require the Wooden Axe / first quarry visit as prerequisites.
+
+---
+
 ## Grove: litter rows in the forest-floor zone (was pass D of ticket-0040)
 
 **Idea (Nicholas, 2026-04-30, after testing v96):**

@@ -48,6 +48,13 @@ const RECIPES = [
         // Only craftable once — having an axe in the bag is enough.
         canCraft: () => !(game.keyItems || []).some(ki => ki.type === 'axe'),
     },
+    {
+        id: 'pickaxe',
+        name: 'Pickaxe',
+        output: { type: 'pickaxe' },
+        pattern: { shape: 'pickaxe' },
+        canCraft: () => !(game.keyItems || []).some(ki => ki.type === 'pickaxe'),
+    },
 ];
 
 function matchesSpec(cell, spec) {
@@ -100,6 +107,32 @@ function matchAxe(grid) {
     return null;
 }
 
+// Pickaxe pattern: 3 stones across the top, 2 sticks vertically below
+// the center stone (Minecraft-style head + handle).
+//   () () ()    ← three stones in a row
+//      /        ← stick under the center stone
+//      /        ← second stick (handle)
+function matchPickaxe(grid) {
+    const stick = { type: 'ingredient', kind: 'stick' };
+    const stone = { type: 'ingredient', kind: 'stone' };
+    for (let r = 0; r <= GRID_H - 3; r++) {
+        for (let x = 0; x <= GRID_W - 3; x++) {
+            const s1 = r * GRID_W + x;
+            const s2 = r * GRID_W + x + 1;
+            const s3 = r * GRID_W + x + 2;
+            const h1 = (r + 1) * GRID_W + x + 1;
+            const h2 = (r + 2) * GRID_W + x + 1;
+            if (!matchesSpec(grid[s1], stone)) continue;
+            if (!matchesSpec(grid[s2], stone)) continue;
+            if (!matchesSpec(grid[s3], stone)) continue;
+            if (!matchesSpec(grid[h1], stick)) continue;
+            if (!matchesSpec(grid[h2], stick)) continue;
+            return [s1, s2, s3, h1, h2];
+        }
+    }
+    return null;
+}
+
 function findRecipeMatch(grid) {
     for (const recipe of RECIPES) {
         if (recipe.canCraft && !recipe.canCraft()) continue;
@@ -108,6 +141,8 @@ function findRecipeMatch(grid) {
             cells = matchPlus(grid, recipe.pattern.center, recipe.pattern.arms);
         } else if (recipe.pattern.shape === 'axe') {
             cells = matchAxe(grid);
+        } else if (recipe.pattern.shape === 'pickaxe') {
+            cells = matchPickaxe(grid);
         }
         if (cells) return { recipe, cells };
     }
@@ -123,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v105';
+const APP_VERSION = 'v106';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -339,6 +374,24 @@ const REVEAL_STAGES = [
     { id: 'logControls', cond: g => (g.keyItems || []).some(ki => ki.type === 'axe'),
         narrate: 'The axe is sharp. Timber burns long. Seek out heavier fuel.',
         targets: ['#log-controls'] },
+    // Quarry node unlock — fires once enough logs have been gathered
+    // to chop through the dense forest separating the engine from
+    // the quarry. Test value lives at QUARRY_LOG_GATE; a backlog
+    // entry tracks bumping it to 5 before public launch.
+    { id: 'quarryUnlock', cond: g => (g.stats?.logsGathered || 0) >= QUARRY_LOG_GATE,
+        narrate: 'The forest thins. Beyond, jagged stone — an old quarry, half-swallowed by moss.',
+        targets: ['#quarry-enter'] },
+    // Pickaxe recipe hint — fires once the player has the materials
+    // (3 stones + 2 sticks) on hand AND no pickaxe yet. One-shot
+    // teaching beat to surface the recipe shape.
+    { id: 'pickaxeRecipeHint',
+        cond: g => !g.flags?.pickaxeRecipeTaught
+                && (g.inventory?.stones || 0) >= 3
+                && (g.inventory?.sticks || 0) >= 2
+                && !(g.keyItems || []).some(ki => ki.type === 'pickaxe'),
+        narrate: 'Three stones in a row, two sticks below — the shape of a pickaxe.',
+        targets: ['#recipes-panel'],
+        onReveal: () => { game.flags.pickaxeRecipeTaught = true; } },
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] }
 ];
 
@@ -355,7 +408,8 @@ const defaultGame = {
     inventory: {
         sticks: 0,
         stones: 0,
-        logs: 0
+        logs: 0,
+        ironOre: 0
     },
     satchel: [],          // [{type:'fuel'|'ore', tier:1..N, count:1+}, ...] — soft cap 8 stacks
     keyItems: [],         // [{type:'golem', id:'<uuid>'}, ...] — soft cap 8 items
@@ -412,6 +466,8 @@ const defaultGame = {
         playTime: 0,
         kindlingAdded: 0,
         sticksGathered: 0,
+        logsGathered: 0,
+        ironOreMined: 0,
         peakHeat: 0,
         firstEngineSpark: false
     },
@@ -419,13 +475,21 @@ const defaultGame = {
     prestigeCount: 0,
     introSeen: false,
     locations: {
-        grove: { collected: [], layoutV: 2 }
+        // Per-location respawn state. `respawnAt` is a map of itemId
+        // (numeric index into the location's *_ITEMS array) → epoch ms
+        // when that item respawns. Items not present in the map are
+        // available; items with respawnAt <= Date.now() also count as
+        // available (the modal-open tick clears expired entries).
+        grove:  { respawnAt: {}, layoutV: 4 },
+        quarry: { respawnAt: {}, layoutV: 1 }
     },
-    // Stick Golems — once crafted, can be deployed (count tracked here)
-    // to auto-gather sticks and feed them to the engine. Max active is
-    // derived from furnace level (see GOLEM_MAX_ACTIVE_*).
+    // Stick Golems — once crafted, can be assigned to a gathering job
+    // at a specific resource station. Each assignment counter holds the
+    // number of golems working that job. Sum across jobs ≤
+    // min(getGolemMaxActive(), countGolemsInBag()). Future jobs (logs,
+    // stones) slot in as new keys here once their golem variants exist.
     golems: {
-        active: 0
+        assignments: { sticks: 0 }
     },
     lastUpdate: Date.now()
 };
@@ -2017,7 +2081,7 @@ function gameLoop() {
     // Automation
     processAutomation(delta);
 
-    // Golem actions (auto-gather / auto-feed; each tick costs 1 heat)
+    // Golem actions (per assignment; each tick costs 1 heat)
     processGolems(delta);
 
     // Phase 1 progress: peakHeat is monotonic, the soot stages key off it
@@ -2854,11 +2918,53 @@ const GROVE_ITEMS = [
     { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }
 ];
 
+// Shared respawn helpers — work for any location whose state has a
+// `respawnAt` map of itemId → epoch ms.
+//
+// An item is "available" (visible, clickable) when:
+//   - its id is NOT a key in respawnAt, OR
+//   - its respawnAt timestamp is in the past.
+// `respawnAt` keys are stored as strings (JSON map keys) so callers
+// must coerce ids to strings when looking up.
+function isItemAvailable(locState, id) {
+    if (!locState || !locState.respawnAt) return true;
+    const at = locState.respawnAt[String(id)];
+    if (typeof at !== 'number') return true;   // never collected
+    return at <= Date.now();
+}
+
+// Set an item's respawn timestamp on collect — base + per-item RNG so
+// items don't all reappear together.
+function markItemCollected(locState, id) {
+    if (!locState.respawnAt) locState.respawnAt = {};
+    const jitter = RESPAWN_MS_BASE * (0.5 + Math.random());
+    locState.respawnAt[String(id)] = Date.now() + jitter;
+}
+
+// Clear expired respawn entries so the map doesn't grow unbounded over
+// time. Cheap — just a few keys per location. Called from the modal's
+// open + slow-tick paths.
+function tickRespawns(locState) {
+    if (!locState || !locState.respawnAt) return;
+    const now = Date.now();
+    for (const k of Object.keys(locState.respawnAt)) {
+        if (locState.respawnAt[k] <= now) delete locState.respawnAt[k];
+    }
+}
+
 function ensureGroveState() {
     if (!game.locations) game.locations = JSON.parse(JSON.stringify(defaultGame.locations));
-    if (!game.locations.grove) game.locations.grove = { collected: [] };
-    if (!Array.isArray(game.locations.grove.collected)) {
-        game.locations.grove.collected = [];
+    if (!game.locations.grove) game.locations.grove = { respawnAt: {}, layoutV: 4 };
+    if (typeof game.locations.grove.respawnAt !== 'object' || game.locations.grove.respawnAt === null) {
+        game.locations.grove.respawnAt = {};
+    }
+}
+
+function ensureQuarryState() {
+    if (!game.locations) game.locations = JSON.parse(JSON.stringify(defaultGame.locations));
+    if (!game.locations.quarry) game.locations.quarry = { respawnAt: {}, layoutV: 1 };
+    if (typeof game.locations.quarry.respawnAt !== 'object' || game.locations.quarry.respawnAt === null) {
+        game.locations.quarry.respawnAt = {};
     }
 }
 
@@ -2866,16 +2972,17 @@ function renderGrove() {
     const scene = document.getElementById('grove-scene');
     if (!scene) return;
     ensureGroveState();
+    tickRespawns(game.locations.grove);
     scene.textContent = '';
 
-    const collected = game.locations.grove.collected;
+    const groveState = game.locations.grove;
     let itemIdx = 0;
 
     // Helper: build a clickable item button (or a blank space if
-    // already picked) for a single $ placeholder.
+    // currently respawning) for a single $ placeholder.
     function makeItemNode() {
         const id = itemIdx++;
-        if (collected.includes(id)) return document.createTextNode(' ');
+        if (!isItemAvailable(groveState, id)) return document.createTextNode(' ');
         const item = GROVE_ITEMS[id];
         if (!item) return document.createTextNode(' ');
         const btn = document.createElement('button');
@@ -2971,7 +3078,7 @@ function renderGrove() {
     // rows into a single "the grove is empty for now" line that's a
     // proper .grove-row — that way the auto-fit pass counts it and
     // it doesn't overflow into the grove-found UI below.
-    const allCollected = collected.length >= GROVE_ITEMS.length;
+    const allCollected = GROVE_ITEMS.every((_, i) => !isItemAvailable(groveState, i));
     if (allCollected) {
         // Spacer-empty-spacer triple so the message lands at row 2
         // of 3 — visually centered where the 3 item rows used to sit.
@@ -3023,43 +3130,41 @@ function renderGrove() {
 //
 // Runs from renderGrove (after each render) and from a window
 // resize listener wired up in setupGroveAutofit.
-function autofitGroveScene() {
-    const modal = document.getElementById('grove-modal');
-    // Don't try to measure a hidden modal — clientHeight will be 0.
+function autofitGroveScene() { autofitLocationScene('grove-modal', 'grove-scene', '.grove-row'); }
+function autofitQuarryScene() { autofitLocationScene('quarry-modal', 'quarry-scene', '.quarry-row'); }
+
+// Shared autofit — measure the actual rendered container, compute the
+// exact font-size that packs every row. Beats the CSS clamp() formula
+// because it measures actual container size — accounts for browser
+// chrome, dynamic safe-area, the flex layout, fonts that aren't pure
+// 1.0 line-height, etc.
+function autofitLocationScene(modalId, sceneId, rowSel) {
+    const modal = document.getElementById(modalId);
     if (!modal || modal.classList.contains('hidden')) return;
-    const scene = document.getElementById('grove-scene');
+    const scene = document.getElementById(sceneId);
     if (!scene) return;
-    const rows = scene.querySelectorAll('.grove-row');
+    const rows = scene.querySelectorAll(rowSel);
     if (!rows.length) return;
 
     const containerH = scene.clientHeight;
     const containerW = scene.clientWidth;
     if (containerH <= 0 || containerW <= 0) return;
 
-    // Each row's height ≈ font-size × line-height (1.0). Pack rows.length
-    // rows into containerH with a 4px slack so the last row doesn't kiss
-    // the bottom border.
     const heightBound = (containerH - 4) / rows.length;
-    // Each row is 40 chars wide. IBM Plex Mono's char-to-em ratio is
-    // ~0.6 — to fit 40 chars in containerW: font ≤ containerW / 24.
-    // Add 2px slack to dodge sub-pixel rounding at edges.
     const widthBound  = (containerW - 2) / 24;
-
-    // Pick the more restrictive bound, clamp to legibility range.
     let fontSize = Math.min(heightBound, widthBound);
     fontSize = Math.max(6, Math.min(24, fontSize));
-
     rows.forEach(r => { r.style.fontSize = fontSize + 'px'; });
 }
 
 function collectGroveItem(id) {
     ensureGroveState();
-    const collected = game.locations.grove.collected;
-    if (collected.includes(id)) return;
+    const groveState = game.locations.grove;
+    if (!isItemAvailable(groveState, id)) return;
     const item = GROVE_ITEMS[id];
     if (!item) return;
 
-    collected.push(id);
+    markItemCollected(groveState, id);
     if (item.type === 'stick') {
         game.inventory.sticks = (game.inventory.sticks || 0) + 1;
         game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
@@ -3188,6 +3293,12 @@ function recipePatternCell(recipe, dx, dy) {
         if (dx === 1 && dy === 0) return { type: 'ingredient', kind: 'stone' };
         return null;
     }
+    if (recipe.pattern.shape === 'pickaxe') {
+        // Row 0: 3 stones across. Row 1+2 col 1: stick handle.
+        if (dy === 0) return { type: 'ingredient', kind: 'stone' };
+        if (dx === 1 && (dy === 1 || dy === 2)) return { type: 'ingredient', kind: 'stick' };
+        return null;
+    }
     return null;
 }
 
@@ -3256,31 +3367,20 @@ function renderKeyItemsModal() {
         tile.appendChild(glyph);
         const label = document.createElement('span');
         label.style.fontSize = '0.75rem';
-        const active = (game.golems && game.golems.active) || 0;
+        const assigned = totalAssignedGolems();
         const max = Math.min(getGolemMaxActive(), golemCount);
-        label.textContent = `${golemCount}× (${active}/${max})`;
+        label.textContent = `${golemCount}× (${assigned}/${max})`;
         tile.appendChild(label);
 
-        const ctrls = document.createElement('div');
-        ctrls.className = 'golem-controls';
-        const deployBtn = document.createElement('button');
-        deployBtn.type = 'button';
-        deployBtn.textContent = '[+]';
-        deployBtn.title = 'Deploy a golem';
-        deployBtn.disabled = active >= max;
-        deployBtn.addEventListener('click', deployGolem);
-        const recallBtn = document.createElement('button');
-        recallBtn.type = 'button';
-        recallBtn.textContent = '[-]';
-        recallBtn.title = 'Recall a golem';
-        recallBtn.disabled = active <= 0;
-        recallBtn.addEventListener('click', recallGolem);
-        ctrls.appendChild(deployBtn);
-        ctrls.appendChild(recallBtn);
-        tile.appendChild(ctrls);
+        const hint = document.createElement('span');
+        hint.style.fontSize = '0.7rem';
+        hint.style.color = 'var(--text-dim)';
+        hint.style.fontStyle = 'italic';
+        hint.textContent = 'Assign at workstations';
+        tile.appendChild(hint);
 
         tile.setAttribute('aria-label',
-            `Stick Golems: ${golemCount} crafted, ${active} of ${max} active`);
+            `Stick Golems: ${golemCount} crafted, ${assigned} of ${max} assigned`);
         listEl.appendChild(tile);
     }
 
@@ -3732,13 +3832,25 @@ const STICK_FUEL_VALUE = 3;  // each stick  = 3 fuel  = ~3s of burn
 const LOG_GATHER_MS   = 60000;
 const LOG_FUEL_VALUE  = 60;  // each log = 60 fuel = ~60s of burn
 
-// Golem constants — once deployed, each active golem performs one
-// action every GOLEM_ACTION_MS. An action costs 1 heat. If sticks are
-// available and the furnace has room, the golem feeds one stick (–1
-// stick, +STICK_FUEL_VALUE fuel). Otherwise it gathers (+1 stick).
-// Max active is gated by furnace level: pre-Arcane-Vents the furnace
-// is "Level 1" and supports 1 golem; post-purchase it's Level 2 and
-// supports 2 golems.
+// Quarry mining — pickaxe required, 30s per ore node, +1 ironOre on
+// completion. Mirrors log gathering's progress-bar pattern.
+const MINE_ORE_MS = 30000;
+
+// Logs gathered before the dense forest opens onto the quarry. Set
+// low while iterating — BACKLOG: bump from 1 → 5 before public launch.
+const QUARRY_LOG_GATE = 1;
+
+// Per-item respawn base for harvestable locations (grove + quarry).
+// On collect, an item's respawnAt is set to:
+//   Date.now() + RESPAWN_MS_BASE * (0.5 + Math.random())
+// → 1–3 minute spread per item, naturally staggered so the location
+// doesn't refill in lockstep.
+const RESPAWN_MS_BASE = 2 * 60 * 1000;
+
+// Golem constants — each assigned golem performs its station's action
+// every GOLEM_ACTION_MS, costing 1 heat per tick. Stick Golems gather
+// sticks; future variants will gather logs/stones. Max assignable is
+// gated by furnace level: pre-Arcane-Vents 1 slot; post-purchase 2.
 const GOLEM_ACTION_MS  = 5000;
 const GOLEM_HEAT_COST  = 1;
 const GOLEM_MAX_LEVEL1 = 1;
@@ -3935,93 +4047,111 @@ function feedLog() {
 // GOLEM AUTOMATION (per-tick action loop)
 // ============================================
 //
-// Each active golem accumulates real-time delta against GOLEM_ACTION_MS.
-// On overflow, it performs one action: -1 heat (skip + toast-free if
-// heat insufficient), then either feed a held stick to the furnace or
-// gather a new stick. The transient accumulators are NOT persisted —
-// only `game.golems.active` is. Idle accumulators reset on load.
-let _golemAccums = [];        // ms accumulators per active golem index
-let _golemLastActions = [];   // last action label for the status line
+// Each assigned golem accumulates real-time delta against GOLEM_ACTION_MS.
+// On overflow it performs the job for its station: -1 heat (skipped if
+// heat insufficient), then the resource action (sticks → +1 stick).
+// Transient accumulators are NOT persisted — only the assignment counts
+// are. Idle accumulators reset on load.
+//
+// _golemAccums shape: { sticks: [ms, ms, ...], ... } — one slot per
+// assigned golem per job key. _golemLastActions mirrors the shape.
+let _golemAccums = { sticks: [] };
+let _golemLastActions = { sticks: [] };
 
-function ensureGolemTransient() {
-    const active = (game.golems && game.golems.active) || 0;
-    if (_golemAccums.length !== active) {
-        _golemAccums = new Array(active).fill(0);
-        _golemLastActions = new Array(active).fill('idle');
+const GOLEM_JOBS = ['sticks'];
+
+function getGolemAssignments() {
+    if (!game.golems) game.golems = { assignments: { sticks: 0 } };
+    if (!game.golems.assignments) game.golems.assignments = { sticks: 0 };
+    for (const job of GOLEM_JOBS) {
+        if (typeof game.golems.assignments[job] !== 'number'
+            || !Number.isFinite(game.golems.assignments[job])
+            || game.golems.assignments[job] < 0) {
+            game.golems.assignments[job] = 0;
+        }
     }
+    return game.golems.assignments;
 }
 
-function processGolems(delta) {
-    if (!game.golems) return;
-    const active = game.golems.active || 0;
-    if (active <= 0) return;
-    ensureGolemTransient();
+function totalAssignedGolems() {
+    const a = getGolemAssignments();
+    let n = 0;
+    for (const job of GOLEM_JOBS) n += a[job] || 0;
+    return n;
+}
 
-    const stepMs = delta * 1000;
-    for (let i = 0; i < active; i++) {
-        _golemAccums[i] += stepMs;
-        // Drain whole actions while the accumulator exceeds the interval.
-        while (_golemAccums[i] >= GOLEM_ACTION_MS) {
-            _golemAccums[i] -= GOLEM_ACTION_MS;
-            performGolemAction(i);
+function ensureGolemTransient() {
+    const a = getGolemAssignments();
+    for (const job of GOLEM_JOBS) {
+        const want = a[job] || 0;
+        if (!_golemAccums[job]) _golemAccums[job] = [];
+        if (!_golemLastActions[job]) _golemLastActions[job] = [];
+        if (_golemAccums[job].length !== want) {
+            _golemAccums[job] = new Array(want).fill(0);
+            _golemLastActions[job] = new Array(want).fill('idle');
         }
     }
 }
 
-function performGolemAction(i) {
-    if (game.resources.heat < GOLEM_HEAT_COST) {
-        _golemLastActions[i] = 'no heat';
-        return;
-    }
-    const sticks = game.inventory.sticks || 0;
-    const room   = game.furnace.fuel < game.bonuses.furnaceCapacity;
-    if (sticks > 0 && room) {
-        // Feed a stick to the furnace.
-        game.resources.heat -= GOLEM_HEAT_COST;
-        game.inventory.sticks -= 1;
-        const added = Math.min(STICK_FUEL_VALUE,
-            game.bonuses.furnaceCapacity - game.furnace.fuel);
-        game.furnace.fuel += added;
-        game.stats.kindlingAdded++;
-        _golemLastActions[i] = 'fed';
-    } else {
-        // Gather a stick (free from the wider grove).
-        game.resources.heat -= GOLEM_HEAT_COST;
-        game.inventory.sticks = (game.inventory.sticks || 0) + 1;
-        game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
-        _golemLastActions[i] = 'gathered';
+function processGolems(delta) {
+    const a = getGolemAssignments();
+    if (totalAssignedGolems() <= 0) return;
+    ensureGolemTransient();
+
+    const stepMs = delta * 1000;
+    for (const job of GOLEM_JOBS) {
+        const count = a[job] || 0;
+        for (let i = 0; i < count; i++) {
+            _golemAccums[job][i] += stepMs;
+            while (_golemAccums[job][i] >= GOLEM_ACTION_MS) {
+                _golemAccums[job][i] -= GOLEM_ACTION_MS;
+                performGolemAction(job, i);
+            }
+        }
     }
 }
 
-function deployGolem() {
-    if (!game.golems) game.golems = { active: 0 };
+function performGolemAction(job, i) {
+    if (game.resources.heat < GOLEM_HEAT_COST) {
+        _golemLastActions[job][i] = 'no heat';
+        return;
+    }
+    if (job === 'sticks') {
+        game.resources.heat -= GOLEM_HEAT_COST;
+        game.inventory.sticks = (game.inventory.sticks || 0) + 1;
+        game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
+        _golemLastActions[job][i] = 'gathered';
+    }
+}
+
+function assignGolem(job) {
+    const a = getGolemAssignments();
     const total = countGolemsInBag();
-    const max   = Math.min(getGolemMaxActive(), total);
-    if (game.golems.active >= max) {
+    const max = Math.min(getGolemMaxActive(), total);
+    const used = totalAssignedGolems();
+    if (used >= max) {
         if (max === 0) {
             showToast('No golems crafted.', 'error');
-        } else if (total <= game.golems.active) {
-            showToast('All golems already deployed.', 'error');
+        } else if (total <= used) {
+            showToast('All golems already assigned.', 'error');
         } else {
             showToast(`Furnace supports only ${max} active golem(s).`, 'error');
         }
         return;
     }
-    game.golems.active += 1;
-    _golemAccums.push(0);
-    _golemLastActions.push('idle');
+    a[job] = (a[job] || 0) + 1;
+    ensureGolemTransient();
     sfx('reveal');
-    showToast('Golem dispatched.', 'success');
+    showToast('Golem assigned.', 'success');
     updateUI();
     saveGame();
 }
 
-function recallGolem() {
-    if (!game.golems) return;
-    if (game.golems.active <= 0) return;
-    game.golems.active -= 1;
-    _golemAccums.pop();
-    _golemLastActions.pop();
+function unassignGolem(job) {
+    const a = getGolemAssignments();
+    if ((a[job] || 0) <= 0) return;
+    a[job] -= 1;
+    ensureGolemTransient();
     sfx('kindle');
     showToast('Golem recalled.', 'success');
     updateUI();
@@ -4316,25 +4446,32 @@ function updateUI() {
         feedStickBtn.disabled = !canFeed;
     }
 
-    // Golem status line in #stick-controls. Visible once the player has
-    // crafted at least one Stick Golem; updates live as deploys/recalls
-    // happen and as the furnace level changes.
+    // Stick gatherer assignment row in #stick-controls. Visible once the
+    // player has crafted at least one Stick Golem. The [-]/[+] buttons
+    // assign or recall a golem to the stick-gathering job. The hint
+    // text reports the global assigned/max and gathering status.
     const golemTotal = countGolemsInBag();
-    const golemStatus = document.getElementById('golem-status');
-    if (golemStatus) {
+    const golemRow = document.getElementById('golem-stick-row');
+    if (golemRow) {
         if (golemTotal > 0) {
-            golemStatus.classList.remove('reveal-hidden');
-            const active = (game.golems && game.golems.active) || 0;
+            golemRow.classList.remove('reveal-hidden');
+            const a = getGolemAssignments();
+            const here = a.sticks || 0;
+            const assigned = totalAssignedGolems();
             const max = Math.min(getGolemMaxActive(), golemTotal);
-            const activeEl = document.getElementById('golem-active-count');
-            const maxEl    = document.getElementById('golem-max-count');
-            const hintEl   = document.getElementById('golem-status-hint');
-            if (activeEl) activeEl.textContent = String(active);
-            if (maxEl)    maxEl.textContent    = String(max);
+            const countEl = document.getElementById('golem-stick-count');
+            const maxEl   = document.getElementById('golem-stick-max');
+            const plusBtn = document.getElementById('golem-stick-plus');
+            const minusBtn = document.getElementById('golem-stick-minus');
+            const hintEl  = document.getElementById('golem-stick-hint');
+            if (countEl) countEl.textContent = String(here);
+            if (maxEl)   maxEl.textContent   = String(max);
+            if (plusBtn) plusBtn.disabled = assigned >= max;
+            if (minusBtn) minusBtn.disabled = here <= 0;
             if (hintEl) {
-                if (active === 0) hintEl.textContent = 'idle in bag';
+                if (here === 0) hintEl.textContent = 'unassigned';
                 else if (game.resources.heat < GOLEM_HEAT_COST) hintEl.textContent = 'no heat — paused';
-                else hintEl.textContent = 'gathering & feeding';
+                else hintEl.textContent = 'gathering';
             }
         }
     }
@@ -4391,6 +4528,13 @@ function setupEventListeners() {
     // Feed-stick: tap = 1 stick. Bulk feed will return as an upgrade.
     const feedBtn = document.getElementById('feed-stick-btn');
     if (feedBtn) feedBtn.addEventListener('click', () => feedStick());
+
+    // Stick-gatherer assignment buttons live next to the manual
+    // [Gather Stick] action — assignment is contextual to the workstation.
+    const gPlus = document.getElementById('golem-stick-plus');
+    if (gPlus) gPlus.addEventListener('click', () => assignGolem('sticks'));
+    const gMinus = document.getElementById('golem-stick-minus');
+    if (gMinus) gMinus.addEventListener('click', () => unassignGolem('sticks'));
 
     // Abandoned Quarry — visual-only stub. Click surfaces the
     // description as a toast + narration so the player knows what's
@@ -4817,6 +4961,22 @@ function loadGame() {
                 game.locations.grove.collected = [];
                 game.locations.grove.layoutV = GROVE_LAYOUT_V;
             }
+
+            // Migration: golems used to track a single `active` count
+            // that auto-decided gather/feed each tick. Convert to the
+            // per-job assignments map (sticks-only for now). Loaded
+            // assignments win if both are present.
+            if (!game.golems || typeof game.golems !== 'object') {
+                game.golems = { assignments: { sticks: 0 } };
+            }
+            if (!game.golems.assignments || typeof game.golems.assignments !== 'object') {
+                game.golems.assignments = { sticks: 0 };
+            }
+            if (typeof game.golems.active === 'number' && game.golems.active > 0
+                && !(game.golems.assignments.sticks > 0)) {
+                game.golems.assignments.sticks = game.golems.active;
+            }
+            delete game.golems.active;
 
             // Re-apply upgrades
             const purchasedUpgrades = [...game.upgrades];

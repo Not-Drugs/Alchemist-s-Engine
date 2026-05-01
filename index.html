@@ -75,11 +75,13 @@
                                 <span class="stick-btn-label">[/] Gather Stick</span>
                             </button>
                             <button id="feed-stick-btn" class="spawn-btn" disabled title="Feed one stick into the engine. Shift-click to feed all.">[&gt;] Feed Stick</button>
-                            <div id="golem-status" class="golem-status reveal-hidden">
+                            <div id="golem-stick-row" class="golem-assign-row reveal-hidden">
                                 <span class="golem-glyph">[G]</span>
-                                <span class="golem-status-label">Golems:</span>
-                                <span id="golem-active-count">0</span>/<span id="golem-max-count">1</span>
-                                <span class="golem-status-hint" id="golem-status-hint">active</span>
+                                <span class="golem-assign-label">Gatherers:</span>
+                                <button id="golem-stick-minus" type="button" class="golem-assign-btn" title="Recall a stick gatherer">[-]</button>
+                                <span class="golem-assign-count"><span id="golem-stick-count">0</span> / <span id="golem-stick-max">1</span></span>
+                                <button id="golem-stick-plus" type="button" class="golem-assign-btn" title="Assign a golem to gather sticks">[+]</button>
+                                <span class="golem-assign-hint" id="golem-stick-hint">unassigned</span>
                             </div>
                             <div class="intro-hint">Slow labor. Keeps the engine alive when heat runs out.</div>
                         </div>
