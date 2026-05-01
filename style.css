@@ -114,9 +114,13 @@ body::before {
 }
 
 .corner-btn {
+    /* Positioned inside the header (header is position:relative) and
+       vertically centered against the h1 so the button reads as part
+       of the header band, not floating on top of it. */
     position: absolute;
-    top: 24px;
-    right: 24px;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
     padding: 4px 10px;
     background: var(--bg-dark);
     border: 1px solid var(--border-color);
@@ -162,6 +166,11 @@ header {
     padding: 15px;
     margin-bottom: 20px;
     border: 1px solid var(--box-char);
+    /* Anchor the corner-btn so it sits inside the header rather than
+       floating on top of the title (it used to be position:absolute
+       relative to #game-container at top:24px / right:24px, which
+       overlapped the header border + h1). */
+    position: relative;
 }
 
 header h1 {
@@ -2945,10 +2954,11 @@ button.revealing { display: inline-block; }
         animation: none; /* flicker is cute on desktop but taxing on mobile */
     }
 
-    /* Corner button moves out of the way on tiny screens and avoids notches */
+    /* Corner button stays vertically centered inside the header on
+       small screens — header padding + h1 size shrink so the button
+       just needs to track that geometry. */
     .corner-btn {
-        top: max(10px, env(safe-area-inset-top));
-        right: max(10px, env(safe-area-inset-right));
+        right: 8px;
         font-size: 0.65rem;
         padding: 6px 10px;
     }
