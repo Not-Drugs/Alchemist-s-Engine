@@ -8,6 +8,27 @@ sub-bullets so the SHA references the merged state.
 
 ---
 
+## 2026-05-01 — Wooden Axe recipe + log fuel system
+
+Second crafting recipe and a new high-value fuel tier gated behind it.
+
+- **Wooden Axe recipe.** Pattern: 3 sticks in a vertical column with 1
+  stone on each side of the topmost stick (4 cells total, `shape:'axe'`).
+  Yields `{type:'axe'}` in the Key Items bag, displayed as `[/]`.
+  One-time craft — `findRecipeMatch` skips the recipe once an axe is
+  already in the bag.
+- **Log fuel system.** Crafting the axe reveals `#log-controls` (Collect
+  Log + Feed Log buttons) in the engine column. One log-gathering trip
+  takes 60s and yields 1 log. Feeding a log adds 60 fuel (~60s of burn),
+  making logs 20× more fuel-dense than sticks. `game.inventory.logs`
+  tracks stock; gather state is cancelled on tab hide to prevent
+  stuck-button state.
+- Bumped `APP_VERSION` and `CACHE` to v104 (lock-step).
+
+Commits: `5a080e9` (squash merge), `c4fd25e` (version bump).
+
+---
+
 ## 2026-04-30 — Functional golems + abandoned quarry node
 
 Two new player-facing systems plus DISPATCH_LOG bring-up. The axe +
