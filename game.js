@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v108';
+const APP_VERSION = 'v109';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -567,6 +567,7 @@ function onPageHide() {
     cancelStickGather(/*deliver=*/false);
     cancelLogGather(/*deliver=*/false);
     cancelMineOre(/*deliver=*/false);
+    stopGroveWalkerAnim();
 }
 
 function onPageShow() {
@@ -3119,7 +3120,12 @@ function renderGrove() {
     // Auto-fit pass: measure the actual rendered container, compute the
     // exact font-size that packs every row. Runs after layout settles
     // (next frame) so .grove-scene's flex-allocated height is real.
-    requestAnimationFrame(autofitGroveScene);
+    // After autofit, re-paint any active walker overlay — renderGrove
+    // wipes scene.textContent at the top, which removes the walker layer.
+    requestAnimationFrame(() => {
+        autofitGroveScene();
+        syncGroveWalkers();
+    });
 }
 
 // Compute and apply a font-size to every grove-row that makes the
@@ -3156,6 +3162,142 @@ function autofitLocationScene(modalId, sceneId, rowSel) {
     let fontSize = Math.min(heightBound, widthBound);
     fontSize = Math.max(6, Math.min(24, fontSize));
     rows.forEach(r => { r.style.fontSize = fontSize + 'px'; });
+}
+
+// ============================================
+// GROVE WALKERS — animated stick-golem cosmetic
+// One walker per stick golem assigned to the `sticks` job. Purely
+// visual — actual gather ticks still come from the existing
+// game.golems machinery. The walker is a 2-row, 5-col sprite painted
+// into an absolutely-positioned overlay layer above the grove scene
+// (NOT into the ASCII text), so it doesn't fight autofit or grove
+// item buttons. Walkers loop a 4-frame leg cycle (neutral → lean-R
+// → inward → lean-L → repeat) and drift horizontally, occasionally
+// reversing direction so the scuttle reads as crab-like.
+// ============================================
+const GROVE_WALKER_FRAMES = [
+    ['  *  ', '// \\\\'],  // 1: neutral (splayed out)
+    ['  *  ', '// //'],     // 2: lean right
+    ['  *  ', '\\\\ //'],  // 3: inward
+    ['  *  ', '\\\\ \\\\'] // 4: lean left
+];
+const GROVE_WALKER_FRAME_MS = 220;
+const GROVE_WALKER_TARGET_ROW = 13; // 0-indexed scene row, lower mid mid-band
+const GROVE_WALKER_BAND_COLS = 20;  // center band width in chars
+const GROVE_WALKER_SPRITE_W  = 5;   // sprite width in chars
+let _groveWalkers = [];
+let _groveWalkerTimer = null;
+
+function ensureGroveWalkerCount() {
+    const count = (game.golems && game.golems.assignments && game.golems.assignments.sticks) || 0;
+    while (_groveWalkers.length < count) {
+        _groveWalkers.push({
+            x: Math.random() * (GROVE_WALKER_BAND_COLS - GROVE_WALKER_SPRITE_W),
+            dir: Math.random() < 0.5 ? -1 : 1,
+            frame: Math.floor(Math.random() * 4),
+            sinceFlip: 0
+        });
+    }
+    while (_groveWalkers.length > count) _groveWalkers.pop();
+    return count;
+}
+
+function startGroveWalkerAnim() {
+    stopGroveWalkerAnim();
+    ensureGroveWalkerCount();
+    paintGroveWalkers();
+    _groveWalkerTimer = setInterval(tickGroveWalkers, GROVE_WALKER_FRAME_MS);
+}
+
+function stopGroveWalkerAnim() {
+    if (_groveWalkerTimer) { clearInterval(_groveWalkerTimer); _groveWalkerTimer = null; }
+    const layer = document.getElementById('grove-walker-layer');
+    if (layer) layer.remove();
+}
+
+function tickGroveWalkers() {
+    const modal = document.getElementById('grove-modal');
+    if (!modal || modal.classList.contains('hidden')) { stopGroveWalkerAnim(); return; }
+    const count = ensureGroveWalkerCount();
+    if (count <= 0) { stopGroveWalkerAnim(); return; }
+    const maxX = GROVE_WALKER_BAND_COLS - GROVE_WALKER_SPRITE_W;
+    for (const w of _groveWalkers) {
+        w.frame = (w.frame + 1) % GROVE_WALKER_FRAMES.length;
+        // Step on every frame; drift coupled with leg cycle reads as a
+        // shuffle-step. Speed: 0.5 ch per frame so the scuttle isn't
+        // teleporty at high frame rates.
+        w.x += w.dir * 0.5;
+        w.sinceFlip += 1;
+        // Bounce at edges of the center band.
+        if (w.x <= 0) { w.x = 0; w.dir = 1; w.sinceFlip = 0; }
+        else if (w.x >= maxX) { w.x = maxX; w.dir = -1; w.sinceFlip = 0; }
+        // Occasional spontaneous direction flip (after at least 4 frames
+        // since the last flip, ~15% chance per frame thereafter). Reads
+        // as crab indecision rather than perfectly straight pacing.
+        else if (w.sinceFlip >= 4 && Math.random() < 0.15) {
+            w.dir = -w.dir;
+            w.sinceFlip = 0;
+        }
+    }
+    paintGroveWalkers();
+}
+
+function syncGroveWalkers() {
+    if (!_groveWalkerTimer) return;
+    paintGroveWalkers();
+}
+
+function paintGroveWalkers() {
+    const scene = document.querySelector('.grove-modal-content .grove-scene');
+    if (!scene) return;
+    const sceneRows = scene.querySelectorAll('.grove-scene-row');
+    const targetRow = sceneRows[GROVE_WALKER_TARGET_ROW];
+    if (!targetRow) return;
+
+    let layer = document.getElementById('grove-walker-layer');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'grove-walker-layer';
+        layer.className = 'grove-walker-layer';
+        scene.appendChild(layer);
+    }
+
+    // Match font-size to the target row so `ch` units inside the layer
+    // align to the row's character grid. autofitGroveScene sets fontSize
+    // inline on every grove-row, so this picks up the live value.
+    const fs = parseFloat(getComputedStyle(targetRow).fontSize) || 14;
+    layer.style.fontSize = fs + 'px';
+
+    // Vertical position: top of the target scene row, relative to scene.
+    const sceneRect = scene.getBoundingClientRect();
+    const rowRect = targetRow.getBoundingClientRect();
+    layer.style.top = (rowRect.top - sceneRect.top) + 'px';
+
+    // Sync walker DOM count to model.
+    const count = _groveWalkers.length;
+    while (layer.children.length < count) {
+        const el = document.createElement('div');
+        el.className = 'grove-walker';
+        const top = document.createElement('div');
+        const bot = document.createElement('div');
+        el.appendChild(top);
+        el.appendChild(bot);
+        layer.appendChild(el);
+    }
+    while (layer.children.length > count) layer.removeChild(layer.lastChild);
+
+    // Position + frame each walker. The layer is 40ch wide and centered
+    // on the scene (matches the row content). Center band starts at
+    // col 10 within that 40-col grid.
+    for (let i = 0; i < count; i++) {
+        const el = layer.children[i];
+        const w = _groveWalkers[i];
+        const col = 10 + w.x;
+        el.style.left = col + 'ch';
+        const frame = GROVE_WALKER_FRAMES[w.frame];
+        el.children[0].textContent = frame[0];
+        el.children[1].textContent = frame[1];
+    }
 }
 
 function collectGroveItem(id) {
@@ -5060,12 +5202,14 @@ const burnAll = document.getElementById('burn-all-btn');
             groveModal.classList.remove('hidden');
             lockBodyScroll();
             renderGrove();
+            startGroveWalkerAnim();
         });
     }
     if (groveLeave && groveModal) {
         groveLeave.addEventListener('click', () => {
             groveModal.classList.add('hidden');
             unlockBodyScroll();
+            stopGroveWalkerAnim();
         });
     }
 

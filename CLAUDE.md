@@ -201,6 +201,22 @@ Migration on load: any legacy `game.golems.active` (single-count
 auto-decide model) is rolled into `game.golems.assignments.sticks`,
 then deleted from save.
 
+**Grove walker cosmetic.** When the grove modal is open, a tiny
+animated golem appears in the midground per stick-job assignment
+(so 1 walker today, 2 once Arcane Vents unlocks the second slot).
+4-frame leg cycle (`GROVE_WALKER_FRAMES`: neutral → lean-R → inward
+→ lean-L → loop) at 220ms/frame, drifting sideways with a 15%/frame
+chance of reversing direction once moving — reads as a crab scuttle.
+The walker is NOT real ASCII text — it's an absolutely-positioned
+overlay (`#grove-walker-layer`, sized to the scene's 40-col character
+grid via `ch` units, fontSize matched to the active autofit pass) so
+it doesn't fight `autofitGroveScene` or grove item buttons. Purely
+decoration; the actual gather tick runs from the existing
+`tickGolemsGathering` timer regardless of the walker. Lifecycle:
+started in `groveEnter` click handler, stopped in `groveLeave` and
+`onPageHide`. After `renderGrove()` wipes `scene.textContent`, the
+next autofit RAF re-paints the layer via `syncGroveWalkers()`.
+
 **Save state.** New top-level fields: `game.inventory`, `game.satchel`,
 `game.keyItems`, `game.flags.discoveredRecipes`,
 `game.flags.golemRecipeTaught`, `game.golems`. Migration on load moves any

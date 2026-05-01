@@ -586,6 +586,7 @@ section h2::after {
 }
 
 .grove-modal-content .grove-scene {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -643,6 +644,40 @@ section h2::after {
     font-size: inherit;
     letter-spacing: 0;
     display: inline-block;
+}
+
+/* Grove walker overlay — animated stick-golem cosmetics. One walker
+   per stick golem assigned to the `sticks` job. Layer is 40ch wide
+   (matches the scene's 40-col character grid) and horizontally
+   centered, mirroring how scene rows lay out. Walkers are positioned
+   inside the layer via `left` in `ch` units, transitioning smoothly
+   for a sideways scuttle. Pointer-events disabled so walkers never
+   eat clicks meant for grove items. */
+.grove-walker-layer {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40ch;
+    height: 0;
+    pointer-events: none;
+    z-index: 3;
+    font-family: inherit;
+    line-height: 1.0;
+    white-space: pre;
+}
+
+.grove-walker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: #c8b48a;          /* grove-midnear tone */
+    opacity: 0.9;
+    text-shadow: 0 0 2px rgba(200, 180, 138, 0.5);
+    font-family: inherit;
+    line-height: 1.0;
+    white-space: pre;
+    transition: left 220ms linear;
+    will-change: left;
 }
 
 .grove-modal-content .grove-found {
