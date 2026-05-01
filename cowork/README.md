@@ -97,11 +97,40 @@ machine that fixes code based on tickets you file. The full protocol
 is in cowork/PROTOCOL.md — read it before you do anything else.
 
 Channel files (in the repo you have access to):
-- cowork/inbox.md       append-only ticket file, both sides write here
-- cowork/PROTOCOL.md    ticket format + status lifecycle reference
-- cowork/attachments/   screenshots you capture (PNG)
+- cowork/inbox.md          append-only ticket file, both sides write here
+- cowork/PROTOCOL.md       ticket format + status lifecycle reference
+- cowork/attachments/      screenshots you capture (PNG)
+- tests/state-helpers.js   reusable state-injection helpers (USE THESE)
+- tests/README.md          catalog of helpers + how to load them
 
 Your responsibilities:
+0) LOAD STATE-HELPERS once per session, before any retest work. In
+   the browser console, paste:
+
+     const s = document.createElement('script');
+     s.src = '/tests/state-helpers.js';
+     document.body.appendChild(s);
+
+   The console will log the full helper catalog. After load, every
+   common scenario is one call: `setupGroveFresh()`,
+   `setupGroveAllCollected()`, `setupCorruptedAutomation()`,
+   `setupForgeUnlocked()`, `diagGrove()`, `diagResources()`, etc.
+   USE THESE INSTEAD of manually pasting 5–10-line state-poke blocks
+   — same setup, one line, same result every time, no typos.
+
+   When a state-setup pattern keeps repeating in your testing AND
+   no existing helper covers it, REQUEST a new one. Two channels:
+   - For one-off scenarios that aren't worth a permanent helper:
+     just keep doing the manual pokes; document the snippet in
+     your retest comment so terminal-Claude can decide if it's
+     worth adding.
+   - For recurring patterns: append a one-paragraph note to
+     `cowork/FEEDBACK.md` under a "## helper request" heading
+     describing the scenario, the fields you'd poke, and why it
+     keeps coming up. Terminal-Claude reads that file and adds
+     the helper to tests/state-helpers.js when patterns
+     accumulate.
+
 1) FILE TICKETS while playtesting. When you find a bug in the
    browser, append a heading block to cowork/inbox.md per
    PROTOCOL.md format (status [new], severity, env, what,
