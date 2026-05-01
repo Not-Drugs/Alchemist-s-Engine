@@ -2504,6 +2504,33 @@ footer button:active {
     cursor: pointer;
 }
 
+.lab-button-row {
+    gap: 12px;
+    margin-top: 14px !important;
+    justify-content: stretch !important;
+}
+
+.lab-button-row button {
+    flex: 1;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.lab-button-row button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.lab-button-row button:not(:disabled):active {
+    border-color: var(--text-bright);
+    color: var(--text-bright);
+}
+
 #lab-effective-display {
     color: var(--text-dim);
     font-style: italic;

@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v112';
+const APP_VERSION = 'v113';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3406,14 +3406,17 @@ function openWalkerLab() {
         drift: GROVE_WALKER_GAITS.splay.driftPerFrame,
         frameMs: GROVE_WALKER_GAITS.splay.frameMs,
         timescale: 1,
+        paused: false,
         walker: { x: 5, dir: 1, frame: 0, sinceFlip: 0 },
         timer: null
     };
 
-    const gaitSel = document.getElementById('lab-gait');
-    const driftIn = document.getElementById('lab-drift');
-    const frameIn = document.getElementById('lab-frame');
-    const tsIn    = document.getElementById('lab-timescale');
+    const gaitSel  = document.getElementById('lab-gait');
+    const driftIn  = document.getElementById('lab-drift');
+    const frameIn  = document.getElementById('lab-frame');
+    const tsIn     = document.getElementById('lab-timescale');
+    const pauseBtn = document.getElementById('lab-pause');
+    const stepBtn  = document.getElementById('lab-step');
 
     function refreshDisplays() {
         document.getElementById('lab-drift-display').textContent = _walkerLab.drift.toFixed(2) + ' ch/frame';
@@ -3426,11 +3429,22 @@ function openWalkerLab() {
 
     function restartTimer() {
         if (_walkerLab.timer) clearInterval(_walkerLab.timer);
+        _walkerLab.timer = null;
         const effectiveMs = Math.max(20, _walkerLab.frameMs / _walkerLab.timescale);
-        _walkerLab.timer = setInterval(tickWalkerLab, effectiveMs);
         // Match CSS transition to effective ms so drift slides exactly between frames.
+        // While paused, snap instantly (no transition) so STEP advances are crisp.
         const walkerEl = document.getElementById('walker-lab-walker');
-        if (walkerEl) walkerEl.style.transitionDuration = effectiveMs + 'ms';
+        if (walkerEl) walkerEl.style.transitionDuration = (_walkerLab.paused ? '0ms' : effectiveMs + 'ms');
+        if (!_walkerLab.paused) {
+            _walkerLab.timer = setInterval(tickWalkerLab, effectiveMs);
+        }
+    }
+
+    function setPaused(p) {
+        _walkerLab.paused = p;
+        pauseBtn.textContent = p ? '[PLAY]' : '[PAUSE]';
+        stepBtn.disabled = !p;
+        restartTimer();
     }
 
     function applyGait(key) {
@@ -3454,6 +3468,8 @@ function openWalkerLab() {
     driftIn.oninput = (e) => { _walkerLab.drift = parseFloat(e.target.value); refreshDisplays(); };
     frameIn.oninput = (e) => { _walkerLab.frameMs = parseFloat(e.target.value); refreshDisplays(); restartTimer(); };
     tsIn.oninput    = (e) => { _walkerLab.timescale = parseFloat(e.target.value); refreshDisplays(); restartTimer(); };
+    pauseBtn.onclick = () => setPaused(!_walkerLab.paused);
+    stepBtn.onclick  = () => { if (_walkerLab.paused) tickWalkerLab(); };
 
     applyGait('splay');
     paintWalkerLab();
