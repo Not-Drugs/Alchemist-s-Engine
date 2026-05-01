@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v111';
+const APP_VERSION = 'v112';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -568,6 +568,7 @@ function onPageHide() {
     cancelLogGather(/*deliver=*/false);
     cancelMineOre(/*deliver=*/false);
     stopGroveWalkerAnim();
+    if (_walkerLab && _walkerLab.timer) { clearInterval(_walkerLab.timer); _walkerLab.timer = null; }
 }
 
 function onPageShow() {
@@ -3386,6 +3387,118 @@ function paintGroveWalkers() {
     }
 }
 
+// ============================================
+// WALKER LAB — debug playground for the grove walker animation.
+// Self-contained: doesn't touch the live grove walker. Reads the same
+// GROVE_WALKER_GAITS but with live drift / frame / time-scale overrides
+// so we can tune the animation without redeploying. Opened from a
+// button in the Settings modal.
+// ============================================
+let _walkerLab = null;
+
+function openWalkerLab() {
+    const modal = document.getElementById('walker-lab-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (_walkerLab) closeWalkerLab(); // defensive — clean re-init each open
+    _walkerLab = {
+        gait: 'splay',
+        drift: GROVE_WALKER_GAITS.splay.driftPerFrame,
+        frameMs: GROVE_WALKER_GAITS.splay.frameMs,
+        timescale: 1,
+        walker: { x: 5, dir: 1, frame: 0, sinceFlip: 0 },
+        timer: null
+    };
+
+    const gaitSel = document.getElementById('lab-gait');
+    const driftIn = document.getElementById('lab-drift');
+    const frameIn = document.getElementById('lab-frame');
+    const tsIn    = document.getElementById('lab-timescale');
+
+    function refreshDisplays() {
+        document.getElementById('lab-drift-display').textContent = _walkerLab.drift.toFixed(2) + ' ch/frame';
+        document.getElementById('lab-frame-display').textContent = Math.round(_walkerLab.frameMs) + ' ms';
+        document.getElementById('lab-timescale-display').textContent = _walkerLab.timescale.toFixed(2) + 'x';
+        const eff = Math.round(_walkerLab.frameMs / _walkerLab.timescale);
+        document.getElementById('lab-effective-display').textContent =
+            `Effective frame interval: ${eff}ms (${(1000 / eff).toFixed(1)} fps)`;
+    }
+
+    function restartTimer() {
+        if (_walkerLab.timer) clearInterval(_walkerLab.timer);
+        const effectiveMs = Math.max(20, _walkerLab.frameMs / _walkerLab.timescale);
+        _walkerLab.timer = setInterval(tickWalkerLab, effectiveMs);
+        // Match CSS transition to effective ms so drift slides exactly between frames.
+        const walkerEl = document.getElementById('walker-lab-walker');
+        if (walkerEl) walkerEl.style.transitionDuration = effectiveMs + 'ms';
+    }
+
+    function applyGait(key) {
+        const g = GROVE_WALKER_GAITS[key];
+        if (!g) return;
+        _walkerLab.gait = key;
+        // Reset drift + frame to the gait's defaults whenever gait changes —
+        // the user can tweak from there. Keeps the lab honest (you see the
+        // gait's intended cadence first, then mess with it).
+        _walkerLab.drift = g.driftPerFrame;
+        _walkerLab.frameMs = g.frameMs;
+        driftIn.value = g.driftPerFrame;
+        frameIn.value = g.frameMs;
+        _walkerLab.walker.frame = 0;
+        refreshDisplays();
+        restartTimer();
+    }
+
+    gaitSel.value = 'splay';
+    gaitSel.onchange = (e) => applyGait(e.target.value);
+    driftIn.oninput = (e) => { _walkerLab.drift = parseFloat(e.target.value); refreshDisplays(); };
+    frameIn.oninput = (e) => { _walkerLab.frameMs = parseFloat(e.target.value); refreshDisplays(); restartTimer(); };
+    tsIn.oninput    = (e) => { _walkerLab.timescale = parseFloat(e.target.value); refreshDisplays(); restartTimer(); };
+
+    applyGait('splay');
+    paintWalkerLab();
+}
+
+function closeWalkerLab() {
+    const modal = document.getElementById('walker-lab-modal');
+    if (modal) modal.classList.add('hidden');
+    if (_walkerLab && _walkerLab.timer) clearInterval(_walkerLab.timer);
+    _walkerLab = null;
+}
+
+function tickWalkerLab() {
+    if (!_walkerLab) return;
+    const gait = GROVE_WALKER_GAITS[_walkerLab.gait];
+    const w = _walkerLab.walker;
+    w.frame = (w.frame + 1) % gait.cycleLen;
+    w.x += w.dir * _walkerLab.drift;
+    // Bounce: track is the full width of #walker-lab-track in `ch` units
+    // computed from the live element. Walker is 5 chars wide.
+    const trackEl = document.getElementById('walker-lab-track');
+    const walkerEl = document.getElementById('walker-lab-walker');
+    let maxX = 50;
+    if (trackEl && walkerEl) {
+        const trackW = trackEl.clientWidth;
+        const ch = parseFloat(getComputedStyle(walkerEl).fontSize) * 0.6 || 12;
+        maxX = Math.max(5, (trackW / ch) - GROVE_WALKER_SPRITE_W - 1);
+    }
+    if (w.x <= 0) { w.x = 0; w.dir = 1; }
+    else if (w.x >= maxX) { w.x = maxX; w.dir = -1; }
+    paintWalkerLab();
+}
+
+function paintWalkerLab() {
+    if (!_walkerLab) return;
+    const walkerEl = document.getElementById('walker-lab-walker');
+    if (!walkerEl) return;
+    const gait = GROVE_WALKER_GAITS[_walkerLab.gait];
+    const w = _walkerLab.walker;
+    const frame = gait.getFrame(w);
+    walkerEl.children[0].textContent = frame[0];
+    walkerEl.children[1].textContent = frame[1];
+    walkerEl.style.left = w.x + 'ch';
+}
+
 function collectGroveItem(id) {
     ensureGroveState();
     const groveState = game.locations.grove;
@@ -5188,6 +5301,17 @@ const burnAll = document.getElementById('burn-all-btn');
     });
 
     document.getElementById('reset-btn').addEventListener('click', hardReset);
+
+    // Walker Lab — debug playground for tuning the grove walker animation.
+    const walkerLabBtn   = document.getElementById('walker-lab-btn');
+    const walkerLabClose = document.getElementById('walker-lab-close');
+    if (walkerLabBtn) walkerLabBtn.addEventListener('click', () => {
+        // Close the settings modal first so the lab opens cleanly on top.
+        const sm = document.getElementById('settings-modal');
+        if (sm) sm.classList.add('hidden');
+        openWalkerLab();
+    });
+    if (walkerLabClose) walkerLabClose.addEventListener('click', closeWalkerLab);
 
     // Settings modal — persistent corner button, always visible
     try {

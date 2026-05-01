@@ -219,6 +219,16 @@ runtime via `?gait=splay|cascade|crab` (default = `splay`):
 
 Each gait carries its own `frameMs`, `driftPerFrame`, `flipChance`,
 and `flipOnlyAtRest` flag.
+
+**Walker Lab.** Settings → `[WALKER LAB]` opens a debug modal
+(`#walker-lab-modal`) with a single walker pacing back and forth on
+a track plus live controls: gait dropdown, drift speed slider, frame
+interval slider, and a time-scale slider that proportionally slows
+the whole thing for frame-by-frame study. Self-contained
+(`openWalkerLab` / `closeWalkerLab` / `tickWalkerLab` / `paintWalkerLab`)
+— doesn't touch the live grove walker. Reads the same
+`GROVE_WALKER_GAITS` definitions, but with per-session overrides for
+drift / frameMs / timescale. `onPageHide` clears the lab interval.
 The walker is NOT real ASCII text — it's an absolutely-positioned
 overlay (`#grove-walker-layer`, sized to the scene's 40-col character
 grid via `ch` units, fontSize matched to the active autofit pass) so

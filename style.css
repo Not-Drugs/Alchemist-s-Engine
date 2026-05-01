@@ -2447,6 +2447,69 @@ footer button:active {
     color: var(--bg-dark);
 }
 
+/* Walker Lab — debug playground modal for tuning the grove walker. */
+.walker-lab-content {
+    max-width: 700px;
+    width: 95%;
+}
+
+#walker-lab-track {
+    position: relative;
+    width: 100%;
+    height: 64px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    margin: 16px 0 8px;
+    overflow: hidden;
+}
+
+#walker-lab-walker {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    color: #c8b48a;
+    font-family: inherit;
+    font-size: 22px;
+    line-height: 1.0;
+    white-space: pre;
+    text-shadow: 0 0 2px rgba(200, 180, 138, 0.5);
+    transition: left 220ms linear;
+    will-change: left;
+}
+
+#walker-lab-walker > div {
+    white-space: pre;
+}
+
+.lab-controls .lab-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    margin-bottom: 4px;
+}
+
+.lab-controls input[type="range"] {
+    width: 100%;
+    margin: 0;
+}
+
+#lab-gait {
+    background: var(--bg-dark);
+    color: var(--text-bright);
+    border: 1px solid var(--border-color);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+#lab-effective-display {
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: center;
+}
+
 .offline-lines {
     color: var(--text-primary);
     font-size: 0.9rem;
