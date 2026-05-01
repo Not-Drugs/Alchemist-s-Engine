@@ -487,6 +487,15 @@ between stones and the satchel. Hidden until any ore has been mined
 ore yet; it's a visible counter only. Future recipe / smelter
 integration is a separate spec.
 
+**Scene variants.** Two compositions live under `QUARRY_SCENES`,
+selectable at runtime via `?quarry=v1|v2` (default = `v1`):
+- **v1** — original narrow mountain with central cave and rock-bump
+  decorations baked into the item rows.
+- **v2** — large dominant mountain redesign (see below).
+
+Switching the URL param resets `game.locations.quarry.respawnAt`
+since item positions differ between variants.
+
 **Scene composition (v2).** Single dominant mountain as the main set
 piece, with a small pair of distant peaks behind for atmospheric
 depth. ~30 scene rows: 3 sky → 4 distant-peak rows (rows 3-6, far →
