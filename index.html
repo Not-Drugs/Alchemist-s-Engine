@@ -83,6 +83,19 @@
                             </div>
                             <div class="intro-hint">Slow labor. Keeps the engine alive when heat runs out.</div>
                         </div>
+                        <!-- Log gather/feed — revealed when Wooden Axe is in Key Items bag. -->
+                        <div id="log-controls" class="reveal-hidden">
+                            <div id="log-count-row">
+                                <span class="stick-glyph">[=]</span>
+                                <span class="stick-count-label">Logs:</span>
+                                <span id="log-count">0</span>
+                            </div>
+                            <button id="gather-log-btn" class="spawn-btn log-btn" title="Fell a log with your axe (60s).">
+                                <span class="log-btn-fill"></span>
+                                <span class="log-btn-label">[=] Collect Log</span>
+                            </button>
+                            <button id="feed-log-btn" class="spawn-btn" disabled title="Feed one log into the furnace.">[&gt;] Feed Log</button>
+                        </div>
                         <div id="furnace-visual">
                             <pre id="furnace-ascii">
     _______

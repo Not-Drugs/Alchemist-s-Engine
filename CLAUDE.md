@@ -92,7 +92,7 @@ saves past Phase 1 are auto-migrated (`peakHeat = target`) on load.
   furnace. One tap = one stick; bulk feed will return as an upgrade.
 - Sticks are a counted resource (`game.resources.sticks`), not a grid item.
 
-The Engine column lays out as: stick controls (top) → engine ASCII visual
+The Engine column lays out as: stick controls (top) → log controls (below stick controls; hidden until Wooden Axe crafted) → engine ASCII visual
 with the temperature badge (top-right of the visual) and the fuel meter
 baked in beneath the art → fuel drop zone → Burn All button. This
 keeps the drop zone close to the merge grid in the right column so
@@ -210,6 +210,24 @@ discovered on first craft and listed in the `[Recipes ▾]` accordion
 inert in the bag for v1 — assignment, chores, and heat drain are
 deferred (see design spec at
 `docs/superpowers/specs/2026-04-29-crafting-design.md`).
+
+**Second recipe — Wooden Axe.** Pattern (`shape: 'axe'`): 3 sticks in
+a vertical column + 1 stone to either side of the topmost stick (4 cells
+total). Matched by `matchAxe()` in `game.js`. The recipe has a
+`canCraft` guard: once an `{type:'axe'}` item is in `game.keyItems`,
+`findRecipeMatch` skips it so the craft button stays hidden on
+subsequent visits. Crafting yields a `{type:'axe', id:'...'}` key item
+displayed as `[/]` in the bag. Having any axe in the bag triggers the
+`logControls` REVEAL_STAGE which surfaces `#log-controls` (Collect Log
+button + Feed Log button) in the engine column.
+
+**Axe → Logs economy.** `LOG_GATHER_MS = 60000` (60s trip per log).
+`LOG_FUEL_VALUE = 60` (1 log = 60 fuel ≈ 60s of burn, 20× a stick).
+`game.inventory.logs` tracks stored logs. `startLogGather /
+cancelLogGather` mirror the stick-gather pattern with a warm-amber
+progress fill (`.log-btn-fill`). `feedLog()` converts 1 log to fuel.
+`cancelLogGather(false)` is called in `onPageHide` alongside
+`cancelStickGather(false)` to prevent stuck-button state on tab hide.
 
 **Save state.** New top-level fields: `game.inventory`, `game.satchel`,
 `game.keyItems`, `game.flags.discoveredRecipes`,
@@ -340,6 +358,8 @@ heat     -= max(expLoss, floorLoss)
 - `STICK_GATHER_MS` - 3000 (base manual stick-gather duration; Stick
   Basket overrides via `game.bonuses.stickGatherMs = 5000`)
 - `STICK_FUEL_VALUE` - 3 (fuel granted per stick fed; ≈3s of burn)
+- `LOG_GATHER_MS` - 60000 (axe log-gathering duration; fixed, no upgrade yet)
+- `LOG_FUEL_VALUE` - 60 (fuel granted per log fed; ≈60s of burn, 20× a stick)
 - `PHASE_1_HEAT_TARGET` - 1000 (heat target ending the stick phase;
   drives the soot narration beats and the merge-grid reveal)
 - `MIN_HEAT_DECAY_PER_SEC` - 0.1 (linear floor on idle heat decay)

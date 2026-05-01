@@ -40,6 +40,14 @@ const RECIPES = [
             arms: { type: 'ingredient', kind: 'stick' },
         },
     },
+    {
+        id: 'woodenAxe',
+        name: 'Wooden Axe',
+        output: { type: 'axe' },
+        pattern: { shape: 'axe' },
+        // Only craftable once — having an axe in the bag is enough.
+        canCraft: () => !(game.keyItems || []).some(ki => ki.type === 'axe'),
+    },
 ];
 
 function matchesSpec(cell, spec) {
@@ -69,12 +77,39 @@ function matchPlus(grid, centerSpec, armSpec) {
     return null;
 }
 
+// Axe pattern: 3 sticks in a vertical column, 1 stone to either side of
+// the topmost stick.
+//   / ()    ← topmost stick, stone on right (or left)
+//   /
+//   /
+function matchAxe(grid) {
+    const stick = { type: 'ingredient', kind: 'stick' };
+    const stone = { type: 'ingredient', kind: 'stone' };
+    for (let r = 0; r <= GRID_H - 3; r++) {
+        for (let x = 0; x < GRID_W; x++) {
+            const top = r * GRID_W + x;
+            const mid = (r + 1) * GRID_W + x;
+            const bot = (r + 2) * GRID_W + x;
+            if (!matchesSpec(grid[top], stick)) continue;
+            if (!matchesSpec(grid[mid], stick)) continue;
+            if (!matchesSpec(grid[bot], stick)) continue;
+            if (x > 0 && matchesSpec(grid[top - 1], stone)) return [top, mid, bot, top - 1];
+            if (x < GRID_W - 1 && matchesSpec(grid[top + 1], stone)) return [top, mid, bot, top + 1];
+        }
+    }
+    return null;
+}
+
 function findRecipeMatch(grid) {
     for (const recipe of RECIPES) {
+        if (recipe.canCraft && !recipe.canCraft()) continue;
+        let cells = null;
         if (recipe.pattern.shape === 'plus') {
-            const cells = matchPlus(grid, recipe.pattern.center, recipe.pattern.arms);
-            if (cells) return { recipe, cells };
+            cells = matchPlus(grid, recipe.pattern.center, recipe.pattern.arms);
+        } else if (recipe.pattern.shape === 'axe') {
+            cells = matchAxe(grid);
         }
+        if (cells) return { recipe, cells };
     }
     return null;
 }
@@ -301,6 +336,9 @@ const REVEAL_STAGES = [
         onReveal: () => { game.flags.golemRecipeTaught = true; } },
     // Achievements stage intentionally omitted while the achievements UI is
     // disabled (see SHOW_ACHIEVEMENTS_UI). Re-add to surface the section.
+    { id: 'logControls', cond: g => (g.keyItems || []).some(ki => ki.type === 'axe'),
+        narrate: 'The axe is sharp. Timber burns long. Seek out heavier fuel.',
+        targets: ['#log-controls'] },
     { id: 'stats',         cond: g => g.stats.totalHeat >= 150,    narrate: 'Numbers accrue. The work leaves a trace.',    targets: ['#stats-section'] }
 ];
 
@@ -316,7 +354,8 @@ const defaultGame = {
     },
     inventory: {
         sticks: 0,
-        stones: 0
+        stones: 0,
+        logs: 0
     },
     satchel: [],          // [{type:'fuel'|'ore', tier:1..N, count:1+}, ...] — soft cap 8 stacks
     keyItems: [],         // [{type:'golem', id:'<uuid>'}, ...] — soft cap 8 items
@@ -459,9 +498,10 @@ function onPageHide() {
     game.lastUpdate = Date.now();
     saveGame();
     stopLoops();
-    // Abort in-flight stick gathering so background tab throttling doesn't
-    // leave the button stuck in a half-gathered state on return.
+    // Abort in-flight gather actions so background tab throttling doesn't
+    // leave buttons stuck in a half-gathered state on return.
     cancelStickGather(/*deliver=*/false);
+    cancelLogGather(/*deliver=*/false);
 }
 
 function onPageShow() {
@@ -3135,11 +3175,19 @@ function updateCraftButton() {
 // ---- Recipes panel ----
 
 function recipePatternCell(recipe, dx, dy) {
-    // For 'plus' shape: center at (1,1) of a 3x3 mini-grid; arms at (1,0),(1,2),(0,1),(2,1).
-    if (recipe.pattern.shape !== 'plus') return null;
-    if (dx === 1 && dy === 1) return recipe.pattern.center;
-    if ((dx === 1 && dy === 0) || (dx === 1 && dy === 2) ||
-        (dx === 0 && dy === 1) || (dx === 2 && dy === 1)) return recipe.pattern.arms;
+    if (recipe.pattern.shape === 'plus') {
+        // Center at (1,1); arms at cardinal neighbors.
+        if (dx === 1 && dy === 1) return recipe.pattern.center;
+        if ((dx === 1 && dy === 0) || (dx === 1 && dy === 2) ||
+            (dx === 0 && dy === 1) || (dx === 2 && dy === 1)) return recipe.pattern.arms;
+        return null;
+    }
+    if (recipe.pattern.shape === 'axe') {
+        // Col 0: 3 sticks (all rows). Col 1, row 0: stone. Rest empty.
+        if (dx === 0) return { type: 'ingredient', kind: 'stick' };
+        if (dx === 1 && dy === 0) return { type: 'ingredient', kind: 'stone' };
+        return null;
+    }
     return null;
 }
 
@@ -3234,14 +3282,18 @@ function renderKeyItemsModal() {
         listEl.appendChild(tile);
     }
 
+    const KI_DISPLAY = {
+        axe: { glyph: '[/]', name: 'Wooden Axe' },
+    };
     for (const item of (game.keyItems || [])) {
         if (item.type === 'golem') continue;   // grouped above
+        const disp = KI_DISPLAY[item.type] || { glyph: '?', name: item.type };
         const tile = document.createElement('div');
         tile.className = 'key-item-tile';
-        tile.textContent = '?';
-        tile.title = item.type;
+        tile.textContent = disp.glyph;
+        tile.title = disp.name;
         tile.tabIndex = 0;
-        tile.setAttribute('aria-label', item.type);
+        tile.setAttribute('aria-label', disp.name);
         listEl.appendChild(tile);
     }
 }
@@ -3272,6 +3324,7 @@ function performCraft() {
     floatPopup(btn, `+${match.recipe.name}`, 'gear');
     sfx('craft');
     updateUI();
+    checkReveals();
     saveGame();
 }
 
@@ -3669,7 +3722,13 @@ function applyRevealedFlags() {
 // automated flows). A progress bar fills the button while gathering; the
 // stick counts as a free resource you can stockpile and feed to the engine.
 const STICK_GATHER_MS = 3000;
-const STICK_FUEL_VALUE = 3; // each stick = 3 fuel = 3 seconds of burn
+const STICK_FUEL_VALUE = 3;  // each stick  = 3 fuel  = ~3s of burn
+
+// Log gathering — unlocked by crafting the Wooden Axe. One trip takes 60s
+// and yields 1 log. Logs convert to 60 fuel (20× a stick) so a single log
+// is worth a full minute of idle burn and meaningfully outlasts twig fuel.
+const LOG_GATHER_MS   = 60000;
+const LOG_FUEL_VALUE  = 60;  // each log = 60 fuel = ~60s of burn
 
 // Golem constants — once deployed, each active golem performs one
 // action every GOLEM_ACTION_MS. An action costs 1 heat. If sticks are
@@ -3792,6 +3851,82 @@ function feedStick() {
     }
     updateUI();
     checkReveals();
+}
+
+// Log gathering — available once the Wooden Axe is in the Key Items bag.
+// Mirrors the stick-gather pattern: 60s trip, 1 log per completion.
+let logGatherState = null;
+
+function startLogGather() {
+    if (logGatherState) return;
+    const btn = document.getElementById('gather-log-btn');
+    if (!btn) return;
+    const fill = btn.querySelector('.log-btn-fill');
+
+    btn.classList.add('gathering');
+    btn.disabled = true;
+    if (fill) fill.style.width = '0%';
+
+    const startTime = Date.now();
+    const intervalId = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, (elapsed / LOG_GATHER_MS) * 100);
+        if (fill) fill.style.width = pct + '%';
+    }, 200);
+    const timeoutId = setTimeout(() => completeLogGather(), LOG_GATHER_MS);
+
+    logGatherState = { intervalId, timeoutId };
+}
+
+function completeLogGather() {
+    cancelLogGather(/*deliver=*/true);
+}
+
+function cancelLogGather(deliver = false) {
+    if (!logGatherState) return;
+    clearInterval(logGatherState.intervalId);
+    clearTimeout(logGatherState.timeoutId);
+    logGatherState = null;
+
+    const btn = document.getElementById('gather-log-btn');
+    if (btn) {
+        btn.classList.remove('gathering');
+        btn.disabled = false;
+        const fill = btn.querySelector('.log-btn-fill');
+        if (fill) fill.style.width = '0%';
+    }
+
+    if (!deliver) return;
+
+    game.inventory.logs = (game.inventory.logs || 0) + 1;
+    const btnEl = document.getElementById('gather-log-btn');
+    squish(btnEl);
+    if (btnEl) floatPopup(btnEl, '+log', 'heat');
+    sfx('kindle');
+    updateUI();
+}
+
+// Consume one stored log, converting it into LOG_FUEL_VALUE fuel.
+function feedLog() {
+    if ((game.inventory.logs || 0) <= 0) {
+        showToast('No logs — collect some first.', 'error');
+        return;
+    }
+    const maxFuel = game.bonuses.furnaceCapacity;
+    if (game.furnace.fuel >= maxFuel) {
+        showToast('Furnace is full!', 'error');
+        return;
+    }
+
+    const added = Math.min(LOG_FUEL_VALUE, maxFuel - game.furnace.fuel);
+    game.furnace.fuel += added;
+    game.inventory.logs -= 1;
+
+    const furnaceVisual = document.getElementById('furnace-visual');
+    floatPopup(furnaceVisual, '+log', 'heat');
+    flashDropZone('furnace-visual');
+    sfx('feed');
+    updateUI();
 }
 
 // ============================================
@@ -4202,6 +4337,15 @@ function updateUI() {
         }
     }
 
+    // Log counter and feed button
+    const logCountEl = document.getElementById('log-count');
+    if (logCountEl) logCountEl.textContent = Math.max(0, game.inventory.logs || 0);
+    const feedLogBtn = document.getElementById('feed-log-btn');
+    if (feedLogBtn) {
+        const canFeedLog = (game.inventory.logs || 0) > 0 && game.furnace.fuel < game.bonuses.furnaceCapacity;
+        feedLogBtn.disabled = !canFeedLog;
+    }
+
     // Stats
     document.getElementById('stat-total-heat').textContent = formatNumber(Math.floor(game.stats.totalHeat));
     document.getElementById('stat-total-merges').textContent = formatNumber(game.stats.totalMerges);
@@ -4257,6 +4401,12 @@ function setupEventListeners() {
             sfx('kindle');
         });
     }
+
+    // Log gather/feed — revealed once the Wooden Axe is in the bag.
+    const gatherLogBtn = document.getElementById('gather-log-btn');
+    if (gatherLogBtn) gatherLogBtn.addEventListener('click', startLogGather);
+    const feedLogBtn2 = document.getElementById('feed-log-btn');
+    if (feedLogBtn2) feedLogBtn2.addEventListener('click', feedLog);
 
     // Spawn buttons (one tap = one spawn; bulk spawn returns as an upgrade)
     document.getElementById('spawn-fuel').addEventListener('click', () => spawnFuel());

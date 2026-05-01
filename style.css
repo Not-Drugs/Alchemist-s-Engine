@@ -2436,6 +2436,94 @@ button.revealing { display: inline-block; }
     }
 }
 
+/* Log controls — same layout as stick-controls; revealed on axe craft. */
+#log-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+#log-count-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+}
+
+#log-count-row .stick-glyph {
+    color: var(--text-dim);
+}
+
+#log-count-row #log-count {
+    color: var(--text-bright);
+    min-width: 1.5ch;
+    text-align: left;
+}
+
+#gather-log-btn,
+#feed-log-btn {
+    width: 100%;
+    max-width: 240px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+}
+
+.log-btn {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.log-btn .log-btn-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(120,80,20,0.35), rgba(200,140,60,0.38));
+    box-shadow: inset 0 0 10px rgba(200,140,60,0.25);
+    pointer-events: none;
+    z-index: 0;
+    transition: width 200ms linear;
+}
+
+.log-btn .log-btn-label {
+    position: relative;
+    z-index: 1;
+}
+
+.log-btn.gathering {
+    cursor: progress;
+    opacity: 1 !important;
+    color: var(--text-bright);
+    border-color: var(--text-primary);
+    box-shadow: 0 0 8px rgba(200,140,60,0.2);
+}
+
+@media (hover: hover) {
+    #gather-log-btn:hover:not(:disabled),
+    #feed-log-btn:hover:not(:disabled) {
+        border-color: var(--text-primary);
+        background: #001a00;
+        box-shadow: 0 0 10px rgba(0,255,0,0.3);
+    }
+}
+
+/* Touch-target minimum for log buttons */
+@media (hover: none) and (pointer: coarse) {
+    #gather-log-btn,
+    #feed-log-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
 .intro-hint {
     font-size: 0.75rem;
     color: var(--text-dim);
