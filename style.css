@@ -1015,17 +1015,18 @@ section h2::after {
 /* Mining progress bar — same shape as .log-btn but tinted cool/grey
    so it visually belongs to the quarry. Lives at the bottom of the
    quarry modal, single global mining action. */
-.mine-ore-btn {
+/* Compound selector wins specificity over the lone `.spawn-btn` rule
+   farther down in this file (which carries `flex: 1`). Without this
+   the button inherits flex-grow inside the fullscreen quarry-modal
+   flex column and balloons to take half the screen, crushing the
+   ASCII scene above it. */
+.spawn-btn.mine-ore-btn {
     position: relative;
     overflow: hidden;
     isolation: isolate;
     width: 100%;
     max-width: 320px;
     margin: 8px auto 4px;
-    /* Override .spawn-btn { flex: 1 } — inside the fullscreen quarry
-       modal (a flex-column), letting this button grow split the
-       vertical space with #quarry-scene and crushed the ASCII to a
-       tiny fontSize. Pin the button to its natural height instead. */
     flex: 0 0 auto;
     align-self: center;
 }
