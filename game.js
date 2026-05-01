@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v115';
+const APP_VERSION = 'v116';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3241,17 +3241,33 @@ const GROVE_WALKER_GAITS = {
         }
     },
     crab: {
+        // Same \↔/ flip mechanic as cascade, but legs are paired
+        // inner+outer (legs 1+3 = inner, legs 0+4 = outer) rather
+        // than cascaded one-by-one. The inner pair flips first,
+        // then the outer pair, then they unwind in the same order.
+        // Direction sensitive: rightward motion → inner pair leads;
+        // leftward → outer pair leads. flipOnlyAtRest keeps the
+        // direction-sensitive cycle readable.
         frameMs: 200,
         driftPerFrame: 0.4,
         flipChance: 0.12,
-        flipOnlyAtRest: false,
+        flipOnlyAtRest: true,
         cycleLen: 4,
-        getFrame: (w) => [
-            ['  *  ', '// \\\\'],   // planted, body weight centered
-            ['  *  ', ' / \\ '],     // legs 0+4 lifted (diagonal couplet 1)
-            ['  *  ', '// \\\\'],   // planted again
-            ['  *  ', '/   \\']      // legs 1+3 lifted (diagonal couplet 2)
-        ][w.frame % 4]
+        getFrame: (w) => {
+            const right = [
+                ['  *  ', '// \\\\'],   // F0: rest, all splayed out
+                ['  *  ', '/\\ /\\'],    // F1: inner pair flipped (legs 1, 3)
+                ['  *  ', '\\\\ //'],    // F2: outer also flipped — fully compressed
+                ['  *  ', '\\/ \\/']     // F3: inner back out (next: F0, outer back)
+            ];
+            const left = [
+                ['  *  ', '// \\\\'],   // F0: rest
+                ['  *  ', '\\/ \\/'],    // F1: outer pair flipped (legs 0, 4)
+                ['  *  ', '\\\\ //'],    // F2: inner also flipped — compressed
+                ['  *  ', '/\\ /\\']     // F3: outer back out (next: F0, inner back)
+            ];
+            return (w.dir > 0 ? right : left)[w.frame % 4];
+        }
     }
 };
 
