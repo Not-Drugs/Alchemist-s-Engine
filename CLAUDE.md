@@ -28,6 +28,7 @@ real Chrome.
 ├── manifest.webmanifest    # PWA manifest — standalone display, portrait
 ├── service-worker.js       # Offline-first shell cache (stale-while-revalidate)
 ├── icon.svg                # PWA / apple-touch icon
+├── DISPATCH_LOG.md         # Changelog for work shipped via Dispatch sessions
 └── CLAUDE.md               # This file
 ```
 
@@ -212,9 +213,38 @@ deferred (see design spec at
 
 **Save state.** New top-level fields: `game.inventory`, `game.satchel`,
 `game.keyItems`, `game.flags.discoveredRecipes`,
-`game.flags.golemRecipeTaught`. Migration on load moves any legacy
-`game.resources.sticks`/`.stones` into `game.inventory.sticks`/`.stones`
-(taking the max defensively if both exist) and removes the old fields.
+`game.flags.golemRecipeTaught`, `game.golems` (see below). Migration on
+load moves any legacy `game.resources.sticks`/`.stones` into
+`game.inventory.sticks`/`.stones` (taking the max defensively if both
+exist) and removes the old fields.
+
+**Functional golems (`game.golems.active`).** Stick Golems used to be
+inert in the bag; they're now deployable workers. Each active golem
+performs one action every `GOLEM_ACTION_MS` (5s). Per-action cost is
+`GOLEM_HEAT_COST` (1 heat). The action chooses based on world state:
+
+- If `inventory.sticks > 0` and the furnace has room → **feed** a
+  stick (–1 stick, +`STICK_FUEL_VALUE` fuel, +1 `kindlingAdded`).
+- Else → **gather** (+1 stick to inventory, +1 `sticksGathered`).
+- If `resources.heat < GOLEM_HEAT_COST` → idle silently (no action,
+  no heat consumed). Status line shows "no heat — paused".
+
+Max active is gated by furnace level. `getGolemMaxActive()` returns 1
+by default and 2 once the player has purchased
+`GOLEM_LEVEL2_UPGRADE_ID` (currently `'efficiency3'` — Arcane Vents at
+1000 heat). The cap also respects `countGolemsInBag()`, so you can't
+deploy more than you've crafted.
+
+Deploy / Recall live in the Key Items modal: golems render as a single
+grouped tile (`Nx (active/max)`) with `[+]` / `[-]` controls. A status
+line in `#stick-controls` (`#golem-status`) shows `Golems: N/M active`
+plus a tail hint once the player owns at least one golem.
+
+Implementation note: per-golem accumulators (`_golemAccums`) and last-
+action labels (`_golemLastActions`) are module-level transients —
+NOT saved. They're rebuilt from `game.golems.active` via
+`ensureGolemTransient()` so a refresh / load just resets the action
+phase. Only the active count needs to persist.
 
 **Implementation notes (v60–v70 lessons).** Land-mines worth knowing
 before touching any of this:
@@ -354,9 +384,15 @@ A separate exploration mechanic, accessible from the **Explore** card
 that sits below the Alchemical Table. The card renders a tiny world
 map: a hollow box icon for the engine ("you are here", non-clickable)
 linked by a horizontal line to a solid box icon for the grove
-(the `#grove-enter` button). Future locations join this row as more
-nodes. Tapping the grove icon opens a fullscreen modal containing
-a hand-authored ASCII forest scene. The picture **is** the UI: items
+(the `#grove-enter` button), then another connector to the Abandoned
+Quarry node (`#quarry-enter`) — visual-only for now (clicking shows
+the description "An old quarry. Metal ore glints in the rock face."
+plus a "coming soon" toast). Future locations join this row as more
+nodes; the grove → quarry pattern (connector span + `.explore-node`
+button) is the template. The quarry uses a peaked rocky ASCII glyph
+in cool grey-blue (`.explore-quarry`) so it reads visually distinct
+from the grove's solid-fill warm-orange icon. Tapping the grove icon
+opens a fullscreen modal containing a hand-authored ASCII forest scene. The picture **is** the UI: items
 embedded in the art (sticks, stones) are clickable and add to the
 player's resources. Items don't respawn yet — this is a proof of
 concept for the picture-as-UI approach.

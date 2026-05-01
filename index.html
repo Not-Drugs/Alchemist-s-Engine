@@ -75,6 +75,12 @@
                                 <span class="stick-btn-label">[/] Gather Stick</span>
                             </button>
                             <button id="feed-stick-btn" class="spawn-btn" disabled title="Feed one stick into the engine. Shift-click to feed all.">[&gt;] Feed Stick</button>
+                            <div id="golem-status" class="golem-status reveal-hidden">
+                                <span class="golem-glyph">[G]</span>
+                                <span class="golem-status-label">Golems:</span>
+                                <span id="golem-active-count">0</span>/<span id="golem-max-count">1</span>
+                                <span class="golem-status-hint" id="golem-status-hint">active</span>
+                            </div>
                             <div class="intro-hint">Slow labor. Keeps the engine alive when heat runs out.</div>
                         </div>
                         <div id="furnace-visual">
@@ -182,6 +188,13 @@
 &#9474;&#9608;&#9608;&#9474;
 &#9492;&#9472;&#9472;&#9496;</pre>
                             <span class="explore-label">grove</span>
+                        </button>
+                        <span class="explore-connector" aria-hidden="true">&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;</span>
+                        <button id="quarry-enter" class="explore-node explore-clickable explore-quarry" type="button" aria-label="The Abandoned Quarry — coming soon">
+                            <pre class="explore-icon">&#9484;&#9586;&#9585;&#9488;
+&#9474;&#9618;&#9618;&#9474;
+&#9492;&#9472;&#9472;&#9496;</pre>
+                            <span class="explore-label">quarry</span>
                         </button>
                     </div>
                 </section>
