@@ -2464,21 +2464,24 @@ footer button:active {
 }
 
 #walker-lab-walker {
-    position: absolute;
-    top: 14px;
+    position: absolute !important;
+    top: 14px !important;
     left: 0;
-    color: #c8b48a;
-    font-family: inherit;
-    font-size: 22px;
-    line-height: 1.0;
-    white-space: pre;
-    text-shadow: 0 0 2px rgba(200, 180, 138, 0.5);
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #ffd28a !important;
+    background: transparent !important;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+    font-size: 22px !important;
+    line-height: 1.0 !important;
+    white-space: pre !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    text-shadow: 0 0 4px rgba(255, 210, 138, 0.6);
     transition: left 220ms linear;
     will-change: left;
-}
-
-#walker-lab-walker > div {
-    white-space: pre;
+    z-index: 5;
 }
 
 .lab-controls .lab-row {

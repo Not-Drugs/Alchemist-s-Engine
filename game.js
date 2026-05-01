@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v114';
+const APP_VERSION = 'v115';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3512,8 +3512,7 @@ function paintWalkerLab() {
     const gait = GROVE_WALKER_GAITS[_walkerLab.gait];
     const w = _walkerLab.walker;
     const frame = gait.getFrame(w);
-    walkerEl.children[0].textContent = frame[0];
-    walkerEl.children[1].textContent = frame[1];
+    walkerEl.textContent = frame[0] + '\n' + frame[1];
     walkerEl.style.left = w.x + 'ch';
 }
 
