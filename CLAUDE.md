@@ -205,17 +205,18 @@ then deleted from save.
 animated golem appears in the midground per stick-job assignment
 (so 1 walker today, 2 once Arcane Vents unlocks the second slot).
 Three gaits are wired up under `GROVE_WALKER_GAITS`, selectable at
-runtime via `?gait=splay|cascade|crab` (default = `splay`):
+runtime via `?gait=crab|splay|cascade` (default = `crab`):
+- **crab** (default) — 4-frame pair-flip gait. Same `\`↔`/` mechanic
+  as cascade, but legs are paired by inner (positions 1+3) and
+  outer (0+4); the inner pair flips first, then the outer, then
+  both unwind in the same order. Direction-sensitive: inner leads
+  on rightward, outer leads on left. 200ms/frame.
 - **splay** — original 4-frame lean cycle (neutral → lean-R → inward
   → lean-L → loop), 220ms/frame.
 - **cascade** — 8-frame independent-leg wave; the leading-edge leg
   flips `\` ↔ `/` first and the cascade rolls inward. Direction
   signaled by the starting edge (rightmost first = moving right);
-  mirrored frame set for left motion. 130ms/frame, only flips
-  direction at frame 0 to keep the wave readable.
-- **crab** — 4-frame diagonal-couplet gait (real alternating tetrapod);
-  legs 0+4 lift together, then 1+3, with planted frames between.
-  200ms/frame.
+  mirrored frame set for left motion. 130ms/frame.
 
 Each gait carries its own `frameMs`, `driftPerFrame`, `flipChance`,
 and `flipOnlyAtRest` flag.

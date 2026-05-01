@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v116';
+const APP_VERSION = 'v117';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3276,7 +3276,7 @@ function _pickGroveGait() {
         const p = (new URLSearchParams(window.location.search).get('gait') || '').toLowerCase();
         if (GROVE_WALKER_GAITS[p]) return p;
     } catch (e) {}
-    return 'splay';
+    return 'crab';
 }
 const GROVE_WALKER_GAIT_KEY = _pickGroveGait();
 const GROVE_WALKER_GAIT = GROVE_WALKER_GAITS[GROVE_WALKER_GAIT_KEY];
@@ -3418,9 +3418,9 @@ function openWalkerLab() {
     modal.classList.remove('hidden');
     if (_walkerLab) closeWalkerLab(); // defensive — clean re-init each open
     _walkerLab = {
-        gait: 'splay',
-        drift: GROVE_WALKER_GAITS.splay.driftPerFrame,
-        frameMs: GROVE_WALKER_GAITS.splay.frameMs,
+        gait: 'crab',
+        drift: GROVE_WALKER_GAITS.crab.driftPerFrame,
+        frameMs: GROVE_WALKER_GAITS.crab.frameMs,
         timescale: 1,
         paused: false,
         walker: { x: 5, dir: 1, frame: 0, sinceFlip: 0 },
@@ -3479,7 +3479,7 @@ function openWalkerLab() {
         restartTimer();
     }
 
-    gaitSel.value = 'splay';
+    gaitSel.value = 'crab';
     gaitSel.onchange = (e) => applyGait(e.target.value);
     driftIn.oninput = (e) => { _walkerLab.drift = parseFloat(e.target.value); refreshDisplays(); };
     frameIn.oninput = (e) => { _walkerLab.frameMs = parseFloat(e.target.value); refreshDisplays(); restartTimer(); };
@@ -3487,7 +3487,7 @@ function openWalkerLab() {
     pauseBtn.onclick = () => setPaused(!_walkerLab.paused);
     stepBtn.onclick  = () => { if (_walkerLab.paused) tickWalkerLab(); };
 
-    applyGait('splay');
+    applyGait('crab');
     // Defer first paint until the modal is fully visible so getBoundingClientRect
     // and any computed-style reads see a laid-out element.
     requestAnimationFrame(() => requestAnimationFrame(paintWalkerLab));
