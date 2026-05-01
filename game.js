@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v117';
+const APP_VERSION = 'v118';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3284,14 +3284,28 @@ const GROVE_WALKER_GAIT = GROVE_WALKER_GAITS[GROVE_WALKER_GAIT_KEY];
 const GROVE_WALKER_TARGET_ROW = 13; // 0-indexed scene row, lower mid mid-band
 const GROVE_WALKER_BAND_COLS = 20;  // center band width in chars
 const GROVE_WALKER_SPRITE_W  = 5;   // sprite width in chars
+// Vertical wander range relative to GROVE_WALKER_TARGET_ROW. Walker is 2
+// rows tall, so y=-5 puts the top at row 8 (mid mid-band ceiling) and y=0
+// puts it at row 13 (mid mid-band floor). Keeps the walker bounded inside
+// the mid mid-band — never crawls into the foreground tree silhouettes
+// or up into the fog row.
+const GROVE_WALKER_Y_MIN = -5;
+const GROVE_WALKER_Y_MAX = 0;
+// Per-frame chance the walker takes a vertical step instead of just
+// drifting horizontally. Low enough that horizontal scuttle dominates,
+// but high enough that the walker visibly explores rows during a few-
+// second observation window.
+const GROVE_WALKER_VERT_CHANCE = 0.06;
 let _groveWalkers = [];
 let _groveWalkerTimer = null;
 
 function ensureGroveWalkerCount() {
     const count = (game.golems && game.golems.assignments && game.golems.assignments.sticks) || 0;
     while (_groveWalkers.length < count) {
+        const yRange = GROVE_WALKER_Y_MAX - GROVE_WALKER_Y_MIN + 1;
         _groveWalkers.push({
             x: Math.random() * (GROVE_WALKER_BAND_COLS - GROVE_WALKER_SPRITE_W),
+            y: GROVE_WALKER_Y_MIN + Math.floor(Math.random() * yRange),
             dir: Math.random() < 0.5 ? -1 : 1,
             frame: Math.floor(Math.random() * GROVE_WALKER_GAIT.cycleLen),
             sinceFlip: 0
@@ -3338,6 +3352,15 @@ function tickGroveWalkers() {
                 w.sinceFlip = 0;
             }
         }
+        // Vertical wander — small chance per frame to step up or down a
+        // row inside the mid mid-band. Random direction, clamped to the
+        // configured range. Only at the cycle's frame 0 so the leg
+        // animation isn't visually mid-flip during the vertical slide.
+        if (w.frame === 0 && Math.random() < GROVE_WALKER_VERT_CHANCE) {
+            const dy = Math.random() < 0.5 ? -1 : 1;
+            const ny = (w.y || 0) + dy;
+            if (ny >= GROVE_WALKER_Y_MIN && ny <= GROVE_WALKER_Y_MAX) w.y = ny;
+        }
     }
     paintGroveWalkers();
 }
@@ -3368,10 +3391,13 @@ function paintGroveWalkers() {
     const fs = parseFloat(getComputedStyle(targetRow).fontSize) || 14;
     layer.style.fontSize = fs + 'px';
 
-    // Vertical position: top of the target scene row, relative to scene.
+    // Layer anchors at the target row; per-walker vertical offset (in
+    // multiples of font-size, since line-height is 1.0 across grove rows)
+    // is applied as inline `top` per walker so each can roam vertically.
     const sceneRect = scene.getBoundingClientRect();
     const rowRect = targetRow.getBoundingClientRect();
-    layer.style.top = (rowRect.top - sceneRect.top) + 'px';
+    const layerTop = rowRect.top - sceneRect.top;
+    layer.style.top = layerTop + 'px';
 
     // Sync walker DOM count to model.
     const count = _groveWalkers.length;
@@ -3397,6 +3423,9 @@ function paintGroveWalkers() {
         const w = _groveWalkers[i];
         const col = 10 + w.x;
         el.style.left = col + 'ch';
+        // Vertical: y is in row units relative to the layer's anchor row
+        // (line-height 1.0 → row height ≈ font-size). Negative = up.
+        el.style.top = ((w.y || 0) * fs) + 'px';
         const frame = GROVE_WALKER_GAIT.getFrame(w);
         el.children[0].textContent = frame[0];
         el.children[1].textContent = frame[1];

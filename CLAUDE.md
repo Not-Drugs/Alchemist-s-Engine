@@ -221,6 +221,13 @@ runtime via `?gait=crab|splay|cascade` (default = `crab`):
 Each gait carries its own `frameMs`, `driftPerFrame`, `flipChance`,
 and `flipOnlyAtRest` flag.
 
+**Vertical wander.** Walkers can step up or down a row inside the
+mid mid-band (rows 8–13 reachable via `GROVE_WALKER_Y_MIN/MAX`),
+giving them a 2D roam instead of pacing one fixed line. Per-frame
+chance is `GROVE_WALKER_VERT_CHANCE` (0.06), only fires at frame 0
+of the leg cycle so the slide doesn't conflict with an in-flight
+flip. CSS transitions both `left` and `top` for a smooth shuffle.
+
 **Walker Lab.** Settings → `[WALKER LAB]` opens a debug modal
 (`#walker-lab-modal`) with a single walker pacing back and forth on
 a track plus live controls: gait dropdown, drift speed slider, frame
