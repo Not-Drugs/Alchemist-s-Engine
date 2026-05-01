@@ -123,7 +123,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v103';
+const APP_VERSION = 'v104';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
