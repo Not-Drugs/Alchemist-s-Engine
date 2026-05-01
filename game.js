@@ -123,7 +123,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v104';
+const APP_VERSION = 'v105';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3237,7 +3237,9 @@ function renderRecipesPanel() {
 function renderKeyItemsModal() {
     const countEl = document.getElementById('key-items-count');
     const listEl  = document.getElementById('key-items-list');
-    if (countEl) countEl.textContent = String(game.keyItems?.length || 0);
+    const count = game.keyItems?.length || 0;
+    if (countEl) countEl.textContent = String(count);
+    if (count > 0) revealEl(document.getElementById('key-items-btn'));
     if (!listEl) return;
     listEl.replaceChildren();
 
