@@ -851,6 +851,180 @@ section h2::after {
     min-height: 1em;
 }
 
+/* ============================================
+   Quarry modal — same fullscreen treatment as
+   the grove. Mountain backdrop, cave mouth, and
+   foreground rock-pile band with embedded
+   clickable stones + iron-ore nodes. The scene
+   reuses .grove-cell.* depth tints (color +
+   opacity) so atmospheric perspective matches.
+   ============================================ */
+
+.quarry-modal-content {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100dvw;
+    height: 100dvh;
+    max-height: 100svh;
+    max-width: 100svw;
+    padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    background: var(--bg-dark);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+}
+
+#quarry-modal .quarry-modal-content h3 {
+    text-align: center;
+    flex-shrink: 0;
+    margin: 12px 0 4px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    opacity: 0.75;
+    letter-spacing: 0.5px;
+}
+
+.quarry-modal-content .location-desc {
+    text-align: center;
+    padding: 0 24px;
+    flex-shrink: 0;
+    margin-bottom: 8px;
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+.quarry-modal-content .quarry-scene {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    padding: 12px 0;
+    border: none;
+    background: transparent;
+}
+
+.quarry-modal-content .quarry-row {
+    /* Mirror grove-row's auto-fit fallback. JS autofitQuarryScene sets
+       inline font-size after layout settles; clamp is the first-paint
+       fallback. Quarry has fewer rows than grove so the formula is
+       slightly more generous. */
+    font-size: clamp(8px, min(4vw, calc((100vh - 160px) / 24)), 24px);
+    line-height: 1.0;
+    text-align: center;
+    white-space: pre;
+    display: block;
+}
+
+.quarry-modal-content .quarry-scene-row,
+.quarry-modal-content .quarry-ground-row,
+.quarry-modal-content .quarry-items-row {
+    display: block;
+}
+
+.quarry-modal-content .quarry-items-row {
+    line-height: 1.3;
+}
+
+/* Stones in the quarry use the grove-stone color. Ore nodes get a
+   distinct cool-grey-blue with a faint glint, so the player's eye
+   picks them out as the mineable ones. */
+.quarry-stone {
+    color: #d8dde6;
+    text-shadow: 0 0 1px rgba(216, 221, 230, 0.5);
+}
+
+.quarry-ore {
+    color: #8aa6c2;
+    text-shadow: 0 0 2px rgba(138, 166, 194, 0.6);
+}
+
+@media (hover: hover) {
+    .quarry-stone:hover, .quarry-stone:focus {
+        color: #ffffff;
+        text-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+    }
+    .quarry-ore:hover, .quarry-ore:focus {
+        color: #cce0ff;
+        text-shadow: 0 0 8px rgba(180, 210, 255, 0.95);
+    }
+}
+
+.quarry-row.quarry-empty-row {
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: center;
+    opacity: 0.6;
+}
+
+/* Mining progress bar — same shape as .log-btn but tinted cool/grey
+   so it visually belongs to the quarry. Lives at the bottom of the
+   quarry modal, single global mining action. */
+.mine-ore-btn {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    width: 100%;
+    max-width: 320px;
+    margin: 8px auto 4px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.mine-ore-btn .mine-ore-btn-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, rgba(60,80,110,0.40), rgba(140,170,210,0.40));
+    box-shadow: inset 0 0 10px rgba(140,170,210,0.25);
+    pointer-events: none;
+    z-index: 0;
+    transition: width 200ms linear;
+}
+
+.mine-ore-btn .mine-ore-btn-label {
+    position: relative;
+    z-index: 1;
+}
+
+.mine-ore-btn.mining {
+    cursor: progress;
+    opacity: 1 !important;
+    color: var(--text-bright);
+    border-color: var(--text-primary);
+    box-shadow: 0 0 8px rgba(140,170,210,0.25);
+}
+
+/* Forest-gated connector — when the player hasn't chopped enough logs,
+   the grove → quarry path shows a "dense forest" treatment instead
+   of a clear line. Tinted leafy green and given a slight wave glyph
+   so it reads as overgrown rather than passable. The class is added
+   on the connector span by updateForestGate(); cleared once the gate
+   threshold is met. */
+.explore-connector.forest-gated {
+    color: #4a6b3a;
+    opacity: 0.85;
+    /* Use a different glyph treatment via a CSS pseudo-element so we
+       don't have to swap the heavy-line entity. The gradient overlay
+       gives the line a mossy/overgrown look. */
+    background: linear-gradient(90deg, transparent, rgba(80, 140, 60, 0.18), transparent);
+    border-radius: 2px;
+    padding: 0 4px;
+}
+
 /* Empty-cell beacon while the player is drawing a Spark out of the
    engine. Subtler than .drag-over (which is the active-hover state)
    but unmistakable as a "drop here" signal across the whole grid. */

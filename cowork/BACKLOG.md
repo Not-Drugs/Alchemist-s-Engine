@@ -11,6 +11,18 @@ When a backlog item is ready to ship, file it as a fresh ticket in
 
 ---
 
+## Quarry: bump log-gate from 1 → 5 before public launch
+
+**Test value (2026-05-01):** `QUARRY_LOG_GATE = 1` in `game.js`. One log
+clears the dense forest, which is fine while iterating but trivial for
+a real player. Pre-launch action: bump to 5 (or whatever feels right
+after playtesting) so the quarry actually feels earned and so the
+forest-gated connector + progress toast are visible long enough to
+register. When bumping, also re-check the unlock narration — at 5 logs
+the message is a more meaningful payoff.
+
+---
+
 ## Split `game.js` into focused modules (token efficiency)
 
 **Concept (Nicholas, 2026-05-01):** `game.js` is ~5000 lines and gets

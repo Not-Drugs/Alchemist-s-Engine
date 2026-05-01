@@ -300,9 +300,8 @@ heat     -= max(expLoss, floorLoss)
 A separate exploration mechanic, accessible from the **Explore** card below
 the Alchemical Table. The card renders a tiny world map: a hollow box icon
 for the engine ("you are here") linked by a connector to the grove
-(`#grove-enter` button), then to the **Abandoned Quarry**
-(`#quarry-enter`) — visual-only for now, clicking shows a "coming soon"
-toast. The grove → quarry pattern is the template for future locations.
+(`#grove-enter` button), then to the **Abandoned Quarry** (`#quarry-enter`).
+The grove → quarry pattern is the template for future locations.
 
 Tapping the grove opens a fullscreen modal containing a hand-authored
 ASCII forest scene. **The picture is the UI** — items embedded in the art
@@ -358,8 +357,19 @@ rows. Stones render as `()`, sticks as `/`. When all items are collected,
 the three item rows are replaced by spacer / "The grove is empty for now."
 / spacer so the message lands centered without the row count jumping.
 `$` placeholders are replaced at render with clickable buttons. Item
-layout is versioned via `GROVE_LAYOUT_V` — bumping it resets `collected`
-on load for old saves.
+layout is versioned via `GROVE_LAYOUT_V` — bumping it resets the respawn
+map on load for old saves.
+
+**Respawn (shared with quarry).** Picked items respawn after
+`RESPAWN_MS_BASE * (0.5 + Math.random())` — a 1–3 minute spread per
+item, naturally staggered so the grove doesn't refill in lockstep.
+Stored as `game.locations.<loc>.respawnAt: { itemId: epochMs }`. The
+helpers `isItemAvailable(state, id)`, `markItemCollected(state, id)`,
+and `tickRespawns(state)` live next to the grove code in `game.js` and
+serve both locations. `tickRespawns()` runs on each render so expired
+entries clear and the map doesn't grow unbounded. Old saves with the
+legacy `collected: [ids]` array are migrated by dropping the array;
+returning players see a fresh grove (acceptable per `project_pre_launch`).
 
 **Building blocks** (in `game.js`): `LEFT_NEAR_TREE`, `RIGHT_NEAR_TREE`,
 `MID_FAR_*` / `MID_MID_*` / `MID_NEAR_*` slot primitives + `buildBand()`,
@@ -371,6 +381,73 @@ by `renderGrove()`), `GROVE_ITEM_ROWS` + `GROVE_ITEMS`, and
 
 Future grove ideas (mountain range, litter rows retry) live in
 `cowork/BACKLOG.md`.
+
+### Trial Location: The Abandoned Quarry
+
+Second harvestable location. Mountain backdrop with a cave mouth, a
+foreground rock-pile band, and embedded items: **4 stones** (tap-pick,
++1 stone) and **3 iron-ore nodes** (tap → 30s mining bar; pickaxe
+required). Lives in the same modal pattern as the grove — fullscreen,
+`100dvh × 100dvw`, body-scroll-locked.
+
+**World-map gating.** The grove → quarry connector starts with the
+`.forest-gated` class while `game.stats.logsGathered < QUARRY_LOG_GATE`.
+The class adds a leafy-green tint and a soft mossy gradient to the
+heavy-line connector — the path looks overgrown, not passable. Tapping
+the quarry node pre-gate shows the progress toast `"Forest blocks the
+path (N / M logs)"` and a one-line narration. Once the threshold
+trips, the `quarryUnlock` REVEAL_STAGE fires its narration + screen
+flash and `updateForestGate()` strips the class on the next tick. The
+gate state is driven entirely from current stats by `updateForestGate()`
+called from `updateUI()`, so no separate persistence is needed.
+
+`QUARRY_LOG_GATE = 1` is a **test value** — `cowork/BACKLOG.md` carries
+the bump-before-launch reminder.
+
+**Pickaxe.** Recipe shape (Minecraft-style, anywhere on the merge grid):
+
+```
+[S][S][S]    ← three stones in a horizontal row
+   [/]      ← stick (handle) directly below the center stone
+   [/]      ← second stick
+```
+
+5 ingredients. Matched by `matchPickaxe()` in `game.js`. `canCraft`
+guard skips once a pickaxe is in `keyItems`. Yields `{type:'pickaxe'}`,
+displayed as `[T]` in the Key Items bag. The `pickaxeRecipeHint`
+REVEAL_STAGE fires once the player has 3 stones + 2 sticks AND no
+pickaxe yet.
+
+**Mining.** One ore at a time. Tapping an `[O]` node starts a 30s
+progress bar (`MINE_ORE_MS`) on the `#mine-ore-btn` at the bottom of
+the quarry modal. On completion: +1 `inventory.ironOre`, +1
+`stats.ironOreMined`, the node hides and its respawn timer is set.
+Cancellable on tap-the-bar, on `quarry-leave`, on a second tap
+mid-mining, and on `visibilitychange → hidden` (mirrors
+`cancelLogGather`). Without a pickaxe, tapping a node shows the
+"You need a pickaxe to mine iron ore." toast.
+
+**Iron ore inventory rail.** New tile (`#inv-tile-iron-ore`, `[O] N`)
+between stones and the satchel. Hidden until any ore has been mined
+(`stats.ironOreMined > 0`). Not draggable — no recipe consumes iron
+ore yet; it's a visible counter only. Future recipe / smelter
+integration is a separate spec.
+
+**Scene composition.** Simpler than the grove: one mountain backdrop
+(15 rows, peak narrowing to a `|____|` cave mouth around row 11), a
+fog/dust transition row, a ground row, three item rows. Single
+full-width span per row (no left/center/right framing-tree split — the
+quarry doesn't need framing trees). Depth tinting reuses the grove's
+`.grove-cell.grove-{horizon|far|midfar|mid|midnear|near|sky|ground}`
+classes. `autofitQuarryScene()` and `autofitLocationScene()` are
+generalized helpers — same auto-fit math as the grove.
+
+**Building blocks** (in `game.js`): `_QUARRY_RAW_ROWS` →
+`QUARRY_SCENE_ROWS` (padded to 40c), `QUARRY_GROUND_ROW`,
+`QUARRY_ITEM_ROWS` + `QUARRY_ITEMS`, `renderQuarry()`,
+`collectQuarryItem()`, `startMineOre()` / `completeMineOre()` /
+`cancelMineOre()`, `mineOreState` transient. Layout is versioned via
+the `layoutV` field on `game.locations.quarry`.
 
 ## Mobile & PWA
 

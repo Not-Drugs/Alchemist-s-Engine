@@ -102,18 +102,22 @@
         if (!window.game) return;
         window.game.stats.sticksGathered = 50;  // unlocks the Explore card
         if (!window.game.locations) window.game.locations = {};
-        window.game.locations.grove = { collected: [], layoutV: 3 };
+        window.game.locations.grove = { respawnAt: {}, layoutV: 4 };
         window.game.revealed = window.game.revealed || {};
         window.game.revealed.exploreUnlock = true;
         window.updateUI?.();
     }
 
-    /** Grove with everything picked up — "The grove is empty for now." state. */
+    /** Grove with everything picked up — "The grove is empty for now." state.
+        Items are marked with respawnAt far in the future so the empty-state
+        renders without an immediate respawn. */
     function setupGroveAllCollected() {
         setupGroveFresh();
         if (!window.game) return;
-        // Mark all 15 indices collected (current GROVE_ITEMS.length).
-        window.game.locations.grove.collected = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+        const farFuture = Date.now() + 60 * 60 * 1000; // +1 hour
+        const respawnAt = {};
+        for (let i = 0; i < 15; i++) respawnAt[String(i)] = farFuture;
+        window.game.locations.grove.respawnAt = respawnAt;
     }
 
     /** Open the grove modal (use after a setupGrove* call). */

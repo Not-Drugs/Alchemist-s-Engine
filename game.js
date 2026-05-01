@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v106';
+const APP_VERSION = 'v107';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -380,7 +380,7 @@ const REVEAL_STAGES = [
     // entry tracks bumping it to 5 before public launch.
     { id: 'quarryUnlock', cond: g => (g.stats?.logsGathered || 0) >= QUARRY_LOG_GATE,
         narrate: 'The forest thins. Beyond, jagged stone — an old quarry, half-swallowed by moss.',
-        targets: ['#quarry-enter'] },
+        onReveal: () => { updateForestGate(); screenFlash('var(--accent-essence)'); } },
     // Pickaxe recipe hint — fires once the player has the materials
     // (3 stones + 2 sticks) on hand AND no pickaxe yet. One-shot
     // teaching beat to surface the recipe shape.
@@ -566,6 +566,7 @@ function onPageHide() {
     // leave buttons stuck in a half-gathered state on return.
     cancelStickGather(/*deliver=*/false);
     cancelLogGather(/*deliver=*/false);
+    cancelMineOre(/*deliver=*/false);
 }
 
 function onPageShow() {
@@ -3178,12 +3179,268 @@ function collectGroveItem(id) {
     updateUI();
 }
 
+// ============================================
+// QUARRY (second harvestable location)
+// ============================================
+//
+// Mountain backdrop with a cave opening + a foreground rock-pile band
+// containing tap-pickable stones and pickaxe-mineable iron-ore nodes.
+// Reuses the grove's depth tinting and modal lifecycle; the scene
+// itself is simpler — single mountain silhouette, one fog/dust band,
+// one ground row, item rows underneath.
+
+// Each [row, depthClass] tuple gets padded to 40 chars on init so
+// authoring stays sloppy-friendly. Depth classes match the grove's
+// CSS (.grove-* are reused via the .quarry-cell.grove-* class pair
+// applied at render time).
+const _QUARRY_RAW_ROWS = [
+    ['', 'sky'],
+    ['', 'sky'],
+    ['                /\\', 'far'],
+    ['               /  \\', 'far'],
+    ['              /    \\', 'midfar'],
+    ['             /  /\\  \\', 'midfar'],
+    ['            /  /  \\  \\', 'mid'],
+    ['           /  /    \\  \\', 'mid'],
+    ['          /  / .--. \\  \\', 'mid'],
+    ['         /  / |    | \\  \\', 'midnear'],
+    ['        /  /  |____|  \\  \\', 'midnear'],
+    ['       /  /            \\  \\', 'midnear'],
+    ['      / _/              \\_ \\', 'near'],
+    ['     /                      \\', 'near'],
+    ['____/                        \\_______', 'near'],
+    [' ~.,_  .;.,~  -.,_  .;.,~  -.,_ .;.,~ ', 'midnear']
+];
+const QUARRY_SCENE_ROWS = _QUARRY_RAW_ROWS.map(([row, cls]) => ({
+    row: row.padEnd(40, ' '),
+    cls
+}));
+
+// Foreground rock-pile band — items embed within these rows. Stones
+// and ore nodes sit nestled in stylized rock debris.
+const QUARRY_GROUND_ROW = '_,~,. ,_-`._,. ~,_.. -`,_, ~,. ., -._, ';
+const QUARRY_ITEM_ROWS = [
+    '   $        ,_/\\,    $       ,/^\\,    ',
+    '       $          $          $         ',
+    '   $          $                 $      '
+];
+// One entry per `$` placeholder, in left-to-right top-to-bottom order.
+// 8 placeholders total (rows 2/3/3) → 5 stones + 3 ore nodes. Sparse
+// enough that the rock-pile band still reads as foreground; dense
+// enough that a single visit nets a useful haul.
+const QUARRY_ITEMS = [
+    { type: 'stone' },   // row 1, $1
+    { type: 'ore' },     // row 1, $2
+    { type: 'stone' },   // row 2, $1
+    { type: 'ore' },     // row 2, $2
+    { type: 'stone' },   // row 2, $3
+    { type: 'stone' },   // row 3, $1
+    { type: 'ore' },     // row 3, $2
+    { type: 'stone' }    // row 3, $3
+];
+
+function renderQuarry() {
+    const scene = document.getElementById('quarry-scene');
+    if (!scene) return;
+    ensureQuarryState();
+    tickRespawns(game.locations.quarry);
+    scene.textContent = '';
+
+    const quarryState = game.locations.quarry;
+    let itemIdx = 0;
+
+    function makeItemNode() {
+        const id = itemIdx++;
+        if (!isItemAvailable(quarryState, id)) return document.createTextNode(' ');
+        const item = QUARRY_ITEMS[id];
+        if (!item) return document.createTextNode(' ');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `grove-item quarry-item quarry-${item.type}`;
+        if (item.type === 'stone') {
+            btn.setAttribute('aria-label', 'Pick up a stone');
+            btn.textContent = '()';
+            btn.addEventListener('click', () => collectQuarryItem(id));
+        } else {
+            // ore node — requires pickaxe + 30s mining bar
+            btn.setAttribute('aria-label', 'Mine iron ore (pickaxe required)');
+            btn.textContent = '[O]';
+            btn.addEventListener('click', () => startMineOre(id));
+        }
+        return btn;
+    }
+
+    function buildRow(text, cls) {
+        const row = document.createElement('div');
+        row.className = 'quarry-row quarry-scene-row';
+        const span = document.createElement('span');
+        span.className = `grove-cell grove-${cls}`;
+        for (const ch of text) {
+            if (ch === '$') span.appendChild(makeItemNode());
+            else span.appendChild(document.createTextNode(ch));
+        }
+        row.appendChild(span);
+        return row;
+    }
+
+    QUARRY_SCENE_ROWS.forEach(({ row, cls }) => {
+        scene.appendChild(buildRow(row, cls));
+    });
+
+    // Ground row.
+    const groundRow = document.createElement('div');
+    groundRow.className = 'quarry-row quarry-ground-row';
+    const groundSpan = document.createElement('span');
+    groundSpan.className = 'grove-cell grove-ground';
+    groundSpan.textContent = QUARRY_GROUND_ROW;
+    groundRow.appendChild(groundSpan);
+    scene.appendChild(groundRow);
+
+    // Item rows — collapse into "the quarry is bare" message when none
+    // are available (mirrors grove's empty-state pattern).
+    const allCollected = QUARRY_ITEMS.every((_, i) => !isItemAvailable(quarryState, i));
+    if (allCollected) {
+        const makeSpacer = () => {
+            const s = document.createElement('div');
+            s.className = 'quarry-row quarry-empty-spacer';
+            s.textContent = ' ';
+            return s;
+        };
+        scene.appendChild(makeSpacer());
+        const empty = document.createElement('div');
+        empty.className = 'quarry-row quarry-empty-row';
+        empty.textContent = 'The rocks are picked clean — for now.';
+        scene.appendChild(empty);
+        scene.appendChild(makeSpacer());
+    } else {
+        QUARRY_ITEM_ROWS.forEach((line) => {
+            const row = document.createElement('div');
+            row.className = 'quarry-row quarry-items-row';
+            const span = document.createElement('span');
+            span.className = 'grove-cell grove-items';
+            for (const ch of line) {
+                if (ch === '$') span.appendChild(makeItemNode());
+                else span.appendChild(document.createTextNode(ch));
+            }
+            row.appendChild(span);
+            scene.appendChild(row);
+        });
+    }
+
+    const found = document.getElementById('quarry-found');
+    if (found) {
+        const oreCount = (game.inventory.ironOre || 0);
+        found.textContent = oreCount > 0 ? `Iron ore mined: ${oreCount}` : '';
+    }
+
+    requestAnimationFrame(autofitQuarryScene);
+}
+
+function collectQuarryItem(id) {
+    ensureQuarryState();
+    const state = game.locations.quarry;
+    if (!isItemAvailable(state, id)) return;
+    const item = QUARRY_ITEMS[id];
+    if (!item || item.type !== 'stone') return;
+
+    markItemCollected(state, id);
+    game.inventory.stones = (game.inventory.stones || 0) + 1;
+    sfx('purchase');
+    renderQuarry();
+    updateUI();
+}
+
+// ---- Iron-ore mining ----
+//
+// One ore node at a time. A 30s progress bar fills the [Mine Iron Ore]
+// button at the bottom of the quarry modal; on completion +1 ironOre
+// and the node's respawn timer is set. Cancellable on tap-elsewhere
+// or on visibilitychange → hidden (mirrors cancelLogGather).
+let mineOreState = null;
+
+function startMineOre(itemId) {
+    if (mineOreState) {
+        // Already mining — cancel current attempt and let the player
+        // start over by tapping a (possibly different) node again.
+        cancelMineOre(false);
+        return;
+    }
+    if (!(game.keyItems || []).some(ki => ki.type === 'pickaxe')) {
+        showToast('You need a pickaxe to mine iron ore.', 'error');
+        return;
+    }
+    ensureQuarryState();
+    if (!isItemAvailable(game.locations.quarry, itemId)) return;
+
+    const btn = document.getElementById('mine-ore-btn');
+    if (!btn) return;
+    const fill = btn.querySelector('.mine-ore-btn-fill');
+    btn.classList.add('mining');
+    btn.disabled = false;   // keep tappable so user can cancel
+    if (fill) fill.style.width = '0%';
+
+    const startTime = Date.now();
+    const intervalId = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, (elapsed / MINE_ORE_MS) * 100);
+        if (fill) fill.style.width = pct + '%';
+    }, 200);
+    const timeoutId = setTimeout(() => completeMineOre(), MINE_ORE_MS);
+
+    mineOreState = { intervalId, timeoutId, itemId };
+    sfx('purchase');
+}
+
+function completeMineOre() {
+    if (!mineOreState) return;
+    const itemId = mineOreState.itemId;
+    cancelMineOre(false);
+
+    ensureQuarryState();
+    const state = game.locations.quarry;
+    if (!isItemAvailable(state, itemId)) return;
+
+    markItemCollected(state, itemId);
+    game.inventory.ironOre = (game.inventory.ironOre || 0) + 1;
+    game.stats.ironOreMined = (game.stats.ironOreMined || 0) + 1;
+    sfx('craft');
+    renderQuarry();
+    updateUI();
+}
+
+function cancelMineOre(deliver = false) {
+    if (!mineOreState) return;
+    clearInterval(mineOreState.intervalId);
+    clearTimeout(mineOreState.timeoutId);
+    mineOreState = null;
+
+    const btn = document.getElementById('mine-ore-btn');
+    if (btn) {
+        btn.classList.remove('mining');
+        const fill = btn.querySelector('.mine-ore-btn-fill');
+        if (fill) fill.style.width = '0%';
+    }
+    if (!deliver) return;
+    // Currently no "deliver" path — completeMineOre handles delivery
+    // separately. Kept for API symmetry with cancelLogGather.
+}
+
 // Map an ingredient kind ('stick' / 'stone') to its inventory bucket key.
 // Singular form lives on grid tiles, recipe arm specs, and rail data-kind
 // attributes; the plural form is the natural English count in game.inventory.
 // Keep this in sync if new ingredient kinds get added.
 function invKeyForKind(kind) {
     return kind + 's';
+}
+
+// Toggle the dense-forest treatment on the grove → quarry connector
+// based on current logsGathered. Cheap class flip, called from
+// updateUI so the gate always reflects current state.
+function updateForestGate() {
+    const conn = document.getElementById('quarry-connector');
+    if (!conn) return;
+    const gathered = (game.stats && game.stats.logsGathered) || 0;
+    conn.classList.toggle('forest-gated', gathered < QUARRY_LOG_GATE);
 }
 
 function renderInventoryRail() {
@@ -3198,6 +3455,18 @@ function renderInventoryRail() {
     stoneEl.classList.toggle('is-empty', stones <= 0);
     stickEl.setAttribute('draggable', sticks > 0 ? 'true' : 'false');
     stoneEl.setAttribute('draggable', stones > 0 ? 'true' : 'false');
+
+    // Iron ore tile — visible-counter only for now (no recipe consumes
+    // it yet). Tile reveals once the player has mined any. Not draggable.
+    const ironEl = document.getElementById('inv-tile-iron-ore');
+    const ironCountEl = document.getElementById('inv-tile-iron-ore-count');
+    if (ironEl && ironCountEl) {
+        const ironOre = Math.max(0, game.inventory && game.inventory.ironOre || 0);
+        const everMined = (game.stats && game.stats.ironOreMined) || 0;
+        ironCountEl.textContent = ironOre;
+        ironEl.classList.toggle('is-empty', ironOre <= 0);
+        ironEl.classList.toggle('reveal-hidden', everMined <= 0);
+    }
 }
 
 const SATCHEL_CAP = 8;
@@ -3385,7 +3654,8 @@ function renderKeyItemsModal() {
     }
 
     const KI_DISPLAY = {
-        axe: { glyph: '[/]', name: 'Wooden Axe' },
+        axe:     { glyph: '[/]', name: 'Wooden Axe' },
+        pickaxe: { glyph: '[T]', name: 'Pickaxe' },
     };
     for (const item of (game.keyItems || [])) {
         if (item.type === 'golem') continue;   // grouped above
@@ -4013,6 +4283,7 @@ function cancelLogGather(deliver = false) {
     if (!deliver) return;
 
     game.inventory.logs = (game.inventory.logs || 0) + 1;
+    game.stats.logsGathered = (game.stats.logsGathered || 0) + 1;
     const btnEl = document.getElementById('gather-log-btn');
     squish(btnEl);
     if (btnEl) floatPopup(btnEl, '+log', 'heat');
@@ -4168,6 +4439,7 @@ function updateUI() {
     updateCraftButton();
     renderRecipesPanel();
     renderKeyItemsModal();
+    updateForestGate();
 
     // Explore card gating — show the live "X / 50" progress while locked.
     // The locked placeholder is hidden by the exploreUnlock reveal stage
@@ -4536,17 +4808,49 @@ function setupEventListeners() {
     const gMinus = document.getElementById('golem-stick-minus');
     if (gMinus) gMinus.addEventListener('click', () => unassignGolem('sticks'));
 
-    // Abandoned Quarry — visual-only stub. Click surfaces the
-    // description as a toast + narration so the player knows what's
-    // coming, but no gameplay yet.
+    // Abandoned Quarry — gated by logs gathered (you must chop through
+    // the dense forest first). Pre-gate, the connector is styled with
+    // .forest-gated and a tap on the quarry node shows the progress
+    // toast. Post-gate, opens the fullscreen modal.
     const quarryBtn = document.getElementById('quarry-enter');
+    const quarryModal = document.getElementById('quarry-modal');
+    const quarryLeave = document.getElementById('quarry-leave');
     if (quarryBtn) {
         quarryBtn.addEventListener('click', () => {
-            setNarration('An old quarry. Metal ore glints in the rock face.');
-            showToast('Quarry locked — coming soon.', 'info');
-            sfx('kindle');
+            const gathered = (game.stats.logsGathered || 0);
+            if (gathered < QUARRY_LOG_GATE) {
+                setNarration('The path is choked with growth. Chop more logs to clear it.');
+                showToast(`Forest blocks the path (${gathered} / ${QUARRY_LOG_GATE} logs).`, 'info');
+                sfx('kindle');
+                return;
+            }
+            if (quarryModal) {
+                quarryModal.classList.remove('hidden');
+                lockBodyScroll();
+                renderQuarry();
+                sfx('kindle');
+            }
         });
     }
+    if (quarryLeave && quarryModal) {
+        quarryLeave.addEventListener('click', () => {
+            cancelMineOre(false);
+            quarryModal.classList.add('hidden');
+            unlockBodyScroll();
+        });
+    }
+    // Manual mine-ore-btn cancel — tapping the bar while mining cancels.
+    const mineOreBtn = document.getElementById('mine-ore-btn');
+    if (mineOreBtn) {
+        mineOreBtn.addEventListener('click', () => {
+            if (mineOreState) cancelMineOre(false);
+        });
+    }
+    // Resize/orientation refit for quarry, parallel to grove's wiring.
+    window.addEventListener('resize', autofitQuarryScene);
+    window.addEventListener('orientationchange', () => {
+        requestAnimationFrame(() => requestAnimationFrame(autofitQuarryScene));
+    });
 
     // Log gather/feed — revealed once the Wooden Axe is in the bag.
     const gatherLogBtn = document.getElementById('gather-log-btn');
@@ -4942,24 +5246,40 @@ function loadGame() {
             }
 
             // Migration: locations is a new field. If missing, seed with
-            // a fresh Dead Grove so old saves get the trial location.
+            // fresh defaults so old saves get the trial locations.
             if (!game.locations) {
                 game.locations = JSON.parse(JSON.stringify(defaultGame.locations));
             }
-            // Migration: the trial grove used to count by type. Convert
-            // any old format to the new collected-id list.
-            if (game.locations.grove && !Array.isArray(game.locations.grove.collected)) {
-                game.locations.grove = { collected: [] };
+            // Migration: grove used to track `collected: [ids]`. Drop
+            // it in favor of the respawn-timestamp model (respawnAt
+            // map). Past collections are treated as already-respawned
+            // (zero timestamp == past) so returning players see a full
+            // grove on next visit. project_pre_launch: no live players,
+            // so a one-time grace is acceptable.
+            if (!game.locations.grove) {
+                game.locations.grove = { respawnAt: {}, layoutV: 4 };
             }
-            // Migration: the grove scene was redesigned with a new
-            // item layout (different $ count and ordering). Old
-            // collected indices no longer point at the same items, so
-            // reset on saves that predate the new layout. groveLayoutV
-            // is bumped whenever GROVE_ITEM_ROWS changes.
-            const GROVE_LAYOUT_V = 3;
+            if (Array.isArray(game.locations.grove.collected)) {
+                delete game.locations.grove.collected;
+            }
+            if (typeof game.locations.grove.respawnAt !== 'object' || game.locations.grove.respawnAt === null) {
+                game.locations.grove.respawnAt = {};
+            }
+            // Layout-version bump still resets respawnAt — same idea
+            // as the old `collected = []` reset, just adapted to the
+            // new shape. Bump GROVE_LAYOUT_V whenever GROVE_ITEM_ROWS
+            // / GROVE_ITEMS change.
+            const GROVE_LAYOUT_V = 4;
             if ((game.locations.grove.layoutV || 1) < GROVE_LAYOUT_V) {
-                game.locations.grove.collected = [];
+                game.locations.grove.respawnAt = {};
                 game.locations.grove.layoutV = GROVE_LAYOUT_V;
+            }
+            // Quarry — new location, seed if missing.
+            if (!game.locations.quarry) {
+                game.locations.quarry = { respawnAt: {}, layoutV: 1 };
+            }
+            if (typeof game.locations.quarry.respawnAt !== 'object' || game.locations.quarry.respawnAt === null) {
+                game.locations.quarry.respawnAt = {};
             }
 
             // Migration: golems used to track a single `active` count
