@@ -88,5 +88,86 @@ than "this is just a flat horizon."
 **Related work to land first:**
 - Pass F, D, E, B of ticket-0040 (other grove polish)
 - Maybe wait until "environment / terraforming + buildings" idea
-  from CLAUDE.md is fleshed out — mountains might tie into a larger
+  (below) is fleshed out — mountains might tie into a larger
   spatial-meta-layer rather than just grove decoration
+
+---
+
+## Click-automation upgrades
+
+Gate hold-to-fire / auto-click on spark, feed-stick, ore, and craft
+buttons behind upgrades (e.g. a workshop "Tireless Hands" line).
+Manual clicking stays the default early-game work; automation is
+something the player earns. See `feedback_input_design.md` memory —
+we explicitly chose manual clicks over hold-to-fire as the default.
+
+---
+
+## Revisit heat ↔ temperature coupling
+
+Current model treats them as parallel, independent outputs of the
+burning furnace: heat rate is flat (10/s × bonuses) and temperature
+is a separate state driven by fuel volume (target = `fuel × 5`,
+cap 1000). Scientifically defensible — temperature is intensive,
+heat is extensive — but there's room to make them feel more
+connected.
+
+**Options to weigh later:**
+- Temperature multiplier on heat rate (hotter → more heat/s)
+- Temperature decay during burn if fuel is too little to sustain it
+- Specific-heat-style ramp where the first seconds of a fresh burn
+  deliver less heat until the furnace warms
+
+**Caution:** don't change without re-tuning the early economy; the
+current numbers are balanced around the flat-rate assumption.
+
+---
+
+## Runic unlock slots (visual upgrade)
+
+Re-skin the convenience-button unlock slots (currently a plain
+dashed-border box reading "Drop a Blazite to forge [+] Spark") into
+something more thematic — engraved runic altars where the required
+symbol is etched faintly into the slot and lights up when the player
+places a matching item on it.
+
+**Sketch:**
+- Box-drawing characters for the frame
+- The FUEL_TIERS / ORE_TIERS `::before` glyph as the placeholder rune
+- Small flash + sigil burn-in animation when consumed
+
+Mechanics are settled (one item, one unlock); this is purely a visual
+upgrade on top of the existing UNLOCK_SLOTS pipeline.
+
+---
+
+## Environment / terraforming + buildings (meta-layer)
+
+Reframe the game's setting: the player has woken in a magically
+blighted landscape and the engine's heat/output is what they use
+to slowly heal it. Each tier or milestone could unlock a piece of
+terrain that's currently dead — soil that becomes grass, a frozen
+river that thaws, a stand of charred trees that regrows — and let
+the player place buildings on the reclaimed land (shelter, well,
+kiln, greenhouse, etc.) that produce passive bonuses or new resources.
+
+This becomes the spatial/visible meta-layer on top of the existing
+engine/merge/prestige loop, giving heat a destination beyond pure
+numbers.
+
+**Open questions when revisiting:**
+- Tile-based map vs. a scrolling diorama of ASCII vignettes
+- Whether buildings cost heat / alloy / essence / something new
+- Whether terraforming progress persists through prestige (probably
+  yes — it's the meta layer)
+
+---
+
+## Other unsorted future ideas (one-liners from CLAUDE.md)
+
+- More automation buildings
+- Research tree
+- Multiple furnaces
+- More prestige layers
+- Richer SFX library (currently 9 synthesized sounds)
+- Cloud save sync (currently portable save codes only)
