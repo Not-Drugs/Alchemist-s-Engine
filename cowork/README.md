@@ -18,6 +18,13 @@ cowork/
 └── attachments/    runtime state, gitignored
 ```
 
+**State-injection helpers** for cowork's playtesting live at
+`tests/state-helpers.js`. Cowork loads the file once per session via
+a `document.createElement('script')` snippet (see `tests/README.md`),
+then every common scenario is a one-liner: `setupGroveFresh()`,
+`setupCorruptedAutomation()`, `diagGrove()`, etc. Cuts repeated
+state-poke setup from a multi-line block to one call.
+
 ## How to use
 
 ### Quick start (preferred)
