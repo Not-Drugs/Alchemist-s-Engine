@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v110';
+const APP_VERSION = 'v111';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3175,13 +3175,95 @@ function autofitLocationScene(modalId, sceneId, rowSel) {
 // → inward → lean-L → repeat) and drift horizontally, occasionally
 // reversing direction so the scuttle reads as crab-like.
 // ============================================
-const GROVE_WALKER_FRAMES = [
-    ['  *  ', '// \\\\'],  // 1: neutral (splayed out)
-    ['  *  ', '// //'],     // 2: lean right
-    ['  *  ', '\\\\ //'],  // 3: inward
-    ['  *  ', '\\\\ \\\\'] // 4: lean left
-];
-const GROVE_WALKER_FRAME_MS = 220;
+// Three gait options, selectable at runtime via `?gait=splay|cascade|crab`
+// (defaults to `splay`, the original ship). Each gait is a self-contained
+// config: frame source, frame cadence, drift speed, and whether direction
+// flips are allowed mid-cycle (cascade only flips at rest to keep the
+// directional-wave reading clean).
+//
+// 1. splay: 4-frame lean cycle (neutral → lean-R → inward → lean-L). The
+//    "good" default — every leg moves in groups of two; non-directional.
+// 2. cascade: 8-frame independent-leg wave. The leading edge leg flips
+//    \↔/ first, then propagates inward. The starting edge signals motion
+//    direction (rightmost first → moving right). Mirrored frame set for
+//    leftward motion.
+// 3. crab: 4-frame diagonal-couplet gait (real-world alternating tetrapod).
+//    Diagonally opposite legs lift together — mid-step legs render as
+//    spaces, planted legs as splayed lines. Combined with sideways drift
+//    this is biomechanically the closest to a real crab.
+const GROVE_WALKER_GAITS = {
+    splay: {
+        frameMs: 220,
+        driftPerFrame: 0.5,
+        flipChance: 0.15,
+        flipOnlyAtRest: false,
+        cycleLen: 4,
+        getFrame: (w) => [
+            ['  *  ', '// \\\\'],
+            ['  *  ', '// //'],
+            ['  *  ', '\\\\ //'],
+            ['  *  ', '\\\\ \\\\']
+        ][w.frame % 4]
+    },
+    cascade: {
+        frameMs: 130,
+        driftPerFrame: 0.25,
+        flipChance: 0.20,
+        flipOnlyAtRest: true,  // cycle = directional wave; flipping mid-wave breaks the read
+        cycleLen: 8,
+        getFrame: (w) => {
+            // Wave starts at the leading-edge leg. Right-motion: rightmost
+            // (col 4) flips \→/ first; cascade rolls inward through cols
+            // 3, 1, 0. Left-motion mirrors. Frame 0 is the rest pose
+            // (splayed out); frame 4 is the fully compressed pose.
+            const right = [
+                ['  *  ', '// \\\\'],   // F0: rest, all out
+                ['  *  ', '// \\/'],     // F1: leg 4 in
+                ['  *  ', '// //'],      // F2: leg 3 in
+                ['  *  ', '/\\ //'],     // F3: leg 1 in
+                ['  *  ', '\\\\ //'],    // F4: leg 0 in (fully compressed)
+                ['  *  ', '\\\\ /\\'],   // F5: leg 4 back out
+                ['  *  ', '\\\\ \\\\'], // F6: leg 3 back out
+                ['  *  ', '/\\ \\\\']    // F7: leg 1 back out (next: F0)
+            ];
+            const left = [
+                ['  *  ', '// \\\\'],   // F0: rest
+                ['  *  ', '\\/ \\\\'],   // F1: leg 0 in
+                ['  *  ', '\\\\ \\\\'], // F2: leg 1 in
+                ['  *  ', '\\\\ /\\'],   // F3: leg 3 in
+                ['  *  ', '\\\\ //'],    // F4: leg 4 in (fully compressed)
+                ['  *  ', '/\\ //'],     // F5: leg 0 back out
+                ['  *  ', '// //'],      // F6: leg 1 back out
+                ['  *  ', '// \\/']      // F7: leg 3 back out (next: F0)
+            ];
+            return (w.dir > 0 ? right : left)[w.frame % 8];
+        }
+    },
+    crab: {
+        frameMs: 200,
+        driftPerFrame: 0.4,
+        flipChance: 0.12,
+        flipOnlyAtRest: false,
+        cycleLen: 4,
+        getFrame: (w) => [
+            ['  *  ', '// \\\\'],   // planted, body weight centered
+            ['  *  ', ' / \\ '],     // legs 0+4 lifted (diagonal couplet 1)
+            ['  *  ', '// \\\\'],   // planted again
+            ['  *  ', '/   \\']      // legs 1+3 lifted (diagonal couplet 2)
+        ][w.frame % 4]
+    }
+};
+
+function _pickGroveGait() {
+    try {
+        const p = (new URLSearchParams(window.location.search).get('gait') || '').toLowerCase();
+        if (GROVE_WALKER_GAITS[p]) return p;
+    } catch (e) {}
+    return 'splay';
+}
+const GROVE_WALKER_GAIT_KEY = _pickGroveGait();
+const GROVE_WALKER_GAIT = GROVE_WALKER_GAITS[GROVE_WALKER_GAIT_KEY];
+
 const GROVE_WALKER_TARGET_ROW = 13; // 0-indexed scene row, lower mid mid-band
 const GROVE_WALKER_BAND_COLS = 20;  // center band width in chars
 const GROVE_WALKER_SPRITE_W  = 5;   // sprite width in chars
@@ -3194,7 +3276,7 @@ function ensureGroveWalkerCount() {
         _groveWalkers.push({
             x: Math.random() * (GROVE_WALKER_BAND_COLS - GROVE_WALKER_SPRITE_W),
             dir: Math.random() < 0.5 ? -1 : 1,
-            frame: Math.floor(Math.random() * 4),
+            frame: Math.floor(Math.random() * GROVE_WALKER_GAIT.cycleLen),
             sinceFlip: 0
         });
     }
@@ -3206,7 +3288,7 @@ function startGroveWalkerAnim() {
     stopGroveWalkerAnim();
     ensureGroveWalkerCount();
     paintGroveWalkers();
-    _groveWalkerTimer = setInterval(tickGroveWalkers, GROVE_WALKER_FRAME_MS);
+    _groveWalkerTimer = setInterval(tickGroveWalkers, GROVE_WALKER_GAIT.frameMs);
 }
 
 function stopGroveWalkerAnim() {
@@ -3221,22 +3303,23 @@ function tickGroveWalkers() {
     const count = ensureGroveWalkerCount();
     if (count <= 0) { stopGroveWalkerAnim(); return; }
     const maxX = GROVE_WALKER_BAND_COLS - GROVE_WALKER_SPRITE_W;
+    const gait = GROVE_WALKER_GAIT;
     for (const w of _groveWalkers) {
-        w.frame = (w.frame + 1) % GROVE_WALKER_FRAMES.length;
-        // Step on every frame; drift coupled with leg cycle reads as a
-        // shuffle-step. Speed: 0.5 ch per frame so the scuttle isn't
-        // teleporty at high frame rates.
-        w.x += w.dir * 0.5;
+        w.frame = (w.frame + 1) % gait.cycleLen;
+        w.x += w.dir * gait.driftPerFrame;
         w.sinceFlip += 1;
         // Bounce at edges of the center band.
         if (w.x <= 0) { w.x = 0; w.dir = 1; w.sinceFlip = 0; }
         else if (w.x >= maxX) { w.x = maxX; w.dir = -1; w.sinceFlip = 0; }
-        // Occasional spontaneous direction flip (after at least 4 frames
-        // since the last flip, ~15% chance per frame thereafter). Reads
-        // as crab indecision rather than perfectly straight pacing.
-        else if (w.sinceFlip >= 4 && Math.random() < 0.15) {
-            w.dir = -w.dir;
-            w.sinceFlip = 0;
+        // Occasional spontaneous direction flip. For cascade we only flip
+        // at frame 0 (rest) so the directional wave reads cleanly; other
+        // gaits can flip any time after a small cooldown.
+        else if (w.sinceFlip >= 4 && Math.random() < gait.flipChance) {
+            const canFlip = !gait.flipOnlyAtRest || w.frame === 0;
+            if (canFlip) {
+                w.dir = -w.dir;
+                w.sinceFlip = 0;
+            }
         }
     }
     paintGroveWalkers();
@@ -3278,6 +3361,9 @@ function paintGroveWalkers() {
     while (layer.children.length < count) {
         const el = document.createElement('div');
         el.className = 'grove-walker';
+        // Match the `left` transition to the gait's frame cadence so the
+        // drift slides exactly between leg-frame swaps (no easing lag).
+        el.style.transitionDuration = GROVE_WALKER_GAIT.frameMs + 'ms';
         const top = document.createElement('div');
         const bot = document.createElement('div');
         el.appendChild(top);
@@ -3294,7 +3380,7 @@ function paintGroveWalkers() {
         const w = _groveWalkers[i];
         const col = 10 + w.x;
         el.style.left = col + 'ch';
-        const frame = GROVE_WALKER_FRAMES[w.frame];
+        const frame = GROVE_WALKER_GAIT.getFrame(w);
         el.children[0].textContent = frame[0];
         el.children[1].textContent = frame[1];
     }

@@ -204,9 +204,21 @@ then deleted from save.
 **Grove walker cosmetic.** When the grove modal is open, a tiny
 animated golem appears in the midground per stick-job assignment
 (so 1 walker today, 2 once Arcane Vents unlocks the second slot).
-4-frame leg cycle (`GROVE_WALKER_FRAMES`: neutral → lean-R → inward
-→ lean-L → loop) at 220ms/frame, drifting sideways with a 15%/frame
-chance of reversing direction once moving — reads as a crab scuttle.
+Three gaits are wired up under `GROVE_WALKER_GAITS`, selectable at
+runtime via `?gait=splay|cascade|crab` (default = `splay`):
+- **splay** — original 4-frame lean cycle (neutral → lean-R → inward
+  → lean-L → loop), 220ms/frame.
+- **cascade** — 8-frame independent-leg wave; the leading-edge leg
+  flips `\` ↔ `/` first and the cascade rolls inward. Direction
+  signaled by the starting edge (rightmost first = moving right);
+  mirrored frame set for left motion. 130ms/frame, only flips
+  direction at frame 0 to keep the wave readable.
+- **crab** — 4-frame diagonal-couplet gait (real alternating tetrapod);
+  legs 0+4 lift together, then 1+3, with planted frames between.
+  200ms/frame.
+
+Each gait carries its own `frameMs`, `driftPerFrame`, `flipChance`,
+and `flipOnlyAtRest` flag.
 The walker is NOT real ASCII text — it's an absolutely-positioned
 overlay (`#grove-walker-layer`, sized to the scene's 40-col character
 grid via `ch` units, fontSize matched to the active autofit pass) so
