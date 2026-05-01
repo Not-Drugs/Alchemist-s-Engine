@@ -49,4 +49,4 @@ parallel session).
 - Seeded this DISPATCH_LOG.md as the changelog for Dispatch-shipped
   work.
 
-Commit: _pending — single bundled commit on the dispatch branch._
+Commit: `bb52032` (single bundled commit on the dispatch branch).
