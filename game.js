@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v122';
+const APP_VERSION = 'v123';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3605,14 +3605,22 @@ function collectGroveItem(id) {
 const QUARRY_SCENES = {
     v1: {
         rawRows: [
-            ['', 'sky'],
-            ['', 'sky'],
+            // Distant peak tips poking above the horizon — barely there,
+            // far depth class so they fade strongly.
+            ['      /\\                    /\\          ', 'far'],
+            ['     /  \\                  /  \\         ', 'far'],
+            // Main mountain — peak at row 2, base at row 14, cave at rows
+            // 8-10. Original v1 silhouette unchanged.
             ['                /\\', 'far'],
             ['               /  \\', 'far'],
             ['              /    \\', 'midfar'],
-            ['             /  /\\  \\', 'midfar'],
-            ['            /  /  \\  \\', 'mid'],
-            ['           /  /    \\  \\', 'mid'],
+            // Rows 5-7: flanking peaks merge into the main mountain's
+            // outer slopes via saddle gaps (`\ /`). Gives the main
+            // mountain a sense of being part of a range rather than
+            // standing alone.
+            ['      /\\     /  /\\  \\      /\\           ', 'midfar'],
+            ['     /  \\   /  /  \\  \\    /  \\          ', 'mid'],
+            ['    /    \\ /  /    \\  \\ /    \\          ', 'mid'],
             ['          /  / .--. \\  \\', 'mid'],
             ['         /  / |    | \\  \\', 'midnear'],
             ['        /  /  |____|  \\  \\', 'midnear'],
