@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v128';
+const APP_VERSION = 'v129';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3930,6 +3930,13 @@ function renderQuarry() {
         // span sized to the col count; cells are absolute-positioned
         // by `left: <col>ch`. Spaces in layer content are skipped, so
         // underlying layers show through transparently.
+        //
+        // Layer occlusion: positional spans don't naturally occlude
+        // each other (transparent text on transparent background, so
+        // two chars at the same (row,col) render as an X). To get
+        // proper "hero overpaints flanker" behavior, we track an
+        // occupation map keyed by `row,col` and evict any earlier
+        // cell when a later layer paints the same position.
         const frames = [];
         for (let r = 0; r < _QUARRY_LAYERED_ROWS; r++) {
             const rowDiv = document.createElement('div');
@@ -3941,6 +3948,7 @@ function renderQuarry() {
             scene.appendChild(rowDiv);
             frames.push(frame);
         }
+        const occupied = Object.create(null);
         for (const layer of _QUARRY_LAYERS) {
             const baseRow = layer.baseRow || 0;
             const baseCol = layer.baseCol || 0;
@@ -3953,11 +3961,15 @@ function renderQuarry() {
                     const ch = line[i];
                     if (ch === ' ') continue;
                     const col = baseCol + i;
+                    const key = r + ',' + col;
+                    const prior = occupied[key];
+                    if (prior) prior.remove();
                     const cell = document.createElement('span');
                     cell.className = `quarry-cell grove-cell grove-${layer.cls}`;
                     cell.style.left = col + 'ch';
                     cell.textContent = ch;
                     frame.appendChild(cell);
+                    occupied[key] = cell;
                 }
             }
         }
