@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v123';
+const APP_VERSION = 'v124';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3596,12 +3596,14 @@ function collectGroveItem(id) {
 // authoring stays sloppy-friendly. Depth classes match the grove's
 // CSS (.grove-* are reused via the .quarry-cell.grove-* class pair
 // applied at render time).
-// Two quarry scene variants, selectable at runtime via `?quarry=v1|v2`
-// (default = `v1`, the original). Both ship 8 item placeholders.
+// Three quarry scene variants, selectable at runtime via `?quarry=v1|v2|v3`
+// (default = `v1`, the original). All ship 8 item placeholders.
 //   v1 — original narrow-mountain scene with central cave + decorative
 //        rock mound bumps embedded in the item rows.
 //   v2 — large-mountain redesign: dominant peak, arched cave mouth at
 //        the visual center, two foreground rock-mound silhouettes.
+//   v3 — central hero mountain (v2's silhouette + cave) with a 4-peak
+//        distant range nested on either side, framing the hero.
 const QUARRY_SCENES = {
     v1: {
         rawRows: [
@@ -3657,6 +3659,62 @@ const QUARRY_SCENES = {
             ['      /    \\              /    \\      ', 'midfar'],
             ['_____/      \\____________/      \\______', 'midfar'],
             ['', 'sky'],
+            ['                   /\\                   ', 'mid'],
+            ['                  /  \\                  ', 'mid'],
+            ['                 /    \\                 ', 'mid'],
+            ['                /      \\                ', 'mid'],
+            ['               /        \\               ', 'mid'],
+            ['              /          \\              ', 'midnear'],
+            ['             /            \\             ', 'midnear'],
+            ['            /              \\            ', 'midnear'],
+            ['           /                \\           ', 'midnear'],
+            ['          /                  \\          ', 'midnear'],
+            ['         /                    \\         ', 'near'],
+            ['        /                      \\        ', 'near'],
+            ['       /                        \\       ', 'near'],
+            ['      /                          \\      ', 'near'],
+            ['     /          ,-----.           \\     ', 'near'],
+            ['    /           |     |            \\    ', 'near'],
+            ['   /            |     |             \\   ', 'near'],
+            ['  /             |_____|              \\  ', 'near'],
+            [' /                                    \\ ', 'near'],
+            ['/                                      \\', 'near'],
+            ['~,_.,~`-.,_,~`-.,_,~`-.,_,~`-.,_,~`-.,_,', 'near']
+        ],
+        groundRow: '_..,~`-._.,~`-,. ,_-`. ,~`-,_..,~`-._.,~',
+        itemRows: [
+            '  $     /\\        $      /\\     $       ',
+            '       /  \\   $         /  \\        $   ',
+            '  $   /____\\     $     /____\\    $      '
+        ],
+        items: [
+            { type: 'stone' },
+            { type: 'stone' },
+            { type: 'ore' },
+            { type: 'stone' },
+            { type: 'ore' },
+            { type: 'stone' },
+            { type: 'stone' },
+            { type: 'ore' }
+        ]
+    },
+    v3: {
+        rawRows: [
+            ['', 'sky'],
+            ['', 'sky'],
+            ['', 'sky'],
+            // Distant range — 4 peaks instead of v2's 2, framing the
+            // hero on both sides. Inner pair (cols ~14, ~24) sits just
+            // outside the hero's footprint so they read as "nested"
+            // around it; outer pair (cols ~4, ~34) extends the range
+            // silhouette to the edges of the frame.
+            ['    /\\        /\\        /\\        /\\    ', 'far'],
+            ['   /  \\      /  \\      /  \\      /  \\   ', 'far'],
+            ['  /    \\    /    \\    /    \\    /    \\  ', 'midfar'],
+            ['_/      \\__/      \\__/      \\__/      \\_', 'midfar'],
+            ['', 'sky'],
+            // Hero mountain — same silhouette + cave geometry as v2
+            // (peak row 8, base row 27, arched cave at rows 22-25).
             ['                   /\\                   ', 'mid'],
             ['                  /  \\                  ', 'mid'],
             ['                 /    \\                 ', 'mid'],

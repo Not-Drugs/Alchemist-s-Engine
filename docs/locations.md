@@ -176,12 +176,17 @@ between stones and the satchel. Hidden until any ore has been mined
 (`stats.ironOreMined > 0`). Not draggable — no recipe consumes iron
 ore yet; it's a visible counter only.
 
-**Scene variants.** Two compositions live under `QUARRY_SCENES`,
-selectable at runtime via `?quarry=v1|v2` (default = `v1`):
+**Scene variants.** Three compositions live under `QUARRY_SCENES`,
+selectable at runtime via `?quarry=v1|v2|v3` (default = `v1`):
 
 - **v1** — original narrow mountain with central cave and rock-bump
   decorations baked into the item rows.
 - **v2** — large dominant mountain redesign (see below).
+- **v3** — central hero (v2's silhouette + cave) with a 4-peak distant
+  range nested on either side. Inner pair of distant peaks (cols ~14
+  and ~24) frame the hero's footprint; outer pair (cols ~4 and ~34)
+  extend the silhouette to the frame edges. Same hero geometry, item
+  rows, and items as v2 — only the rows above the hero change.
 
 Switching the URL param resets `game.locations.quarry.respawnAt`
 since item positions differ between variants.
