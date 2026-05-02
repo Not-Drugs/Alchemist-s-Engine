@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v125';
+const APP_VERSION = 'v126';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3602,8 +3602,10 @@ function collectGroveItem(id) {
 //        rock mound bumps embedded in the item rows.
 //   v2 — large-mountain redesign: dominant peak, arched cave mouth at
 //        the visual center, two foreground rock-mound silhouettes.
-//   v3 — central hero mountain (v2's silhouette + cave) with a 4-peak
-//        distant range nested on either side, framing the hero.
+//   v3 — central hero mountain (v2's silhouette + cave) with a shorter
+//        flanking peak nested on each side, sharing the hero's ground
+//        line. Flanker inner slopes merge into the hero's outer slopes
+//        at row 16; outer slopes clip at the frame edges.
 const QUARRY_SCENES = {
     v1: {
         rawRows: [
@@ -3700,30 +3702,32 @@ const QUARRY_SCENES = {
     },
     v3: {
         rawRows: [
+            // Sky above the range. Empty rows scale via autofit.
             ['', 'sky'],
             ['', 'sky'],
             ['', 'sky'],
-            // Distant range — 4 peaks instead of v2's 2, framing the
-            // hero on both sides. Inner pair (cols ~14, ~24) sits just
-            // outside the hero's footprint so they read as "nested"
-            // around it; outer pair (cols ~4, ~34) extends the range
-            // silhouette to the edges of the frame.
-            ['    /\\        /\\        /\\        /\\    ', 'far'],
-            ['   /  \\      /  \\      /  \\      /  \\   ', 'far'],
-            ['  /    \\    /    \\    /    \\    /    \\  ', 'midfar'],
-            ['_/      \\__/      \\__/      \\__/      \\_', 'midfar'],
+            ['', 'sky'],
+            ['', 'sky'],
+            ['', 'sky'],
+            ['', 'sky'],
             ['', 'sky'],
             // Hero mountain — same silhouette + cave geometry as v2
             // (peak row 8, base row 27, arched cave at rows 22-25).
+            // Flankers nest into rows 11-16 where the hero is still
+            // narrow: their peaks (row 11, cols ~5 and ~33) sit below
+            // the hero peak; their inner slopes descend toward the
+            // hero and terminate at row 16 where they merge with the
+            // hero's outer slopes; their outer slopes clip at the
+            // frame edges (cols 0 and 39 at row 16).
             ['                   /\\                   ', 'mid'],
             ['                  /  \\                  ', 'mid'],
             ['                 /    \\                 ', 'mid'],
-            ['                /      \\                ', 'mid'],
-            ['               /        \\               ', 'mid'],
-            ['              /          \\              ', 'midnear'],
-            ['             /            \\             ', 'midnear'],
-            ['            /              \\            ', 'midnear'],
-            ['           /                \\           ', 'midnear'],
+            ['     /\\         /      \\         /\\     ', 'mid'],
+            ['    /  \\       /        \\       /  \\    ', 'mid'],
+            ['   /    \\     /          \\     /    \\   ', 'midnear'],
+            ['  /      \\   /            \\   /      \\  ', 'midnear'],
+            [' /        \\ /              \\ /        \\ ', 'midnear'],
+            ['/          /                \\          \\', 'midnear'],
             ['          /                  \\          ', 'midnear'],
             ['         /                    \\         ', 'near'],
             ['        /                      \\        ', 'near'],

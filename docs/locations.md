@@ -182,11 +182,12 @@ selectable at runtime via `?quarry=v1|v2|v3` (default = `v3`):
 - **v1** — original narrow mountain with central cave and rock-bump
   decorations baked into the item rows.
 - **v2** — large dominant mountain redesign (see below).
-- **v3** — central hero (v2's silhouette + cave) with a 4-peak distant
-  range nested on either side. Inner pair of distant peaks (cols ~14
-  and ~24) frame the hero's footprint; outer pair (cols ~4 and ~34)
-  extend the silhouette to the frame edges. Same hero geometry, item
-  rows, and items as v2 — only the rows above the hero change.
+- **v3** — central hero (v2's silhouette + cave) with a shorter flanking
+  peak nested on each side. Flankers peak at row 11 (3 rows below the
+  hero peak), cols ~5 and ~33. Their inner slopes descend toward the
+  hero and merge into its outer slopes at row 16; outer slopes clip
+  at the frame edges. Shares the hero's ground line and scree row.
+  Same item rows and items as v2.
 
 Switching the URL param resets `game.locations.quarry.respawnAt`
 since item positions differ between variants.
