@@ -176,8 +176,8 @@ between stones and the satchel. Hidden until any ore has been mined
 (`stats.ironOreMined > 0`). Not draggable — no recipe consumes iron
 ore yet; it's a visible counter only.
 
-**Scene variants.** Three compositions live under `QUARRY_SCENES`,
-selectable at runtime via `?quarry=v1|v2|v3` (default = `v3`):
+**Scene variants.** Four compositions live under `QUARRY_SCENES`,
+selectable at runtime via `?quarry=v1|v2|v3|v4` (default = `v3`):
 
 - **v1** — original narrow mountain with central cave and rock-bump
   decorations baked into the item rows.
@@ -188,6 +188,16 @@ selectable at runtime via `?quarry=v1|v2|v3` (default = `v3`):
   hero and merge into its outer slopes at row 16; outer slopes clip
   at the frame edges. Shares the hero's ground line and scree row.
   Same item rows and items as v2.
+- **v4** — same visual as v3, but rendered via positional/layered cells
+  instead of text-flow rows. The scene is decomposed into named layers
+  (flankers, inner-peaks, hero, cave, scree) each authored as content
+  strings with a `baseRow` / `baseCol` offset. At render time, each
+  non-space character becomes an absolutely-positioned span on the
+  per-row character grid; spaces are transparent so underlying layers
+  show through. Hero overpaints flankers automatically by virtue of
+  later z-order in the layers array. Sets the foundation for layered
+  features (animated clouds/fog, toggleable decorations, A/B
+  silhouettes) without re-authoring the underlying text.
 
 Switching the URL param resets `game.locations.quarry.respawnAt`
 since item positions differ between variants.

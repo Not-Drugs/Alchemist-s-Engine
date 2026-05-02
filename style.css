@@ -977,6 +977,27 @@ section h2::after {
     display: block;
 }
 
+/* Layered/positional scene rows (v4+). Each row is a fixed-height
+   slice; the inner frame is `cols`-ch wide and serves as the
+   positioning context for absolute-positioned cells. text-align on
+   the row centers the frame horizontally; each cell sets `left` in
+   `ch` units so cell positions scale with the autofit font-size. */
+.quarry-modal-content .quarry-layered-row {
+    height: 1em;
+    line-height: 1.0;
+    text-align: center;
+}
+.quarry-modal-content .quarry-row-frame {
+    display: inline-block;
+    position: relative;
+    height: 1em;
+}
+.quarry-modal-content .quarry-cell {
+    position: absolute;
+    top: 0;
+    line-height: 1.0;
+}
+
 .quarry-modal-content .quarry-items-row {
     line-height: 1.3;
 }

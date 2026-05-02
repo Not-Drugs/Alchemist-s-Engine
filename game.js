@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v127';
+const APP_VERSION = 'v128';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3596,7 +3596,7 @@ function collectGroveItem(id) {
 // authoring stays sloppy-friendly. Depth classes match the grove's
 // CSS (.grove-* are reused via the .quarry-cell.grove-* class pair
 // applied at render time).
-// Three quarry scene variants, selectable at runtime via `?quarry=v1|v2|v3`
+// Four quarry scene variants, selectable at runtime via `?quarry=v1|v2|v3|v4`
 // (default = `v3`). All ship 8 item placeholders.
 //   v1 — original narrow-mountain scene with central cave + decorative
 //        rock mound bumps embedded in the item rows.
@@ -3606,6 +3606,13 @@ function collectGroveItem(id) {
 //        flanking peak nested on each side, sharing the hero's ground
 //        line. Flanker inner slopes merge into the hero's outer slopes
 //        at row 16; outer slopes clip at the frame edges.
+//   v4 — same visual as v3, but rendered via positional/layered cells
+//        instead of text-flow rows. Each cell is an absolutely-positioned
+//        span, so layers (flankers, hero, cave, scree) can be authored,
+//        styled, animated, or toggled independently. Spaces in layer
+//        content are transparent — underlying layers show through.
+//        Hero overpaints flankers automatically by virtue of later
+//        z-order in the layers array.
 const QUARRY_SCENES = {
     v1: {
         rawRows: [
@@ -3761,6 +3768,94 @@ const QUARRY_SCENES = {
             { type: 'stone' },
             { type: 'ore' }
         ]
+    },
+    v4: {
+        // Positional/layered scene. Each layer is { cls, baseRow, baseCol,
+        // content: [string, ...] }. Spaces in `content` are transparent
+        // (skipped at render); non-space chars become absolutely-positioned
+        // <span> cells inside per-row frames. Layers paint back-to-front
+        // (DOM order) so later layers visually overlay earlier ones — that
+        // gives us "hero overpaints flanker" without manually editing the
+        // flanker silhouette to remove obscured cells.
+        layered: true,
+        rows: 29,
+        cols: 40,
+        layers: [
+            // Side flankers — back of the stack. Inner slopes are drawn in
+            // full; the hero layer (added later) will overpaint where they
+            // collide.
+            { name: 'flankers-mid', cls: 'mid', baseRow: 11, baseCol: 0, content: [
+                '     /\\                          /\\     ',
+                '    /  \\                        /  \\    '
+            ]},
+            { name: 'flankers-midnear', cls: 'midnear', baseRow: 13, baseCol: 0, content: [
+                '   /    \\                      /    \\   ',
+                '  /      \\                    /      \\  ',
+                ' /        \\                  /        \\ ',
+                '/          \\                /          \\'
+            ]},
+            // Inner peaks — small /\ in the saddles between hero and flankers.
+            { name: 'inner-peaks-mid', cls: 'mid', baseRow: 12, baseCol: 0, content: [
+                '           /\\              /\\           '
+            ]},
+            { name: 'inner-peaks-midnear', cls: 'midnear', baseRow: 13, baseCol: 0, content: [
+                '          /  \\            /  \\          '
+            ]},
+            // Hero — front layer, three tint bands top-to-bottom.
+            { name: 'hero-mid', cls: 'mid', baseRow: 8, baseCol: 0, content: [
+                '                   /\\                   ',
+                '                  /  \\                  ',
+                '                 /    \\                 ',
+                '                /      \\                ',
+                '               /        \\               '
+            ]},
+            { name: 'hero-midnear', cls: 'midnear', baseRow: 13, baseCol: 0, content: [
+                '              /          \\              ',
+                '             /            \\             ',
+                '            /              \\            ',
+                '           /                \\           ',
+                '          /                  \\          '
+            ]},
+            { name: 'hero-near', cls: 'near', baseRow: 18, baseCol: 0, content: [
+                '         /                    \\         ',
+                '        /                      \\        ',
+                '       /                        \\       ',
+                '      /                          \\      ',
+                '     /                            \\     ',
+                '    /                              \\    ',
+                '   /                                \\   ',
+                '  /                                  \\  ',
+                ' /                                    \\ ',
+                '/                                      \\'
+            ]},
+            // Cave — overlays the hero's body at rows 22-25.
+            { name: 'cave', cls: 'near', baseRow: 22, baseCol: 16, content: [
+                ',-----.',
+                '|     |',
+                '|     |',
+                '|_____|'
+            ]},
+            // Scree row.
+            { name: 'scree', cls: 'near', baseRow: 28, baseCol: 0, content: [
+                '~,_.,~`-.,_,~`-.,_,~`-.,_,~`-.,_,~`-.,_,'
+            ]}
+        ],
+        groundRow: '_..,~`-._.,~`-,. ,_-`. ,~`-,_..,~`-._.,~',
+        itemRows: [
+            '  $     /\\        $      /\\     $       ',
+            '       /  \\   $         /  \\        $   ',
+            '  $   /____\\     $     /____\\    $      '
+        ],
+        items: [
+            { type: 'stone' },
+            { type: 'stone' },
+            { type: 'ore' },
+            { type: 'stone' },
+            { type: 'ore' },
+            { type: 'stone' },
+            { type: 'stone' },
+            { type: 'ore' }
+        ]
     }
 };
 
@@ -3773,11 +3868,14 @@ function _pickQuarryScene() {
 }
 const QUARRY_SCENE_KEY = _pickQuarryScene();
 const _QUARRY_ACTIVE_SCENE = QUARRY_SCENES[QUARRY_SCENE_KEY];
-const _QUARRY_RAW_ROWS = _QUARRY_ACTIVE_SCENE.rawRows;
+const _QUARRY_RAW_ROWS = _QUARRY_ACTIVE_SCENE.rawRows || [];
 const QUARRY_SCENE_ROWS = _QUARRY_RAW_ROWS.map(([row, cls]) => ({
     row: row.padEnd(40, ' '),
     cls
 }));
+const _QUARRY_LAYERS = _QUARRY_ACTIVE_SCENE.layers || null;
+const _QUARRY_LAYERED_ROWS = _QUARRY_ACTIVE_SCENE.rows || 0;
+const _QUARRY_LAYERED_COLS = _QUARRY_ACTIVE_SCENE.cols || 40;
 
 const QUARRY_GROUND_ROW = _QUARRY_ACTIVE_SCENE.groundRow;
 const QUARRY_ITEM_ROWS = _QUARRY_ACTIVE_SCENE.itemRows;
@@ -3827,9 +3925,47 @@ function renderQuarry() {
         return row;
     }
 
-    QUARRY_SCENE_ROWS.forEach(({ row, cls }) => {
-        scene.appendChild(buildRow(row, cls));
-    });
+    if (_QUARRY_LAYERS) {
+        // Positional/layered render path. Each scene row gets a frame
+        // span sized to the col count; cells are absolute-positioned
+        // by `left: <col>ch`. Spaces in layer content are skipped, so
+        // underlying layers show through transparently.
+        const frames = [];
+        for (let r = 0; r < _QUARRY_LAYERED_ROWS; r++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'quarry-row quarry-scene-row quarry-layered-row';
+            const frame = document.createElement('span');
+            frame.className = 'quarry-row-frame';
+            frame.style.width = _QUARRY_LAYERED_COLS + 'ch';
+            rowDiv.appendChild(frame);
+            scene.appendChild(rowDiv);
+            frames.push(frame);
+        }
+        for (const layer of _QUARRY_LAYERS) {
+            const baseRow = layer.baseRow || 0;
+            const baseCol = layer.baseCol || 0;
+            for (let lineIdx = 0; lineIdx < layer.content.length; lineIdx++) {
+                const line = layer.content[lineIdx];
+                const r = baseRow + lineIdx;
+                if (r < 0 || r >= frames.length) continue;
+                const frame = frames[r];
+                for (let i = 0; i < line.length; i++) {
+                    const ch = line[i];
+                    if (ch === ' ') continue;
+                    const col = baseCol + i;
+                    const cell = document.createElement('span');
+                    cell.className = `quarry-cell grove-cell grove-${layer.cls}`;
+                    cell.style.left = col + 'ch';
+                    cell.textContent = ch;
+                    frame.appendChild(cell);
+                }
+            }
+        }
+    } else {
+        QUARRY_SCENE_ROWS.forEach(({ row, cls }) => {
+            scene.appendChild(buildRow(row, cls));
+        });
+    }
 
     // Ground row.
     const groundRow = document.createElement('div');
