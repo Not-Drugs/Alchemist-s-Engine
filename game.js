@@ -23,6 +23,40 @@ const ORE_TIERS = [
     { name: 'Pure Crystal', value: 81, color: 'ore-tier-5' }
 ];
 
+// Single source of truth for collectible item visuals + metadata. Every
+// place that renders a stick / stone / ore (grove pickup, quarry node,
+// inventory rail tile, grid ingredient cell, drag ghost) reads from
+// here. Adding a new collectible = one entry; the glyph/cls/aria flow
+// through to every renderer. Pre-v133 stones rendered as `()` in the
+// grove and inventory but `#` in the grid — the registry collapses
+// that drift to one definition.
+//
+// Keys match the existing item-type strings on disk (`'stick'`,
+// `'stone'`, `'ironOre'`) so save migrations aren't needed.
+const ITEM_KINDS = {
+    stick: {
+        glyph: '/',
+        label: 'stick',
+        cssClass: 'grove-stick',
+        ariaPick: 'Pick up a stick',
+        gridTitle: 'Stick — drag back to Inventory rail to return'
+    },
+    stone: {
+        glyph: '()',
+        label: 'stone',
+        cssClass: 'grove-stone',
+        ariaPick: 'Pick up a stone',
+        gridTitle: 'Stone — drag back to Inventory rail to return'
+    },
+    ironOre: {
+        glyph: '[O]',
+        label: 'iron ore',
+        cssClass: 'quarry-ore',
+        ariaPick: 'Mine iron ore (pickaxe required)',
+        gridTitle: 'Iron ore'
+    }
+};
+
 const GRID_SIZE = 24; // 6x4 grid
 const GRID_W = 6;
 const GRID_H = 4;
@@ -158,7 +192,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v132';
+const APP_VERSION = 'v133';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -709,13 +743,14 @@ function renderGridItem(index) {
     if (item.type === 'ingredient') {
         // Ingredient tiles: raw materials from the grove (sticks, stones).
         // They never auto-merge; they sit on the grid waiting for recipes.
+        // Glyph + title come from ITEM_KINDS so grid/grove/inventory all
+        // render the same visual for the same kind.
+        const kindDef = ITEM_KINDS[item.kind];
         itemEl.className = `ingredient-item ingredient-${item.kind}`;
         itemEl.draggable = true;
         itemEl.dataset.kind = item.kind;
-        itemEl.textContent = item.kind === 'stick' ? '/' : '#';
-        itemEl.title = item.kind === 'stick'
-            ? 'Stick — drag back to Inventory rail to return'
-            : 'Stone — drag back to Inventory rail to return';
+        itemEl.textContent = kindDef ? kindDef.glyph : '?';
+        itemEl.title = kindDef ? kindDef.gridTitle : item.kind;
     } else {
         // Fuel or ore tile
         itemEl.className = `${item.type}-item ${item.type === 'fuel' ? FUEL_TIERS[item.tier - 1].color : ORE_TIERS[item.tier - 1].color}`;
@@ -1377,7 +1412,8 @@ function beginTouchDrag() {
         // Ingredient ghost: show the glyph character so the player sees what they're dragging.
         ghost = document.createElement('div');
         ghost.className = `ingredient-item ingredient-${item.kind} touch-ghost`;
-        ghost.textContent = item.kind === 'stick' ? '/' : '#';
+        const kindDef = ITEM_KINDS[item.kind];
+        ghost.textContent = kindDef ? kindDef.glyph : '?';
         const size = 52;
         ghost.style.left = (touchDragState.startX - size / 2) + 'px';
         ghost.style.top = (touchDragState.startY - size / 2) + 'px';
@@ -3173,11 +3209,12 @@ function renderGrove() {
         if (!isItemAvailable(groveState, id)) return document.createTextNode(' ');
         const item = GROVE_ITEMS[id];
         if (!item) return document.createTextNode(' ');
+        const kindDef = ITEM_KINDS[item.type];
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `grove-item grove-${item.type}`;
-        btn.setAttribute('aria-label', item.type === 'stick' ? 'Pick up a stick' : 'Pick up a stone');
-        btn.textContent = item.type === 'stick' ? '/' : '()';
+        btn.setAttribute('aria-label', kindDef ? kindDef.ariaPick : item.type);
+        btn.textContent = kindDef ? kindDef.glyph : '?';
         btn.addEventListener('click', () => collectGroveItem(id));
         return btn;
     }
@@ -4005,12 +4042,12 @@ const QUARRY_SCENES = {
         items: [
             { type: 'stone' },
             { type: 'stone' },
-            { type: 'ore' },
+            { type: 'ironOre' },
             { type: 'stone' },
-            { type: 'ore' },
+            { type: 'ironOre' },
             { type: 'stone' },
             { type: 'stone' },
-            { type: 'ore' }
+            { type: 'ironOre' }
         ]
     },
     v4: {
@@ -4044,12 +4081,12 @@ const QUARRY_SCENES = {
         items: [
             { type: 'stone' },
             { type: 'stone' },
-            { type: 'ore' },
+            { type: 'ironOre' },
             { type: 'stone' },
-            { type: 'ore' },
+            { type: 'ironOre' },
             { type: 'stone' },
             { type: 'stone' },
-            { type: 'ore' }
+            { type: 'ironOre' }
         ]
     }
 };
@@ -4091,17 +4128,19 @@ function renderQuarry() {
         if (!isItemAvailable(quarryState, id)) return document.createTextNode(' ');
         const item = QUARRY_ITEMS[id];
         if (!item) return document.createTextNode(' ');
+        const kindDef = ITEM_KINDS[item.type];
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = `grove-item quarry-item quarry-${item.type}`;
+        // CSS hook: kind.cssClass keeps all stones tinted via .grove-stone
+        // and iron-ore via .quarry-ore (cool blue-grey accent). Keeps the
+        // grove-item / quarry-item bases for shared sizing/cursor rules.
+        btn.className = `grove-item quarry-item ${kindDef ? kindDef.cssClass : ''}`;
+        btn.setAttribute('aria-label', kindDef ? kindDef.ariaPick : item.type);
+        btn.textContent = kindDef ? kindDef.glyph : '?';
         if (item.type === 'stone') {
-            btn.setAttribute('aria-label', 'Pick up a stone');
-            btn.textContent = '()';
             btn.addEventListener('click', () => collectQuarryItem(id));
-        } else {
-            // ore node — requires pickaxe + 30s mining bar
-            btn.setAttribute('aria-label', 'Mine iron ore (pickaxe required)');
-            btn.textContent = '[O]';
+        } else if (item.type === 'ironOre') {
+            // Ore nodes need a pickaxe + 30s mining bar.
             btn.addEventListener('click', () => startMineOre(id));
         }
         return btn;
