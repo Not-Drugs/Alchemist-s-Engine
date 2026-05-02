@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v131';
+const APP_VERSION = 'v132';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3285,7 +3285,12 @@ function renderGrove() {
                 const frame = frames[r];
                 for (const cell of frame.children) {
                     // Replace any existing grove-{cls} with the sprite's cls.
-                    const newClass = cell.className.replace(/grove-(horizon|far|midfar|mid|midnear|near|sky|ground|items)/g, `grove-${pass.cls}`);
+                    // Word boundary on the trailing side: prevents `mid`
+                    // from matching the leading `mid` of `midnear` and
+                    // leaving an orphaned `near` (which produced the
+                    // malformed `grove-midnearnear` class — cell loses
+                    // tint and defaults to white).
+                    const newClass = cell.className.replace(/grove-(horizon|far|midfar|mid|midnear|near|sky|ground|items)\b/g, `grove-${pass.cls}`);
                     cell.className = newClass;
                 }
             }
