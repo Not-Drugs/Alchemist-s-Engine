@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v126';
+const APP_VERSION = 'v127';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3718,13 +3718,17 @@ const QUARRY_SCENES = {
             // the hero peak; their inner slopes descend toward the
             // hero and terminate at row 16 where they merge with the
             // hero's outer slopes; their outer slopes clip at the
-            // frame edges (cols 0 and 39 at row 16).
+            // frame edges (cols 0 and 39 at row 16). A pair of small
+            // inner peaks pop up at row 12 (cols ~11 and ~27), one
+            // row shorter than the side flankers — they widen briefly
+            // at row 13 and then disappear as the side flankers and
+            // hero close in around them.
             ['                   /\\                   ', 'mid'],
             ['                  /  \\                  ', 'mid'],
             ['                 /    \\                 ', 'mid'],
             ['     /\\         /      \\         /\\     ', 'mid'],
-            ['    /  \\       /        \\       /  \\    ', 'mid'],
-            ['   /    \\     /          \\     /    \\   ', 'midnear'],
+            ['    /  \\   /\\  /        \\  /\\   /  \\    ', 'mid'],
+            ['   /    \\ /  \\/          \\/  \\ /    \\   ', 'midnear'],
             ['  /      \\   /            \\   /      \\  ', 'midnear'],
             [' /        \\ /              \\ /        \\ ', 'midnear'],
             ['/          /                \\          \\', 'midnear'],
