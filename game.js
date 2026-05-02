@@ -39,21 +39,31 @@ const ITEM_KINDS = {
         label: 'stick',
         cssClass: 'grove-stick',
         ariaPick: 'Pick up a stick',
-        gridTitle: 'Stick — drag back to Inventory rail to return'
+        gridTitle: 'Stick — drag back to Inventory rail to return',
+        // Respawn base (ms). Actual time = base * (0.5 + Math.random())
+        // so the per-spot stagger is ±50%. Sticks are abundant — short
+        // respawn keeps the grove always partially-stocked.
+        respawnMs: 60 * 1000          // 1 min base → 30s-90s spread
     },
     stone: {
         glyph: '()',
         label: 'stone',
         cssClass: 'grove-stone',
         ariaPick: 'Pick up a stone',
-        gridTitle: 'Stone — drag back to Inventory rail to return'
+        gridTitle: 'Stone — drag back to Inventory rail to return',
+        // Stones are less common — medium respawn so a full sweep of
+        // the grove yields a meaningful gap before the next sweep.
+        respawnMs: 3 * 60 * 1000      // 3 min base → 90s-270s spread
     },
     ironOre: {
         glyph: '[O]',
         label: 'iron ore',
         cssClass: 'quarry-ore',
         ariaPick: 'Mine iron ore (pickaxe required)',
-        gridTitle: 'Iron ore'
+        gridTitle: 'Iron ore',
+        // Ore is the rarest collectible — slow respawn keeps it feeling
+        // premium and gates progression on player activity.
+        respawnMs: 5 * 60 * 1000      // 5 min base → 2.5-7.5 min spread
     }
 };
 
@@ -192,7 +202,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v135';
+const APP_VERSION = 'v136';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3136,34 +3146,37 @@ const GROVE_ITEM_ROWS = [
 // characters — they looked like stones but weren't clickable. Now they
 // are real stone items, so 4 stones / 11 sticks visible. Existing saves
 // auto-reset grove.collected on load via GROVE_LAYOUT_V bump.
+// Spawn points in the grove — pure geography, no item bound to them
+// yet. Each entry is one (row, col) inside the 3-row × 40-col items
+// region where an item can render. Decoupling spots from items lets
+// us swap which kind sits where (or eventually randomize on respawn)
+// without re-authoring the geometry.
+const GROVE_SPAWN_POINTS = [
+    { row: 0, col: 3  },
+    { row: 0, col: 8  },
+    { row: 0, col: 17 },
+    { row: 0, col: 27 },
+    { row: 0, col: 31 },
+    { row: 1, col: 7  },
+    { row: 1, col: 12 },
+    { row: 1, col: 21 },
+    { row: 1, col: 30 },
+    { row: 1, col: 35 },
+    { row: 2, col: 3  },
+    { row: 2, col: 12 },
+    { row: 2, col: 17 },
+    { row: 2, col: 26 },
+    { row: 2, col: 35 }
+];
+
+// Items by spot index — parallel array to GROVE_SPAWN_POINTS. Index N
+// in this array fills spot N. Length must match GROVE_SPAWN_POINTS.
+// To shift the kind at a position: edit one entry here. To shift the
+// position itself: edit one entry in GROVE_SPAWN_POINTS.
 const GROVE_ITEMS = [
     { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stone' }, { type: 'stick' },
     { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, { type: 'stone' },
     { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }
-];
-
-// Positional placements for the 15 grove items. Each entry pins one
-// item to an explicit (row, col) inside the 3-row × 40-col items
-// region, so picking up an item just removes its button — neighbors
-// don't reflow. Cols come from where the original `$` placeholders
-// sat in GROVE_ITEM_ROWS (kept as authored anchors, not as render
-// content). Item id matches the index in GROVE_ITEMS.
-const GROVE_ITEM_INSTANCES = [
-    { id: 0,  row: 0, col: 3  },
-    { id: 1,  row: 0, col: 8  },
-    { id: 2,  row: 0, col: 17 },
-    { id: 3,  row: 0, col: 27 },
-    { id: 4,  row: 0, col: 31 },
-    { id: 5,  row: 1, col: 7  },
-    { id: 6,  row: 1, col: 12 },
-    { id: 7,  row: 1, col: 21 },
-    { id: 8,  row: 1, col: 30 },
-    { id: 9,  row: 1, col: 35 },
-    { id: 10, row: 2, col: 3  },
-    { id: 11, row: 2, col: 12 },
-    { id: 12, row: 2, col: 17 },
-    { id: 13, row: 2, col: 26 },
-    { id: 14, row: 2, col: 35 }
 ];
 
 // Shared respawn helpers — work for any location whose state has a
@@ -3182,10 +3195,14 @@ function isItemAvailable(locState, id) {
 }
 
 // Set an item's respawn timestamp on collect — base + per-item RNG so
-// items don't all reappear together.
-function markItemCollected(locState, id) {
+// items don't all reappear together. `respawnMs` arg overrides the
+// shared default; callers should look up the rate via
+// `ITEM_KINDS[type].respawnMs` so different kinds repopulate at
+// different paces (sticks fast, stones medium, ore slow).
+function markItemCollected(locState, id, respawnMs) {
     if (!locState.respawnAt) locState.respawnAt = {};
-    const jitter = RESPAWN_MS_BASE * (0.5 + Math.random());
+    const baseMs = (typeof respawnMs === 'number' && respawnMs > 0) ? respawnMs : RESPAWN_MS_BASE;
+    const jitter = baseMs * (0.5 + Math.random());
     locState.respawnAt[String(id)] = Date.now() + jitter;
 }
 
@@ -3459,17 +3476,20 @@ function renderGrove() {
             scene.appendChild(rowDiv);
             rowFrames.push(frame);
         }
-        for (const inst of GROVE_ITEM_INSTANCES) {
-            const item = GROVE_ITEMS[inst.id];
+        // Iterate spawn points (geography) parallel with GROVE_ITEMS
+        // (economy). Spot index N is filled by GROVE_ITEMS[N].
+        for (let id = 0; id < GROVE_SPAWN_POINTS.length; id++) {
+            const spot = GROVE_SPAWN_POINTS[id];
+            const item = GROVE_ITEMS[id];
             if (!item) continue;
-            if (!isItemAvailable(groveState, inst.id)) continue;
-            if (inst.row < 0 || inst.row >= rowFrames.length) continue;
-            const btn = buildItemButton(inst.id, item);
+            if (!isItemAvailable(groveState, id)) continue;
+            if (spot.row < 0 || spot.row >= rowFrames.length) continue;
+            const btn = buildItemButton(id, item);
             const cell = document.createElement('span');
             cell.className = 'grove-item-cell';
-            cell.style.left = inst.col + 'ch';
+            cell.style.left = spot.col + 'ch';
             cell.appendChild(btn);
-            rowFrames[inst.row].appendChild(cell);
+            rowFrames[spot.row].appendChild(cell);
         }
     }
 
@@ -3929,7 +3949,8 @@ function collectGroveItem(id) {
     const item = GROVE_ITEMS[id];
     if (!item) return;
 
-    markItemCollected(groveState, id);
+    const kindDef = ITEM_KINDS[item.type];
+    markItemCollected(groveState, id, kindDef && kindDef.respawnMs);
     if (item.type === 'stick') {
         game.inventory.sticks = (game.inventory.sticks || 0) + 1;
         game.stats.sticksGathered = (game.stats.sticksGathered || 0) + 1;
@@ -4166,22 +4187,20 @@ const QUARRY_GROUND_ROW = _QUARRY_ACTIVE_SCENE.groundRow;
 const QUARRY_ITEM_ROWS = _QUARRY_ACTIVE_SCENE.itemRows;
 const QUARRY_ITEMS = _QUARRY_ACTIVE_SCENE.items;
 
-// Positional placements for the 8 quarry items. Each entry pins one
-// item id to (row, col) inside the 3-row × 40-col items region. Cols
-// match where the original `$` placeholders sat in QUARRY_ITEM_ROWS.
-// Background rocks (`/\` / `/____\` decorations) stay as text-flow
-// content of the row, with `$` chars stripped — items overlay
-// positionally so picking them up doesn't reflow the rocks or each
-// other.
-const QUARRY_ITEM_INSTANCES = [
-    { id: 0, row: 0, col: 2  },
-    { id: 1, row: 0, col: 18 },
-    { id: 2, row: 0, col: 32 },
-    { id: 3, row: 1, col: 14 },
-    { id: 4, row: 1, col: 36 },
-    { id: 5, row: 2, col: 2  },
-    { id: 6, row: 2, col: 17 },
-    { id: 7, row: 2, col: 33 }
+// Spawn points in the quarry — geography only, parallel to QUARRY_ITEMS.
+// Cols match where the original `$` placeholders sat in QUARRY_ITEM_ROWS.
+// Background rocks (`/\` / `/____\` decorations) stay as text-flow row
+// content with `$` chars stripped; items overlay positionally so
+// picking them up doesn't shift the rocks or sibling items.
+const QUARRY_SPAWN_POINTS = [
+    { row: 0, col: 2  },
+    { row: 0, col: 18 },
+    { row: 0, col: 32 },
+    { row: 1, col: 14 },
+    { row: 1, col: 36 },
+    { row: 2, col: 2  },
+    { row: 2, col: 17 },
+    { row: 2, col: 33 }
 ];
 
 function renderQuarry() {
@@ -4323,7 +4342,7 @@ function renderQuarry() {
         // Positional item rendering. Each row's text-flow background
         // shows the rock decorations (with `$` placeholders stripped),
         // and item buttons overlay at fixed (row, col) coords from
-        // QUARRY_ITEM_INSTANCES. Picking up an item just removes one
+        // QUARRY_SPAWN_POINTS. Picking up an item just removes one
         // absolute-positioned button — neighbors and rocks don't shift.
         const rowFrames = [];
         QUARRY_ITEM_ROWS.forEach((line) => {
@@ -4342,17 +4361,20 @@ function renderQuarry() {
             scene.appendChild(rowDiv);
             rowFrames.push(frame);
         });
-        for (const inst of QUARRY_ITEM_INSTANCES) {
-            const item = QUARRY_ITEMS[inst.id];
+        // Iterate spawn points (geography) parallel with QUARRY_ITEMS
+        // (economy). Spot index N is filled by QUARRY_ITEMS[N].
+        for (let id = 0; id < QUARRY_SPAWN_POINTS.length; id++) {
+            const spot = QUARRY_SPAWN_POINTS[id];
+            const item = QUARRY_ITEMS[id];
             if (!item) continue;
-            if (!isItemAvailable(quarryState, inst.id)) continue;
-            if (inst.row < 0 || inst.row >= rowFrames.length) continue;
-            const btn = buildQuarryItemButton(inst.id, item);
+            if (!isItemAvailable(quarryState, id)) continue;
+            if (spot.row < 0 || spot.row >= rowFrames.length) continue;
+            const btn = buildQuarryItemButton(id, item);
             const cell = document.createElement('span');
             cell.className = 'quarry-item-cell';
-            cell.style.left = inst.col + 'ch';
+            cell.style.left = spot.col + 'ch';
             cell.appendChild(btn);
-            rowFrames[inst.row].appendChild(cell);
+            rowFrames[spot.row].appendChild(cell);
         }
     }
 
@@ -4372,7 +4394,8 @@ function collectQuarryItem(id) {
     const item = QUARRY_ITEMS[id];
     if (!item || item.type !== 'stone') return;
 
-    markItemCollected(state, id);
+    const kindDef = ITEM_KINDS[item.type];
+    markItemCollected(state, id, kindDef && kindDef.respawnMs);
     game.inventory.stones = (game.inventory.stones || 0) + 1;
     sfx('purchase');
     renderQuarry();
@@ -4429,7 +4452,8 @@ function completeMineOre() {
     const state = game.locations.quarry;
     if (!isItemAvailable(state, itemId)) return;
 
-    markItemCollected(state, itemId);
+    const kindDef = ITEM_KINDS.ironOre;
+    markItemCollected(state, itemId, kindDef && kindDef.respawnMs);
     game.inventory.ironOre = (game.inventory.ironOre || 0) + 1;
     game.stats.ironOreMined = (game.stats.ironOreMined || 0) + 1;
     sfx('craft');
