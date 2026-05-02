@@ -175,6 +175,35 @@ QUARRY_KINDS, reads the v4 instance list, composes the merged grid,
 and diffs against v3's text-flow rows. Zero diff = identical visual.
 See git history of `_check_v4.js` for the template.
 
+**Land-mine: regex alternation order vs. depth-class names.** The
+depth-tint class names share prefixes — `mid` is a prefix of `midnear`,
+`midfar` is a prefix of nothing. JS regex alternation tries options
+in the order written; the FIRST match wins. So:
+
+```js
+// BAD — `mid` matches before `midnear` is even tried
+str.replace(/grove-(horizon|far|midfar|mid|midnear|near|sky|ground|items)/g, ...)
+// On 'grove-midnear': matches `grove-mid`, leaves orphan `near`
+// Result: 'grove-{newcls}near' — invalid class, cell loses tint
+```
+
+Two fixes, pick one:
+
+```js
+// Word boundary on the trailing side — `mid\b` requires non-word after
+str.replace(/grove-(horizon|far|midfar|mid|midnear|near|sky|ground|items)\b/g, ...)
+
+// Or: longer alternatives FIRST so they match before their prefixes
+str.replace(/grove-(horizon|midnear|midfar|mid|near|far|sky|ground|items)/g, ...)
+```
+
+Word boundary is more robust — it doesn't matter what the alt order is.
+This bit grove v2's sprite tint-row-on-paint pass (v131→v132): cells
+originally classed `grove-midnear` got rewritten to `grove-midnearnear`
+when a sprite painted into their row, and rendered white instead of
+tan. Look out for this any time you generate or rewrite grove-* / depth-
+class names dynamically.
+
 ## Frame contract
 
 - **40 cols wide.** Every row gets padded to 40 chars by `.padEnd(40, ' ')`
