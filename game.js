@@ -192,7 +192,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v133';
+const APP_VERSION = 'v134';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3202,19 +3202,25 @@ function renderGrove() {
     const groveState = game.locations.grove;
     let itemIdx = 0;
 
-    // Helper: build a clickable item button (or a blank space if
-    // currently respawning) for a single $ placeholder.
+    // Helper: build a clickable item button (or padded blank space if
+    // currently respawning) for a single $ placeholder. The respawning
+    // placeholder must match the GLYPH WIDTH (stones=2, ore=3) so the
+    // row's column layout doesn't shift when an item is picked up —
+    // otherwise centering re-flows and surrounding items appear to slide.
     function makeItemNode() {
         const id = itemIdx++;
-        if (!isItemAvailable(groveState, id)) return document.createTextNode(' ');
         const item = GROVE_ITEMS[id];
         if (!item) return document.createTextNode(' ');
         const kindDef = ITEM_KINDS[item.type];
+        const glyph = kindDef ? kindDef.glyph : '?';
+        if (!isItemAvailable(groveState, id)) {
+            return document.createTextNode(' '.repeat(glyph.length));
+        }
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `grove-item grove-${item.type}`;
         btn.setAttribute('aria-label', kindDef ? kindDef.ariaPick : item.type);
-        btn.textContent = kindDef ? kindDef.glyph : '?';
+        btn.textContent = glyph;
         btn.addEventListener('click', () => collectGroveItem(id));
         return btn;
     }
@@ -4125,10 +4131,15 @@ function renderQuarry() {
 
     function makeItemNode() {
         const id = itemIdx++;
-        if (!isItemAvailable(quarryState, id)) return document.createTextNode(' ');
         const item = QUARRY_ITEMS[id];
         if (!item) return document.createTextNode(' ');
         const kindDef = ITEM_KINDS[item.type];
+        const glyph = kindDef ? kindDef.glyph : '?';
+        // Padded blank when respawning so the row width doesn't collapse
+        // and shift neighboring items (stone glyph is 2 chars, ore is 3).
+        if (!isItemAvailable(quarryState, id)) {
+            return document.createTextNode(' '.repeat(glyph.length));
+        }
         const btn = document.createElement('button');
         btn.type = 'button';
         // CSS hook: kind.cssClass keeps all stones tinted via .grove-stone
@@ -4136,7 +4147,7 @@ function renderQuarry() {
         // grove-item / quarry-item bases for shared sizing/cursor rules.
         btn.className = `grove-item quarry-item ${kindDef ? kindDef.cssClass : ''}`;
         btn.setAttribute('aria-label', kindDef ? kindDef.ariaPick : item.type);
-        btn.textContent = kindDef ? kindDef.glyph : '?';
+        btn.textContent = glyph;
         if (item.type === 'stone') {
             btn.addEventListener('click', () => collectQuarryItem(id));
         } else if (item.type === 'ironOre') {
