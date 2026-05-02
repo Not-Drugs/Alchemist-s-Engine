@@ -638,6 +638,28 @@ section h2::after {
     line-height: 1.0;
 }
 
+/* v2 grove path: positional/layered rows (?grove=v2). Each row has a
+   single inline-block frame sized to `cols` × 1ch, holding absolutely-
+   positioned cells. Higher specificity than .grove-scene-row above
+   (compound class wins source order tie). See ascii-scenes skill for
+   the kinds + instances pattern. */
+.grove-modal-content .grove-scene-row.grove-layered-row {
+    display: block;
+    height: 1em;
+    line-height: 1.0;
+    text-align: center;
+}
+.grove-modal-content .grove-row-frame {
+    display: inline-block;
+    position: relative;
+    height: 1em;
+}
+.grove-modal-content .grove-cell-positional {
+    position: absolute;
+    top: 0;
+    line-height: 1.0;
+}
+
 .grove-modal-content .grove-cell {
     white-space: pre;
     font-family: inherit;

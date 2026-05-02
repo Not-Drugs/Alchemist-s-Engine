@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v130';
+const APP_VERSION = 'v131';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -2887,6 +2887,191 @@ function buildGroveScene() {
 
 const GROVE_SCENE_ROWS = buildGroveScene();
 
+// ============================================
+// GROVE V2 — kinds + instances composition
+// ============================================
+// Same scene as v1 above but rendered via shared visual kinds placed
+// at scene coordinates by an instance list. Each rendered cell carries
+// `data-kind` + `data-instance` for future targeting (graphics-tier
+// swap, animation, debug overlays). v1 stays default; ?grove=v2 opts in.
+//
+// Tint policy (most-specific wins):
+//   1. instance.cls (if set on the instance)
+//   2. kindRow.cls (if the kind defines per-row tint)
+//   3. error (caller forgot to specify tint somewhere)
+//
+// Tree kinds carry NO cls — same shape reads as far/midfar/mid/midnear
+// depending on placement, so tint belongs to instance. Framing-tree
+// kinds carry per-row cls (canopy at brighter classes, trunk at near).
+// Sprite kinds set `tintRowOnPaint: true`: any row a sprite's char
+// lands in gets re-classed to the sprite's cls (preserves v1's
+// `overlaySprite` row up-tinting behavior).
+//
+// Trunk fade gradient (rows 4-11 inline opacity 0.55→1.0) is encoded
+// per-row via an optional `opacity` field on framing-tree rows.
+
+// Pre-compute mirrored 40-col distant rows (v1's pushFullWidthRow logic).
+const _MIRRORED_HORIZON = padTo(HORIZON_STIPPLE, GROVE_CTR_W) + padTo(HORIZON_STIPPLE, GROVE_CTR_W);
+const _MIRRORED_TREELINE_1 = padTo(DISTANT_TREELINE[0], GROVE_CTR_W) + padTo(DISTANT_TREELINE[0], GROVE_CTR_W);
+const _MIRRORED_TREELINE_2 = padTo(DISTANT_TREELINE[1], GROVE_CTR_W) + padTo(DISTANT_TREELINE[1], GROVE_CTR_W);
+const _MIRRORED_FOG = padTo(FOG_ROW, GROVE_CTR_W) + padTo(FOG_ROW, GROVE_CTR_W);
+const _CTR_FOG = padTo(FOG_ROW, GROVE_CTR_W);
+
+const GROVE_KINDS = {
+    // Atmospheric back layer — full-width 40, single row each.
+    'horizon-stipple-full': { width: 40, height: 1,
+        rows: [ { content: _MIRRORED_HORIZON } ] },
+    'distant-treeline-1': { width: 40, height: 1,
+        rows: [ { content: _MIRRORED_TREELINE_1 } ] },
+    'distant-treeline-2': { width: 40, height: 1,
+        rows: [ { content: _MIRRORED_TREELINE_2 } ] },
+    'fog-row-full': { width: 40, height: 1,
+        rows: [ { content: _MIRRORED_FOG } ] },
+    'fog-row-center': { width: 20, height: 1,
+        rows: [ { content: _CTR_FOG } ] },
+
+    // Mid-band trees — no cls; instance supplies it. Each tree kind is
+    // the literal primitive (MID_FAR_*, MID_MID_*, MID_NEAR_*).
+    'tree-far-A': { width: 4, height: 3, rows: MID_FAR_A.map(content => ({ content })) },
+    'tree-far-B': { width: 4, height: 3, rows: MID_FAR_B.map(content => ({ content })) },
+    'tree-far-C': { width: 4, height: 3, rows: MID_FAR_C.map(content => ({ content })) },
+    'tree-far-D': { width: 4, height: 3, rows: MID_FAR_D.map(content => ({ content })) },
+    'tree-far-E': { width: 4, height: 3, rows: MID_FAR_E.map(content => ({ content })) },
+
+    'tree-mid-A': { width: 5, height: 7, rows: MID_MID_A.map(content => ({ content })) },
+    'tree-mid-B': { width: 5, height: 7, rows: MID_MID_B.map(content => ({ content })) },
+    'tree-mid-C': { width: 5, height: 7, rows: MID_MID_C.map(content => ({ content })) },
+    'tree-mid-D': { width: 5, height: 7, rows: MID_MID_D.map(content => ({ content })) },
+    'tree-mid-E': { width: 5, height: 7, rows: MID_MID_E.map(content => ({ content })) },
+    'tree-mid-F': { width: 5, height: 7, rows: MID_MID_F.map(content => ({ content })) },
+
+    'tree-near-A': { width: 7, height: 11, rows: MID_NEAR_A.map(content => ({ content })) },
+    'tree-near-B': { width: 7, height: 11, rows: MID_NEAR_B.map(content => ({ content })) },
+    'tree-near-C': { width: 7, height: 11, rows: MID_NEAR_C.map(content => ({ content })) },
+    'tree-near-D': { width: 7, height: 11, rows: MID_NEAR_D.map(content => ({ content })) },
+    'tree-near-E': { width: 7, height: 11, rows: MID_NEAR_E.map(content => ({ content })) },
+
+    // Framing trees — per-row cls (canopy bright, trunk near) + per-row
+    // opacity for the trunk-fade gradient (rows 4-11, lerp 0.55→1.0).
+    // Beyond row 11 opacity defaults to 1.0 (full brightness).
+    'framing-tree-left': { width: GROVE_SIDE_W, height: LEFT_NEAR_TREE.length,
+        rows: LEFT_NEAR_TREE.map((content, i) => {
+            // Row 0 paints over horizon → canopy class = 'far'.
+            // Rows 1-3 paint over far/treeline/fog → canopy class = 'midfar'.
+            // Rows 4+ are trunk → 'near' with possible opacity fade.
+            const out = { content };
+            if (i === 0) out.cls = 'far';
+            else if (i <= 3) out.cls = 'midfar';
+            else out.cls = 'near';
+            if (i >= 4 && i <= 11) {
+                // Lerp 0.55 (row 4) → 1.0 (row 11), 2-decimal rounding.
+                const t = (i - 4) / (11 - 4);
+                out.opacity = (0.55 + t * (1.0 - 0.55)).toFixed(2);
+            }
+            return out;
+        })
+    },
+    'framing-tree-right': { width: GROVE_SIDE_W, height: RIGHT_NEAR_TREE.length,
+        rows: RIGHT_NEAR_TREE.map((content, i) => {
+            const out = { content };
+            if (i === 0) out.cls = 'far';
+            else if (i <= 3) out.cls = 'midfar';
+            else out.cls = 'near';
+            if (i >= 4 && i <= 11) {
+                const t = (i - 4) / (11 - 4);
+                out.opacity = (0.55 + t * (1.0 - 0.55)).toFixed(2);
+            }
+            return out;
+        })
+    },
+
+    // Foreground sprites — `tintRowOnPaint: true` re-classes the whole
+    // row to the sprite's cls when any sprite char lands there. This
+    // preserves v1's `overlaySprite` semantic (foreground tree class
+    // washes over neighbouring untouched cells in the same row).
+    'sprite-scraggly': {
+        width: 7, height: 9, tintRowOnPaint: true,
+        rows: [
+            { content: '   ^   ' },
+            { content: '  /|\\  ' },
+            { content: ' / |   ' },
+            { content: '   |   ' },
+            { content: '   |\\  ' },
+            { content: '   |   ' },
+            { content: '   o   ' },
+            { content: '   |   ' },
+            { content: '  _|_  ' }
+        ]
+    },
+    'sprite-lean': {
+        width: 6, height: 5, tintRowOnPaint: true,
+        rows: [
+            { content: ' \\\\,/ ' },
+            { content: '  \\|  ' },
+            { content: '   \\  ' },
+            { content: '   |  ' },
+            { content: '   \\_ ' }
+        ]
+    }
+};
+
+// v2 scene = list of instances. Order is z-order: later instances
+// overpaint earlier ones at conflicting positions. Atmospheric back
+// layer first, then trees by depth band, then framing trees, then
+// foreground sprites (which also tint-row their painted rows).
+const GROVE_V2 = {
+    rows: LEFT_NEAR_TREE.length,    // 35
+    cols: GROVE_SCENE_W,            // 40
+    instances: [
+        // --- Back: distant atmospheric rows ---
+        { name: 'horizon',     kind: 'horizon-stipple-full', row: 0, col: 0, cls: 'horizon' },
+        { name: 'treeline-1',  kind: 'distant-treeline-1',   row: 1, col: 0, cls: 'far' },
+        { name: 'treeline-2',  kind: 'distant-treeline-2',   row: 2, col: 0, cls: 'far' },
+        { name: 'fog-far',     kind: 'fog-row-full',         row: 3, col: 0, cls: 'far' },
+
+        // --- Far mid-band (rows 4-6, cols 10-29, pattern A D B E C) ---
+        { name: 'far-tree-1', kind: 'tree-far-A', row: 4, col: 10, cls: 'midfar' },
+        { name: 'far-tree-2', kind: 'tree-far-D', row: 4, col: 14, cls: 'midfar' },
+        { name: 'far-tree-3', kind: 'tree-far-B', row: 4, col: 18, cls: 'midfar' },
+        { name: 'far-tree-4', kind: 'tree-far-E', row: 4, col: 22, cls: 'midfar' },
+        { name: 'far-tree-5', kind: 'tree-far-C', row: 4, col: 26, cls: 'midfar' },
+
+        // --- Inter-band fog (row 7) ---
+        { name: 'fog-midfar', kind: 'fog-row-center', row: 7, col: 10, cls: 'midfar' },
+
+        // --- Mid mid-band (rows 8-14, cols 10-29, pattern A F D B) ---
+        { name: 'mid-tree-1', kind: 'tree-mid-A', row: 8, col: 10, cls: 'mid' },
+        { name: 'mid-tree-2', kind: 'tree-mid-F', row: 8, col: 15, cls: 'mid' },
+        { name: 'mid-tree-3', kind: 'tree-mid-D', row: 8, col: 20, cls: 'mid' },
+        { name: 'mid-tree-4', kind: 'tree-mid-B', row: 8, col: 25, cls: 'mid' },
+
+        // --- Inter-band fog (row 15) ---
+        { name: 'fog-mid', kind: 'fog-row-center', row: 15, col: 10, cls: 'mid' },
+
+        // --- Near mid-band (rows 16-26, cols 10-29, pattern E A D) ---
+        { name: 'near-tree-1', kind: 'tree-near-E', row: 16, col: 10, cls: 'midnear' },
+        { name: 'near-tree-2', kind: 'tree-near-A', row: 16, col: 17, cls: 'midnear' },
+        { name: 'near-tree-3', kind: 'tree-near-D', row: 16, col: 24, cls: 'midnear' },
+
+        // --- Framing trees (overpaint canopy at top, trunk down to roots) ---
+        { name: 'framing-left',  kind: 'framing-tree-left',  row: 0, col: 0 },
+        { name: 'framing-right', kind: 'framing-tree-right', row: 0, col: 30 },
+
+        // --- Foreground sprites (overlay LAST so tint-row-on-paint wins) ---
+        { name: 'fg-scraggly', kind: 'sprite-scraggly', row: 10, col: 14, cls: 'midnear' },
+        { name: 'fg-lean',     kind: 'sprite-lean',     row: 18, col: 23, cls: 'midnear' }
+    ]
+};
+
+function _pickGroveScene() {
+    try {
+        const p = (new URLSearchParams(window.location.search).get('grove') || '').toLowerCase();
+        if (p === 'v2') return 'v2';
+    } catch (e) {}
+    return 'v1';
+}
+const GROVE_SCENE_KEY = _pickGroveScene();
+
 // Ground + items rows live below the framing trees' roots. Items are
 // rendered as a single row each (full-width) so the placeholder $/#
 // system continues to work as before.
@@ -3026,39 +3211,120 @@ function renderGrove() {
         return span;
     }
 
-    // Compose each scene row from three side-by-side spans:
-    // [ left near-tree | center depth band | right near-tree ].
-    // The center span carries the row's depth class (horizon / far /
-    // midfar / mid / midnear / sky) so atmospheric perspective comes
-    // through CSS opacity + size on the center span only.
-    //
-    // Trunk fade gradient: scene rows 4..TRUNK_FADE_END get a graduated
-    // inline opacity on the framing-tree spans, lerping from 0.55 just
-    // below the canopy band up to 1.0 (full `near`). Visually the
-    // framing trees rise out of the haze as if their tops disappear
-    // into the distant treeline.
-    const TRUNK_FADE_START = 4;
-    const TRUNK_FADE_END   = 11;
-    GROVE_SCENE_ROWS.forEach((rowSpec, rowIdx) => {
-        const row = document.createElement('div');
-        row.className = 'grove-row grove-scene-row';
-        const leftEl   = buildSpan(rowSpec.left,   rowSpec.leftCls   || 'near');
-        const centerEl = buildSpan(rowSpec.center, rowSpec.centerCls);
-        const rightEl  = buildSpan(rowSpec.right,  rowSpec.rightCls  || 'near');
-        // Trunk opacity gradient (only applies to single-span left/right;
-        // canopy rows 0-3 use a DocumentFragment, no `.style` property —
-        // skipped via the type check).
-        if (rowIdx >= TRUNK_FADE_START && rowIdx <= TRUNK_FADE_END) {
-            const t = (rowIdx - TRUNK_FADE_START) / (TRUNK_FADE_END - TRUNK_FADE_START);
-            const op = (0.55 + t * (1.0 - 0.55)).toFixed(2);
-            if (leftEl.style)  leftEl.style.opacity  = op;
-            if (rightEl.style) rightEl.style.opacity = op;
+    if (GROVE_SCENE_KEY === 'v2') {
+        // v2 path: positional kinds + instances. See GROVE_KINDS /
+        // GROVE_V2 above. Each cell is an absolute-positioned span
+        // inside a per-row frame, so layers can be authored, styled,
+        // animated, or graphics-swapped independently.
+        //
+        // Tint resolution: instance.cls > kind row.cls > error.
+        // Sprite kinds (`tintRowOnPaint: true`) re-class every cell
+        // in any row they painted to — preserves v1's overlaySprite
+        // row up-tinting semantic.
+        const frames = [];
+        for (let r = 0; r < GROVE_V2.rows; r++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'grove-row grove-scene-row grove-layered-row';
+            const frame = document.createElement('span');
+            frame.className = 'grove-row-frame';
+            frame.style.width = GROVE_V2.cols + 'ch';
+            rowDiv.appendChild(frame);
+            scene.appendChild(rowDiv);
+            frames.push(frame);
         }
-        row.appendChild(leftEl);
-        row.appendChild(centerEl);
-        row.appendChild(rightEl);
-        scene.appendChild(row);
-    });
+        const occupied = Object.create(null);
+        const tintPostPass = [];
+        for (const inst of GROVE_V2.instances) {
+            const kind = GROVE_KINDS[inst.kind];
+            if (!kind) continue;
+            const baseRow = inst.row || 0;
+            const baseCol = inst.col || 0;
+            const paintedRows = new Set();
+            for (let kRow = 0; kRow < kind.rows.length; kRow++) {
+                const kindRow = kind.rows[kRow];
+                const sceneRow = baseRow + kRow;
+                if (sceneRow < 0 || sceneRow >= frames.length) continue;
+                const frame = frames[sceneRow];
+                // Most-specific-wins for tint.
+                const cls = inst.cls || kindRow.cls;
+                if (!cls) continue;  // skip if no tint resolved (shouldn't happen)
+                const opacity = kindRow.opacity;
+                const content = kindRow.content;
+                let anyPainted = false;
+                for (let kCol = 0; kCol < content.length; kCol++) {
+                    const ch = content[kCol];
+                    if (ch === ' ') continue;
+                    const sceneCol = baseCol + kCol;
+                    if (sceneCol < 0 || sceneCol >= GROVE_V2.cols) continue;
+                    const key = sceneRow + ',' + sceneCol;
+                    const prior = occupied[key];
+                    if (prior) prior.remove();
+                    const cell = document.createElement('span');
+                    cell.className = `grove-cell-positional grove-cell grove-${cls}`;
+                    cell.dataset.kind = inst.kind;
+                    if (inst.name) cell.dataset.instance = inst.name;
+                    cell.style.left = sceneCol + 'ch';
+                    if (opacity !== undefined) cell.style.opacity = opacity;
+                    cell.textContent = ch;
+                    frame.appendChild(cell);
+                    occupied[key] = cell;
+                    anyPainted = true;
+                }
+                if (anyPainted) paintedRows.add(sceneRow);
+            }
+            if (kind.tintRowOnPaint && paintedRows.size > 0) {
+                tintPostPass.push({ rows: paintedRows, cls: inst.cls });
+            }
+        }
+        // Sprite tint-row-on-paint: re-class every cell in the rows
+        // the sprite painted to. Mirrors v1's overlaySprite behavior
+        // where the foreground tree's centerCls washes over the rest
+        // of the row (background trees get the foreground's class).
+        for (const pass of tintPostPass) {
+            for (const r of pass.rows) {
+                const frame = frames[r];
+                for (const cell of frame.children) {
+                    // Replace any existing grove-{cls} with the sprite's cls.
+                    const newClass = cell.className.replace(/grove-(horizon|far|midfar|mid|midnear|near|sky|ground|items)/g, `grove-${pass.cls}`);
+                    cell.className = newClass;
+                }
+            }
+        }
+    } else {
+        // Compose each scene row from three side-by-side spans:
+        // [ left near-tree | center depth band | right near-tree ].
+        // The center span carries the row's depth class (horizon / far /
+        // midfar / mid / midnear / sky) so atmospheric perspective comes
+        // through CSS opacity + size on the center span only.
+        //
+        // Trunk fade gradient: scene rows 4..TRUNK_FADE_END get a graduated
+        // inline opacity on the framing-tree spans, lerping from 0.55 just
+        // below the canopy band up to 1.0 (full `near`). Visually the
+        // framing trees rise out of the haze as if their tops disappear
+        // into the distant treeline.
+        const TRUNK_FADE_START = 4;
+        const TRUNK_FADE_END   = 11;
+        GROVE_SCENE_ROWS.forEach((rowSpec, rowIdx) => {
+            const row = document.createElement('div');
+            row.className = 'grove-row grove-scene-row';
+            const leftEl   = buildSpan(rowSpec.left,   rowSpec.leftCls   || 'near');
+            const centerEl = buildSpan(rowSpec.center, rowSpec.centerCls);
+            const rightEl  = buildSpan(rowSpec.right,  rowSpec.rightCls  || 'near');
+            // Trunk opacity gradient (only applies to single-span left/right;
+            // canopy rows 0-3 use a DocumentFragment, no `.style` property —
+            // skipped via the type check).
+            if (rowIdx >= TRUNK_FADE_START && rowIdx <= TRUNK_FADE_END) {
+                const t = (rowIdx - TRUNK_FADE_START) / (TRUNK_FADE_END - TRUNK_FADE_START);
+                const op = (0.55 + t * (1.0 - 0.55)).toFixed(2);
+                if (leftEl.style)  leftEl.style.opacity  = op;
+                if (rightEl.style) rightEl.style.opacity = op;
+            }
+            row.appendChild(leftEl);
+            row.appendChild(centerEl);
+            row.appendChild(rightEl);
+            scene.appendChild(row);
+        });
+    }
 
     // Ground row — single full-width span with its own depth class.
     const groundRow = document.createElement('div');

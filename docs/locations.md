@@ -86,6 +86,24 @@ resets the respawn map on load for old saves.
 by `renderGrove()`), `GROVE_ITEM_ROWS` + `GROVE_ITEMS`, and
 `autofitGroveScene()`.
 
+**Scene variants.** Two render paths, selectable at runtime via
+`?grove=v2` (default = v1):
+
+- **v1 (default)** — text-flow rendering with three spans per row
+  (left framing tree | center depth band | right framing tree).
+  Built dynamically by `buildGroveScene()`. The locked-in reference
+  for visual comparison.
+- **v2** — same visual, rendered via `GROVE_KINDS` (shared visual
+  type definitions) + `GROVE_V2.instances` (placement list). Each
+  rendered cell is an absolutely-positioned span carrying `data-kind`
+  + `data-instance` for future targeting (graphics swap, animation,
+  debug overlays). Kind cls is optional; instance cls overrides;
+  most-specific-wins. Sprite kinds (`tintRowOnPaint: true`) re-class
+  every cell in a row their content paints into, preserving v1's
+  `overlaySprite` row up-tinting semantic. Trunk-fade gradient (rows
+  4-11 lerp 0.55→1.0) encoded per-row via optional `opacity` field
+  on framing-tree kind rows. Verified zero-char-diff vs v1 grid.
+
 Future grove ideas (mountain range, litter rows retry) live in
 `cowork/BACKLOG.md`.
 
