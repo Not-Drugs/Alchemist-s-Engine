@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v129';
+const APP_VERSION = 'v130';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3596,117 +3596,90 @@ function collectGroveItem(id) {
 // authoring stays sloppy-friendly. Depth classes match the grove's
 // CSS (.grove-* are reused via the .quarry-cell.grove-* class pair
 // applied at render time).
-// Four quarry scene variants, selectable at runtime via `?quarry=v1|v2|v3|v4`
-// (default = `v3`). All ship 8 item placeholders.
-//   v1 — original narrow-mountain scene with central cave + decorative
-//        rock mound bumps embedded in the item rows.
-//   v2 — large-mountain redesign: dominant peak, arched cave mouth at
-//        the visual center, two foreground rock-mound silhouettes.
-//   v3 — central hero mountain (v2's silhouette + cave) with a shorter
-//        flanking peak nested on each side, sharing the hero's ground
-//        line. Flanker inner slopes merge into the hero's outer slopes
-//        at row 16; outer slopes clip at the frame edges.
-//   v4 — same visual as v3, but rendered via positional/layered cells
-//        instead of text-flow rows. Each cell is an absolutely-positioned
-//        span, so layers (flankers, hero, cave, scree) can be authored,
-//        styled, animated, or toggled independently. Spaces in layer
-//        content are transparent — underlying layers show through.
-//        Hero overpaints flankers automatically by virtue of later
-//        z-order in the layers array.
+// Reusable visual kinds for the quarry. Each kind has a bounding box
+// (width × height) and per-row `content` (string) + `cls` (depth tint
+// class). Origin is the kind's own row 0 / col 0; instances place the
+// kind into a scene by supplying a base (row, col).
+//
+// Kinds = shared visual identity. Two flanker instances both reference
+// `mountain-medium`, so editing the ASCII once updates both — and at
+// graphics-tier swap, one art asset per kind serves all instances.
+// Promote frequently-shared kinds to a top-level WORLD_KINDS dict if/
+// when grove + future locations start sharing.
+const QUARRY_KINDS = {
+    'mountain-tall': {
+        width: 40, height: 20,
+        rows: [
+            { content: '                   /\\                   ', cls: 'mid' },
+            { content: '                  /  \\                  ', cls: 'mid' },
+            { content: '                 /    \\                 ', cls: 'mid' },
+            { content: '                /      \\                ', cls: 'mid' },
+            { content: '               /        \\               ', cls: 'mid' },
+            { content: '              /          \\              ', cls: 'midnear' },
+            { content: '             /            \\             ', cls: 'midnear' },
+            { content: '            /              \\            ', cls: 'midnear' },
+            { content: '           /                \\           ', cls: 'midnear' },
+            { content: '          /                  \\          ', cls: 'midnear' },
+            { content: '         /                    \\         ', cls: 'near' },
+            { content: '        /                      \\        ', cls: 'near' },
+            { content: '       /                        \\       ', cls: 'near' },
+            { content: '      /                          \\      ', cls: 'near' },
+            { content: '     /                            \\     ', cls: 'near' },
+            { content: '    /                              \\    ', cls: 'near' },
+            { content: '   /                                \\   ', cls: 'near' },
+            { content: '  /                                  \\  ', cls: 'near' },
+            { content: ' /                                    \\ ', cls: 'near' },
+            { content: '/                                      \\', cls: 'near' }
+        ]
+    },
+    'mountain-medium': {
+        width: 12, height: 6,
+        rows: [
+            { content: '     /\\     ', cls: 'mid' },
+            { content: '    /  \\    ', cls: 'mid' },
+            { content: '   /    \\   ', cls: 'midnear' },
+            { content: '  /      \\  ', cls: 'midnear' },
+            { content: ' /        \\ ', cls: 'midnear' },
+            { content: '/          \\', cls: 'midnear' }
+        ]
+    },
+    'mountain-small': {
+        width: 4, height: 2,
+        rows: [
+            { content: ' /\\ ', cls: 'mid' },
+            { content: '/  \\', cls: 'midnear' }
+        ]
+    },
+    'cave-arch': {
+        width: 7, height: 4,
+        rows: [
+            { content: ',-----.', cls: 'near' },
+            { content: '|     |', cls: 'near' },
+            { content: '|     |', cls: 'near' },
+            { content: '|_____|', cls: 'near' }
+        ]
+    },
+    'scree-line': {
+        width: 40, height: 1,
+        rows: [
+            { content: '~,_.,~`-.,_,~`-.,_,~`-.,_,~`-.,_,~`-.,_,', cls: 'near' }
+        ]
+    }
+};
+
+// Two quarry scene variants, selectable at runtime via `?quarry=v3|v4`
+// (default = `v3`). Both ship 8 item placeholders.
+//   v3 — central hero mountain with a shorter flanking peak nested on
+//        each side, plus tiny inner peaks in the saddles. Authored as
+//        text-flow rows (one string per scene row). The locked-in
+//        reference silhouette.
+//   v4 — same visual as v3, but rendered via QUARRY_KINDS (shared
+//        visual definitions) + a per-instance placement list. Each
+//        cell carries `data-kind` + `data-instance` for future
+//        targeting (graphics swap, per-instance animation, debug
+//        overlays). Order in `instances` is z-order: later instances
+//        overpaint earlier ones at conflicting positions.
 const QUARRY_SCENES = {
-    v1: {
-        rawRows: [
-            // Distant peak tips poking above the horizon — barely there,
-            // far depth class so they fade strongly.
-            ['      /\\                    /\\          ', 'far'],
-            ['     /  \\                  /  \\         ', 'far'],
-            // Main mountain — peak at row 2, base at row 14, cave at rows
-            // 8-10. Original v1 silhouette unchanged.
-            ['                /\\', 'far'],
-            ['               /  \\', 'far'],
-            ['              /    \\', 'midfar'],
-            // Rows 5-7: flanking peaks merge into the main mountain's
-            // outer slopes via saddle gaps (`\ /`). Gives the main
-            // mountain a sense of being part of a range rather than
-            // standing alone.
-            ['      /\\     /  /\\  \\      /\\           ', 'midfar'],
-            ['     /  \\   /  /  \\  \\    /  \\          ', 'mid'],
-            ['    /    \\ /  /    \\  \\ /    \\          ', 'mid'],
-            ['          /  / .--. \\  \\', 'mid'],
-            ['         /  / |    | \\  \\', 'midnear'],
-            ['        /  /  |____|  \\  \\', 'midnear'],
-            ['       /  /            \\  \\', 'midnear'],
-            ['      / _/              \\_ \\', 'near'],
-            ['     /                      \\', 'near'],
-            ['____/                        \\_______', 'near'],
-            [' ~.,_  .;.,~  -.,_  .;.,~  -.,_ .;.,~ ', 'midnear']
-        ],
-        groundRow: '_,~,. ,_-`._,. ~,_.. -`,_, ~,. ., -._, ',
-        itemRows: [
-            '   $        ,_/\\,    $       ,/^\\,    ',
-            '       $          $          $         ',
-            '   $          $                 $      '
-        ],
-        items: [
-            { type: 'stone' },
-            { type: 'ore' },
-            { type: 'stone' },
-            { type: 'ore' },
-            { type: 'stone' },
-            { type: 'stone' },
-            { type: 'ore' },
-            { type: 'stone' }
-        ]
-    },
-    v2: {
-        rawRows: [
-            ['', 'sky'],
-            ['', 'sky'],
-            ['', 'sky'],
-            ['        /\\                  /\\        ', 'far'],
-            ['       /  \\                /  \\       ', 'far'],
-            ['      /    \\              /    \\      ', 'midfar'],
-            ['_____/      \\____________/      \\______', 'midfar'],
-            ['', 'sky'],
-            ['                   /\\                   ', 'mid'],
-            ['                  /  \\                  ', 'mid'],
-            ['                 /    \\                 ', 'mid'],
-            ['                /      \\                ', 'mid'],
-            ['               /        \\               ', 'mid'],
-            ['              /          \\              ', 'midnear'],
-            ['             /            \\             ', 'midnear'],
-            ['            /              \\            ', 'midnear'],
-            ['           /                \\           ', 'midnear'],
-            ['          /                  \\          ', 'midnear'],
-            ['         /                    \\         ', 'near'],
-            ['        /                      \\        ', 'near'],
-            ['       /                        \\       ', 'near'],
-            ['      /                          \\      ', 'near'],
-            ['     /          ,-----.           \\     ', 'near'],
-            ['    /           |     |            \\    ', 'near'],
-            ['   /            |     |             \\   ', 'near'],
-            ['  /             |_____|              \\  ', 'near'],
-            [' /                                    \\ ', 'near'],
-            ['/                                      \\', 'near'],
-            ['~,_.,~`-.,_,~`-.,_,~`-.,_,~`-.,_,~`-.,_,', 'near']
-        ],
-        groundRow: '_..,~`-._.,~`-,. ,_-`. ,~`-,_..,~`-._.,~',
-        itemRows: [
-            '  $     /\\        $      /\\     $       ',
-            '       /  \\   $         /  \\        $   ',
-            '  $   /____\\     $     /____\\    $      '
-        ],
-        items: [
-            { type: 'stone' },
-            { type: 'stone' },
-            { type: 'ore' },
-            { type: 'stone' },
-            { type: 'ore' },
-            { type: 'stone' },
-            { type: 'stone' },
-            { type: 'ore' }
-        ]
-    },
     v3: {
         rawRows: [
             // Sky above the range. Empty rows scale via autofit.
@@ -3770,75 +3743,26 @@ const QUARRY_SCENES = {
         ]
     },
     v4: {
-        // Positional/layered scene. Each layer is { cls, baseRow, baseCol,
-        // content: [string, ...] }. Spaces in `content` are transparent
-        // (skipped at render); non-space chars become absolutely-positioned
-        // <span> cells inside per-row frames. Layers paint back-to-front
-        // (DOM order) so later layers visually overlay earlier ones — that
-        // gives us "hero overpaints flanker" without manually editing the
-        // flanker silhouette to remove obscured cells.
+        // Kinds + instances composition. Each instance places one kind
+        // from QUARRY_KINDS at a given (row, col). Order matters: later
+        // entries paint over earlier ones at conflicting positions
+        // (occupation map evicts the prior cell).
         layered: true,
         rows: 29,
         cols: 40,
-        layers: [
-            // Side flankers — back of the stack. Inner slopes are drawn in
-            // full; the hero layer (added later) will overpaint where they
-            // collide.
-            { name: 'flankers-mid', cls: 'mid', baseRow: 11, baseCol: 0, content: [
-                '     /\\                          /\\     ',
-                '    /  \\                        /  \\    '
-            ]},
-            { name: 'flankers-midnear', cls: 'midnear', baseRow: 13, baseCol: 0, content: [
-                '   /    \\                      /    \\   ',
-                '  /      \\                    /      \\  ',
-                ' /        \\                  /        \\ ',
-                '/          \\                /          \\'
-            ]},
-            // Inner peaks — small /\ in the saddles between hero and flankers.
-            { name: 'inner-peaks-mid', cls: 'mid', baseRow: 12, baseCol: 0, content: [
-                '           /\\              /\\           '
-            ]},
-            { name: 'inner-peaks-midnear', cls: 'midnear', baseRow: 13, baseCol: 0, content: [
-                '          /  \\            /  \\          '
-            ]},
-            // Hero — front layer, three tint bands top-to-bottom.
-            { name: 'hero-mid', cls: 'mid', baseRow: 8, baseCol: 0, content: [
-                '                   /\\                   ',
-                '                  /  \\                  ',
-                '                 /    \\                 ',
-                '                /      \\                ',
-                '               /        \\               '
-            ]},
-            { name: 'hero-midnear', cls: 'midnear', baseRow: 13, baseCol: 0, content: [
-                '              /          \\              ',
-                '             /            \\             ',
-                '            /              \\            ',
-                '           /                \\           ',
-                '          /                  \\          '
-            ]},
-            { name: 'hero-near', cls: 'near', baseRow: 18, baseCol: 0, content: [
-                '         /                    \\         ',
-                '        /                      \\        ',
-                '       /                        \\       ',
-                '      /                          \\      ',
-                '     /                            \\     ',
-                '    /                              \\    ',
-                '   /                                \\   ',
-                '  /                                  \\  ',
-                ' /                                    \\ ',
-                '/                                      \\'
-            ]},
-            // Cave — overlays the hero's body at rows 22-25.
-            { name: 'cave', cls: 'near', baseRow: 22, baseCol: 16, content: [
-                ',-----.',
-                '|     |',
-                '|     |',
-                '|_____|'
-            ]},
-            // Scree row.
-            { name: 'scree', cls: 'near', baseRow: 28, baseCol: 0, content: [
-                '~,_.,~`-.,_,~`-.,_,~`-.,_,~`-.,_,~`-.,_,'
-            ]}
+        instances: [
+            // Back layer — flanking mountains, one per side.
+            { name: 'flanker-left',  kind: 'mountain-medium', row: 11, col: 0  },
+            { name: 'flanker-right', kind: 'mountain-medium', row: 11, col: 28 },
+            // Tiny inner peaks in the saddles between flankers and hero.
+            { name: 'inner-left',    kind: 'mountain-small',  row: 12, col: 10 },
+            { name: 'inner-right',   kind: 'mountain-small',  row: 12, col: 26 },
+            // Hero overpaints flankers + inner peaks where they collide.
+            { name: 'hero',          kind: 'mountain-tall',   row: 8,  col: 0  },
+            // Cave overlays the hero's body.
+            { name: 'cave',          kind: 'cave-arch',       row: 22, col: 16 },
+            // Scree row sits on its own (row 28).
+            { name: 'scree',         kind: 'scree-line',      row: 28, col: 0  }
         ],
         groundRow: '_..,~`-._.,~`-,. ,_-`. ,~`-,_..,~`-._.,~',
         itemRows: [
@@ -3873,7 +3797,7 @@ const QUARRY_SCENE_ROWS = _QUARRY_RAW_ROWS.map(([row, cls]) => ({
     row: row.padEnd(40, ' '),
     cls
 }));
-const _QUARRY_LAYERS = _QUARRY_ACTIVE_SCENE.layers || null;
+const _QUARRY_INSTANCES = _QUARRY_ACTIVE_SCENE.instances || null;
 const _QUARRY_LAYERED_ROWS = _QUARRY_ACTIVE_SCENE.rows || 0;
 const _QUARRY_LAYERED_COLS = _QUARRY_ACTIVE_SCENE.cols || 40;
 
@@ -3925,18 +3849,21 @@ function renderQuarry() {
         return row;
     }
 
-    if (_QUARRY_LAYERS) {
-        // Positional/layered render path. Each scene row gets a frame
-        // span sized to the col count; cells are absolute-positioned
-        // by `left: <col>ch`. Spaces in layer content are skipped, so
-        // underlying layers show through transparently.
+    if (_QUARRY_INSTANCES) {
+        // Kinds + instances render path. Each instance places a kind
+        // from QUARRY_KINDS at (row, col). Cells are absolute-positioned
+        // spans (`left: <col>ch`) inside per-row frames. Spaces in kind
+        // content are transparent so underlying kinds show through.
         //
-        // Layer occlusion: positional spans don't naturally occlude
-        // each other (transparent text on transparent background, so
-        // two chars at the same (row,col) render as an X). To get
-        // proper "hero overpaints flanker" behavior, we track an
-        // occupation map keyed by `row,col` and evict any earlier
-        // cell when a later layer paints the same position.
+        // Z-order = instance order. Later instances paint over earlier
+        // ones at conflicting positions; an occupation map evicts the
+        // prior cell when a later one lands on the same (row, col).
+        // Without the eviction step, two chars at the same position
+        // render as a visible X (transparent text on transparent bg).
+        //
+        // Each cell carries `data-kind` and `data-instance` so future
+        // graphics swap, animation, or debug overlays can target by
+        // kind ("all mountain-medium") or by instance ("flanker-left").
         const frames = [];
         for (let r = 0; r < _QUARRY_LAYERED_ROWS; r++) {
             const rowDiv = document.createElement('div');
@@ -3949,24 +3876,28 @@ function renderQuarry() {
             frames.push(frame);
         }
         const occupied = Object.create(null);
-        for (const layer of _QUARRY_LAYERS) {
-            const baseRow = layer.baseRow || 0;
-            const baseCol = layer.baseCol || 0;
-            for (let lineIdx = 0; lineIdx < layer.content.length; lineIdx++) {
-                const line = layer.content[lineIdx];
-                const r = baseRow + lineIdx;
-                if (r < 0 || r >= frames.length) continue;
-                const frame = frames[r];
-                for (let i = 0; i < line.length; i++) {
-                    const ch = line[i];
+        for (const inst of _QUARRY_INSTANCES) {
+            const kind = QUARRY_KINDS[inst.kind];
+            if (!kind) continue;
+            const baseRow = inst.row || 0;
+            const baseCol = inst.col || 0;
+            for (let kRow = 0; kRow < kind.rows.length; kRow++) {
+                const { content, cls } = kind.rows[kRow];
+                const sceneRow = baseRow + kRow;
+                if (sceneRow < 0 || sceneRow >= frames.length) continue;
+                const frame = frames[sceneRow];
+                for (let kCol = 0; kCol < content.length; kCol++) {
+                    const ch = content[kCol];
                     if (ch === ' ') continue;
-                    const col = baseCol + i;
-                    const key = r + ',' + col;
+                    const sceneCol = baseCol + kCol;
+                    const key = sceneRow + ',' + sceneCol;
                     const prior = occupied[key];
                     if (prior) prior.remove();
                     const cell = document.createElement('span');
-                    cell.className = `quarry-cell grove-cell grove-${layer.cls}`;
-                    cell.style.left = col + 'ch';
+                    cell.className = `quarry-cell grove-cell grove-${cls}`;
+                    cell.dataset.kind = inst.kind;
+                    cell.dataset.instance = inst.name;
+                    cell.style.left = sceneCol + 'ch';
                     cell.textContent = ch;
                     frame.appendChild(cell);
                     occupied[key] = cell;

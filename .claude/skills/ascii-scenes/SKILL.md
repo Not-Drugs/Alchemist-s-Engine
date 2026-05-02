@@ -91,6 +91,90 @@ Without the eviction step, hero `/` at col 11 and flanker `\` at col
 11 both render as visible chars and you get an X at the crossing.
 This bit me on the first v4 commit — fix in v129.
 
+## Kinds + instances (v4-take-2 pattern)
+
+The next maturity step beyond per-layer authoring: separate **kind**
+(visual identity — what a thing IS) from **instance** (where it sits
+in a scene). Same idea as flyweight pattern / Unity prefabs / ECS
+components: store the shared definition once, reference it by name
+from many instances.
+
+**When to adopt:** as soon as (a) two scenes share visual types
+(grove + future forest both have scraggly trees), OR (b) you're
+committed to a graphics-tier swap. Both flankers in the quarry
+reference `mountain-medium` — at swap time, one image replaces the
+ASCII for both. Cross-location reuse, animation targeting, and
+debug overlays all become trivial.
+
+**Kind format** (see `QUARRY_KINDS` in game.js):
+
+```js
+const QUARRY_KINDS = {
+    'mountain-medium': {
+        width: 12, height: 6,
+        rows: [
+            { content: '     /\\     ', cls: 'mid' },
+            { content: '    /  \\    ', cls: 'mid' },
+            ...
+            { content: '/          \\', cls: 'midnear' }
+        ]
+    },
+    ...
+};
+```
+
+Origin is the kind's own row 0 / col 0. Tint progression is owned by
+the kind (each row carries its own `cls`). Bounding box `width` ×
+`height` documents the kind's footprint.
+
+**Instance format** (see v4 in `QUARRY_SCENES`):
+
+```js
+instances: [
+    { name: 'flanker-left',  kind: 'mountain-medium', row: 11, col: 0  },
+    { name: 'flanker-right', kind: 'mountain-medium', row: 11, col: 28 },
+    { name: 'hero',          kind: 'mountain-tall',   row: 8,  col: 0  },
+    ...
+]
+```
+
+`name` = unique instance identity (so you can target "the left one"
+later). `kind` = shared visual type. Order in the array is z-stacking
+order — back-to-front. Hero comes after flankers, so it overpaints
+their inner slopes via the eviction map.
+
+**Rendered cells get data attributes** for future targeting:
+
+```html
+<span class="quarry-cell grove-cell grove-mid"
+      data-kind="mountain-medium"
+      data-instance="flanker-left"
+      style="left: 5ch">/</span>
+```
+
+`document.querySelectorAll('[data-kind="mountain-medium"]')` returns
+every cell of every flanker — bulk-style for graphics swap. Adding
+`data-instance` lets animation target one specific occurrence.
+
+**Authoring rules:**
+
+- One kind = one nameable visual concept ("a small mountain peak").
+  If you'd describe two visuals identically in conversation, they
+  share a kind.
+- Don't push every singleton through the registry — cave/scree are
+  unique to quarry, but live in `QUARRY_KINDS` for uniformity. Cheap.
+- Kind names should describe what the thing IS, not how it looks
+  (`mountain-medium`, not `slash-cluster-six-rows`). The name
+  survives the graphics-tier swap; the glyph doesn't.
+- Promote frequently-shared kinds (e.g., `tree-scraggly`) to a
+  top-level `WORLD_KINDS` dict if/when grove + future locations
+  start sharing.
+
+**Verification** (kinds + instances version): script that loads
+QUARRY_KINDS, reads the v4 instance list, composes the merged grid,
+and diffs against v3's text-flow rows. Zero diff = identical visual.
+See git history of `_check_v4.js` for the template.
+
 ## Frame contract
 
 - **40 cols wide.** Every row gets padded to 40 chars by `.padEnd(40, ' ')`

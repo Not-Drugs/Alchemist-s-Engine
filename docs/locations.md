@@ -176,28 +176,27 @@ between stones and the satchel. Hidden until any ore has been mined
 (`stats.ironOreMined > 0`). Not draggable — no recipe consumes iron
 ore yet; it's a visible counter only.
 
-**Scene variants.** Four compositions live under `QUARRY_SCENES`,
-selectable at runtime via `?quarry=v1|v2|v3|v4` (default = `v3`):
+**Scene variants.** Two compositions live under `QUARRY_SCENES`,
+selectable at runtime via `?quarry=v3|v4` (default = `v3`). Earlier
+v1 and v2 variants were removed in v130 — their silhouettes are
+preserved in git history if needed.
 
-- **v1** — original narrow mountain with central cave and rock-bump
-  decorations baked into the item rows.
-- **v2** — large dominant mountain redesign (see below).
-- **v3** — central hero (v2's silhouette + cave) with a shorter flanking
-  peak nested on each side. Flankers peak at row 11 (3 rows below the
-  hero peak), cols ~5 and ~33. Their inner slopes descend toward the
-  hero and merge into its outer slopes at row 16; outer slopes clip
-  at the frame edges. Shares the hero's ground line and scree row.
-  Same item rows and items as v2.
-- **v4** — same visual as v3, but rendered via positional/layered cells
-  instead of text-flow rows. The scene is decomposed into named layers
-  (flankers, inner-peaks, hero, cave, scree) each authored as content
-  strings with a `baseRow` / `baseCol` offset. At render time, each
-  non-space character becomes an absolutely-positioned span on the
-  per-row character grid; spaces are transparent so underlying layers
-  show through. Hero overpaints flankers automatically by virtue of
-  later z-order in the layers array. Sets the foundation for layered
-  features (animated clouds/fog, toggleable decorations, A/B
-  silhouettes) without re-authoring the underlying text.
+- **v3** — central hero with a shorter flanking peak nested on each
+  side and tiny inner peaks in the saddles. Authored as text-flow
+  rows (one string per scene row). The locked-in reference silhouette.
+- **v4** — same visual as v3, but rendered via the **kinds + instances**
+  pattern. `QUARRY_KINDS` (top-level constant) defines reusable visual
+  types (`mountain-tall`, `mountain-medium`, `mountain-small`,
+  `cave-arch`, `scree-line`); each kind has a bounding box and per-row
+  content with depth-class tint. The v4 scene is just a list of
+  `instances` — each `{ name, kind, row, col }` placing one kind in
+  the scene. Order in the array is z-stacking order; later instances
+  overpaint earlier ones at conflicting positions (occupation map
+  evicts the prior cell to prevent X-on-overlap). Each rendered cell
+  carries `data-kind` + `data-instance` so future graphics swap,
+  per-instance animation, or debug overlays can target by kind ("all
+  mountain-medium become real art") or by instance ("highlight
+  flanker-left").
 
 Switching the URL param resets `game.locations.quarry.respawnAt`
 since item positions differ between variants.
