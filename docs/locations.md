@@ -177,7 +177,7 @@ between stones and the satchel. Hidden until any ore has been mined
 ore yet; it's a visible counter only.
 
 **Scene variants.** Three compositions live under `QUARRY_SCENES`,
-selectable at runtime via `?quarry=v1|v2|v3` (default = `v1`):
+selectable at runtime via `?quarry=v1|v2|v3` (default = `v3`):
 
 - **v1** — original narrow mountain with central cave and rock-bump
   decorations baked into the item rows.

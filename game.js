@@ -158,7 +158,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v124';
+const APP_VERSION = 'v125';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3597,7 +3597,7 @@ function collectGroveItem(id) {
 // CSS (.grove-* are reused via the .quarry-cell.grove-* class pair
 // applied at render time).
 // Three quarry scene variants, selectable at runtime via `?quarry=v1|v2|v3`
-// (default = `v1`, the original). All ship 8 item placeholders.
+// (default = `v3`). All ship 8 item placeholders.
 //   v1 — original narrow-mountain scene with central cave + decorative
 //        rock mound bumps embedded in the item rows.
 //   v2 — large-mountain redesign: dominant peak, arched cave mouth at
@@ -3761,7 +3761,7 @@ function _pickQuarryScene() {
         const p = (new URLSearchParams(window.location.search).get('quarry') || '').toLowerCase();
         if (QUARRY_SCENES[p]) return p;
     } catch (e) {}
-    return 'v1';
+    return 'v3';
 }
 const QUARRY_SCENE_KEY = _pickQuarryScene();
 const _QUARRY_ACTIVE_SCENE = QUARRY_SCENES[QUARRY_SCENE_KEY];
