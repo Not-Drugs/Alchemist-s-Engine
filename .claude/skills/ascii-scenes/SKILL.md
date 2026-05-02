@@ -64,6 +64,33 @@ for (const cell of cells) {
 When the autofit pass re-runs, the layer's `fontSize` and `lineHeight`
 must be updated (see `syncGroveWalkers()` for the pattern).
 
+**Critical: positional ASCII does NOT occlude automatically.** Two
+spans at the same `(row, col)` BOTH render — transparent text on
+transparent background, so you see both characters as an X. Text-flow
+gets occlusion for free (the later string overwrites the earlier
+char in the same string position); positional needs an explicit
+occupation map.
+
+The pattern (see `renderQuarry()` v4 path):
+
+```js
+const occupied = Object.create(null);  // key = "row,col" -> cell node
+for (const layer of layers) {                  // back-to-front order
+    for (each char in layer.content) {
+        if (ch === ' ') continue;              // transparent
+        const key = row + ',' + col;
+        if (occupied[key]) occupied[key].remove();   // EVICT prior cell
+        const cell = createCellAt(row, col, ch, layer.cls);
+        frame.appendChild(cell);
+        occupied[key] = cell;
+    }
+}
+```
+
+Without the eviction step, hero `/` at col 11 and flanker `\` at col
+11 both render as visible chars and you get an X at the crossing.
+This bit me on the first v4 commit — fix in v129.
+
 ## Frame contract
 
 - **40 cols wide.** Every row gets padded to 40 chars by `.padEnd(40, ' ')`
