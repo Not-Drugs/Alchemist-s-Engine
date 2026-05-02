@@ -660,6 +660,23 @@ section h2::after {
     line-height: 1.0;
 }
 
+/* Items rows render positionally so picking up an item doesn't shift
+   neighbors. The frame is a fixed-width inline-block centered by the
+   parent row's text-align; item cells are absolute-positioned by `left`
+   in `ch` units, scaling with the autofit font-size. */
+.grove-modal-content .grove-items-frame,
+.quarry-modal-content .quarry-items-frame {
+    display: inline-block;
+    position: relative;
+    text-align: left;
+}
+.grove-modal-content .grove-item-cell,
+.quarry-modal-content .quarry-item-cell {
+    position: absolute;
+    top: 0;
+    line-height: inherit;
+}
+
 .grove-modal-content .grove-cell {
     white-space: pre;
     font-family: inherit;

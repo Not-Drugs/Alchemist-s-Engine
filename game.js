@@ -192,7 +192,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v134';
+const APP_VERSION = 'v135';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -3142,6 +3142,30 @@ const GROVE_ITEMS = [
     { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }, { type: 'stick' }
 ];
 
+// Positional placements for the 15 grove items. Each entry pins one
+// item to an explicit (row, col) inside the 3-row × 40-col items
+// region, so picking up an item just removes its button — neighbors
+// don't reflow. Cols come from where the original `$` placeholders
+// sat in GROVE_ITEM_ROWS (kept as authored anchors, not as render
+// content). Item id matches the index in GROVE_ITEMS.
+const GROVE_ITEM_INSTANCES = [
+    { id: 0,  row: 0, col: 3  },
+    { id: 1,  row: 0, col: 8  },
+    { id: 2,  row: 0, col: 17 },
+    { id: 3,  row: 0, col: 27 },
+    { id: 4,  row: 0, col: 31 },
+    { id: 5,  row: 1, col: 7  },
+    { id: 6,  row: 1, col: 12 },
+    { id: 7,  row: 1, col: 21 },
+    { id: 8,  row: 1, col: 30 },
+    { id: 9,  row: 1, col: 35 },
+    { id: 10, row: 2, col: 3  },
+    { id: 11, row: 2, col: 12 },
+    { id: 12, row: 2, col: 17 },
+    { id: 13, row: 2, col: 26 },
+    { id: 14, row: 2, col: 35 }
+];
+
 // Shared respawn helpers — work for any location whose state has a
 // `respawnAt` map of itemId → epoch ms.
 //
@@ -3202,27 +3226,27 @@ function renderGrove() {
     const groveState = game.locations.grove;
     let itemIdx = 0;
 
-    // Helper: build a clickable item button (or padded blank space if
-    // currently respawning) for a single $ placeholder. The respawning
-    // placeholder must match the GLYPH WIDTH (stones=2, ore=3) so the
-    // row's column layout doesn't shift when an item is picked up —
-    // otherwise centering re-flows and surrounding items appear to slide.
-    function makeItemNode() {
-        const id = itemIdx++;
-        const item = GROVE_ITEMS[id];
-        if (!item) return document.createTextNode(' ');
+    // Build a clickable button for one item id. Positional renderers
+    // skip building when the item is respawning (no fallback needed —
+    // absolute-positioned siblings don't reflow when one is missing).
+    function buildItemButton(id, item) {
         const kindDef = ITEM_KINDS[item.type];
-        const glyph = kindDef ? kindDef.glyph : '?';
-        if (!isItemAvailable(groveState, id)) {
-            return document.createTextNode(' '.repeat(glyph.length));
-        }
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `grove-item grove-${item.type}`;
         btn.setAttribute('aria-label', kindDef ? kindDef.ariaPick : item.type);
-        btn.textContent = glyph;
+        btn.textContent = kindDef ? kindDef.glyph : '?';
+        btn.dataset.kind = item.type;
+        btn.dataset.itemId = String(id);
         btn.addEventListener('click', () => collectGroveItem(id));
         return btn;
+    }
+    // Defensive stub — buildSpan / buildSingleSpan still check for `$`
+    // placeholders even though scene/ground/underbrush rows never carry
+    // them in the current authoring. If a future row ever does, render
+    // as a blank rather than crashing.
+    function makeItemNode() {
+        return document.createTextNode(' ');
     }
 
     // Helper: produce a span containing this string. If the string has
@@ -3418,12 +3442,35 @@ function renderGrove() {
         scene.appendChild(empty);
         scene.appendChild(makeSpacer());
     } else {
-        GROVE_ITEM_ROWS.forEach((line) => {
-            const row = document.createElement('div');
-            row.className = 'grove-row grove-items-row';
-            row.appendChild(buildSpan(line, 'items'));
-            scene.appendChild(row);
-        });
+        // Positional item rendering — each item button is absolute-
+        // positioned at its (row, col) inside a fixed-width frame.
+        // Picking up an item just removes its button; siblings don't
+        // reflow because absolute positioning takes them out of the
+        // text-flow layout.
+        const ITEM_ROWS = 3;
+        const rowFrames = [];
+        for (let r = 0; r < ITEM_ROWS; r++) {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'grove-row grove-items-row';
+            const frame = document.createElement('span');
+            frame.className = 'grove-items-frame';
+            frame.style.width = GROVE_SCENE_W + 'ch';
+            rowDiv.appendChild(frame);
+            scene.appendChild(rowDiv);
+            rowFrames.push(frame);
+        }
+        for (const inst of GROVE_ITEM_INSTANCES) {
+            const item = GROVE_ITEMS[inst.id];
+            if (!item) continue;
+            if (!isItemAvailable(groveState, inst.id)) continue;
+            if (inst.row < 0 || inst.row >= rowFrames.length) continue;
+            const btn = buildItemButton(inst.id, item);
+            const cell = document.createElement('span');
+            cell.className = 'grove-item-cell';
+            cell.style.left = inst.col + 'ch';
+            cell.appendChild(btn);
+            rowFrames[inst.row].appendChild(cell);
+        }
     }
 
     const found = document.getElementById('grove-found');
@@ -4119,6 +4166,24 @@ const QUARRY_GROUND_ROW = _QUARRY_ACTIVE_SCENE.groundRow;
 const QUARRY_ITEM_ROWS = _QUARRY_ACTIVE_SCENE.itemRows;
 const QUARRY_ITEMS = _QUARRY_ACTIVE_SCENE.items;
 
+// Positional placements for the 8 quarry items. Each entry pins one
+// item id to (row, col) inside the 3-row × 40-col items region. Cols
+// match where the original `$` placeholders sat in QUARRY_ITEM_ROWS.
+// Background rocks (`/\` / `/____\` decorations) stay as text-flow
+// content of the row, with `$` chars stripped — items overlay
+// positionally so picking them up doesn't reflow the rocks or each
+// other.
+const QUARRY_ITEM_INSTANCES = [
+    { id: 0, row: 0, col: 2  },
+    { id: 1, row: 0, col: 18 },
+    { id: 2, row: 0, col: 32 },
+    { id: 3, row: 1, col: 14 },
+    { id: 4, row: 1, col: 36 },
+    { id: 5, row: 2, col: 2  },
+    { id: 6, row: 2, col: 17 },
+    { id: 7, row: 2, col: 33 }
+];
+
 function renderQuarry() {
     const scene = document.getElementById('quarry-scene');
     if (!scene) return;
@@ -4129,17 +4194,13 @@ function renderQuarry() {
     const quarryState = game.locations.quarry;
     let itemIdx = 0;
 
+    // Defensive stub — quarry's buildRow still checks for `$` even
+    // though scene rows don't carry them post-positional-items refactor.
     function makeItemNode() {
-        const id = itemIdx++;
-        const item = QUARRY_ITEMS[id];
-        if (!item) return document.createTextNode(' ');
+        return document.createTextNode(' ');
+    }
+    function buildQuarryItemButton(id, item) {
         const kindDef = ITEM_KINDS[item.type];
-        const glyph = kindDef ? kindDef.glyph : '?';
-        // Padded blank when respawning so the row width doesn't collapse
-        // and shift neighboring items (stone glyph is 2 chars, ore is 3).
-        if (!isItemAvailable(quarryState, id)) {
-            return document.createTextNode(' '.repeat(glyph.length));
-        }
         const btn = document.createElement('button');
         btn.type = 'button';
         // CSS hook: kind.cssClass keeps all stones tinted via .grove-stone
@@ -4147,7 +4208,9 @@ function renderQuarry() {
         // grove-item / quarry-item bases for shared sizing/cursor rules.
         btn.className = `grove-item quarry-item ${kindDef ? kindDef.cssClass : ''}`;
         btn.setAttribute('aria-label', kindDef ? kindDef.ariaPick : item.type);
-        btn.textContent = glyph;
+        btn.textContent = kindDef ? kindDef.glyph : '?';
+        btn.dataset.kind = item.type;
+        btn.dataset.itemId = String(id);
         if (item.type === 'stone') {
             btn.addEventListener('click', () => collectQuarryItem(id));
         } else if (item.type === 'ironOre') {
@@ -4257,18 +4320,40 @@ function renderQuarry() {
         scene.appendChild(empty);
         scene.appendChild(makeSpacer());
     } else {
+        // Positional item rendering. Each row's text-flow background
+        // shows the rock decorations (with `$` placeholders stripped),
+        // and item buttons overlay at fixed (row, col) coords from
+        // QUARRY_ITEM_INSTANCES. Picking up an item just removes one
+        // absolute-positioned button — neighbors and rocks don't shift.
+        const rowFrames = [];
         QUARRY_ITEM_ROWS.forEach((line) => {
-            const row = document.createElement('div');
-            row.className = 'quarry-row quarry-items-row';
-            const span = document.createElement('span');
-            span.className = 'grove-cell grove-items';
-            for (const ch of line) {
-                if (ch === '$') span.appendChild(makeItemNode());
-                else span.appendChild(document.createTextNode(ch));
-            }
-            row.appendChild(span);
-            scene.appendChild(row);
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'quarry-row quarry-items-row';
+            const frame = document.createElement('span');
+            frame.className = 'quarry-items-frame';
+            frame.style.width = '40ch';
+            // Background: the row's source minus `$` placeholders so
+            // the rock silhouettes still anchor the visual.
+            const bg = document.createElement('span');
+            bg.className = 'grove-cell grove-items';
+            bg.textContent = line.replace(/\$/g, ' ');
+            frame.appendChild(bg);
+            rowDiv.appendChild(frame);
+            scene.appendChild(rowDiv);
+            rowFrames.push(frame);
         });
+        for (const inst of QUARRY_ITEM_INSTANCES) {
+            const item = QUARRY_ITEMS[inst.id];
+            if (!item) continue;
+            if (!isItemAvailable(quarryState, inst.id)) continue;
+            if (inst.row < 0 || inst.row >= rowFrames.length) continue;
+            const btn = buildQuarryItemButton(inst.id, item);
+            const cell = document.createElement('span');
+            cell.className = 'quarry-item-cell';
+            cell.style.left = inst.col + 'ch';
+            cell.appendChild(btn);
+            rowFrames[inst.row].appendChild(cell);
+        }
     }
 
     const found = document.getElementById('quarry-found');
