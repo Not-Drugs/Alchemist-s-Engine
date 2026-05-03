@@ -78,6 +78,17 @@ const GRID_H = 4;
 
 const KEYITEMS_CAP = 8;
 
+// Single source of truth for the contents of the Key Items Bag —
+// glyph, display name, and any per-kind CSS hook. Mirrors ITEM_KINDS.
+// `golem` is always rendered with the Stick Golem count + assigned
+// summary; the entry here just supplies its glyph / name / CSS class.
+// New key items get one entry here and flow through the bag render.
+const KEY_ITEM_KINDS = {
+    golem:   { glyph: 'G',   name: 'Stick Golem', cssClass: 'golem-tile' },
+    axe:     { glyph: '[/]', name: 'Wooden Axe' },
+    pickaxe: { glyph: '[T]', name: 'Pickaxe' }
+};
+
 const RECIPES = [
     {
         id: 'stickGolem',
@@ -207,7 +218,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v137';
+const APP_VERSION = 'v138';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -4683,11 +4694,13 @@ function renderKeyItemsModal() {
     // as plain icon tiles.
     const golemCount = countGolemsInBag();
     if (golemCount > 0) {
+        const golemKind = KEY_ITEM_KINDS.golem || { glyph: 'G', name: 'Stick Golem', cssClass: 'golem-tile' };
         const tile = document.createElement('div');
-        tile.className = 'key-item-tile golem-tile';
+        tile.className = `key-item-tile ${golemKind.cssClass || ''}`.trim();
+        tile.dataset.kind = 'golem';
         const glyph = document.createElement('span');
         glyph.className = 'ki-glyph';
-        glyph.textContent = 'G';
+        glyph.textContent = golemKind.glyph;
         tile.appendChild(glyph);
         const label = document.createElement('span');
         label.style.fontSize = '0.75rem';
@@ -4708,19 +4721,16 @@ function renderKeyItemsModal() {
         listEl.appendChild(tile);
     }
 
-    const KI_DISPLAY = {
-        axe:     { glyph: '[/]', name: 'Wooden Axe' },
-        pickaxe: { glyph: '[T]', name: 'Pickaxe' },
-    };
     for (const item of (game.keyItems || [])) {
         if (item.type === 'golem') continue;   // grouped above
-        const disp = KI_DISPLAY[item.type] || { glyph: '?', name: item.type };
+        const kindDef = KEY_ITEM_KINDS[item.type] || { glyph: '?', name: item.type };
         const tile = document.createElement('div');
-        tile.className = 'key-item-tile';
-        tile.textContent = disp.glyph;
-        tile.title = disp.name;
+        tile.className = `key-item-tile ${kindDef.cssClass || ''}`.trim();
+        tile.dataset.kind = item.type;
+        tile.textContent = kindDef.glyph;
+        tile.title = kindDef.name;
         tile.tabIndex = 0;
-        tile.setAttribute('aria-label', disp.name);
+        tile.setAttribute('aria-label', kindDef.name);
         listEl.appendChild(tile);
     }
 }
