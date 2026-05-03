@@ -89,6 +89,79 @@ const KEY_ITEM_KINDS = {
     pickaxe: { glyph: '[T]', name: 'Pickaxe' }
 };
 
+// World-map registry — nodes (locations) and edges (connectors).
+// renderWorldMap() builds the DOM into `<div class="explore-map">` at
+// startup (init runs this before event-listener attachment so the
+// existing handlers find the buttons via getElementById). Adding a
+// new location = one entry in WORLD_MAP_NODES + one edge in
+// WORLD_MAP_EDGES. Click handlers and gate logic stay in their
+// existing call sites — they're matched by `buttonId` / edge `id`.
+const WORLD_MAP_NODES = [
+    {
+        id: 'engine', kind: 'static',
+        icon: ['┌──┐', '│  │', '└──┘'],
+        label: 'engine',
+        ariaLabel: 'The Engine (you are here)'
+    },
+    {
+        id: 'grove', kind: 'clickable', buttonId: 'grove-enter',
+        icon: ['┌──┐', '│██│', '└──┘'],
+        label: 'grove',
+        ariaLabel: 'Travel to the Dead Grove'
+    },
+    {
+        id: 'quarry', kind: 'clickable', buttonId: 'quarry-enter',
+        extraClass: 'explore-quarry',
+        icon: ['┌╲╱┐', '│▒▒│', '└──┘'],
+        label: 'quarry',
+        ariaLabel: 'The Abandoned Quarry'
+    }
+];
+
+const WORLD_MAP_EDGES = [
+    { from: 'engine', to: 'grove',  glyph: '━━━━━━━━' },
+    { from: 'grove',  to: 'quarry', glyph: '━━━━━━━━',
+        id: 'quarry-connector', gateClass: 'forest-gated' }
+];
+
+function renderWorldMap() {
+    const container = document.querySelector('.explore-map');
+    if (!container) return;
+    container.textContent = '';
+    // Walk nodes in declaration order; each gets prefixed by its
+    // incoming edge (if any) so connectors sit BETWEEN nodes in the
+    // flex row.
+    for (const node of WORLD_MAP_NODES) {
+        const incoming = WORLD_MAP_EDGES.find(e => e.to === node.id);
+        if (incoming) {
+            const conn = document.createElement('span');
+            conn.className = 'explore-connector' + (incoming.gateClass ? ' ' + incoming.gateClass : '');
+            if (incoming.id) conn.id = incoming.id;
+            conn.setAttribute('aria-hidden', 'true');
+            conn.textContent = incoming.glyph;
+            container.appendChild(conn);
+        }
+        const isClickable = node.kind === 'clickable';
+        const el = document.createElement(isClickable ? 'button' : 'div');
+        el.className = `explore-node explore-${node.id}` +
+            (isClickable ? ' explore-clickable' : '') +
+            (node.extraClass ? ' ' + node.extraClass : '');
+        if (isClickable) el.type = 'button';
+        if (node.buttonId) el.id = node.buttonId;
+        el.setAttribute('aria-label', node.ariaLabel);
+        el.dataset.kind = node.id;
+        const iconEl = document.createElement('pre');
+        iconEl.className = 'explore-icon';
+        iconEl.textContent = node.icon.join('\n');
+        el.appendChild(iconEl);
+        const labelEl = document.createElement('span');
+        labelEl.className = 'explore-label';
+        labelEl.textContent = node.label;
+        el.appendChild(labelEl);
+        container.appendChild(el);
+    }
+}
+
 const RECIPES = [
     {
         id: 'stickGolem',
@@ -218,7 +291,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v138';
+const APP_VERSION = 'v139';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -586,6 +659,7 @@ function init() {
     loadGame();
     processOfflineProgress();
     createGrid();
+    renderWorldMap();    // Build explore-map nodes/edges before listeners attach.
     setupEventListeners();
     renderUpgrades();
     renderAchievements();
