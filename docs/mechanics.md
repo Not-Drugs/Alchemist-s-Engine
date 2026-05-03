@@ -112,6 +112,10 @@ heat     -= max(expLoss, floorLoss)
 
 - `FUEL_TIERS` - 8 tiers, values triple (1, 3, 9, 27, 81, 243, 729, 2187)
 - `ORE_TIERS` - 5 tiers, same tripling pattern
+- `ITEM_KINDS` - **single source of truth** for collectible items (stick,
+  stone, ironOre): glyph, label, cssClass, ariaPick, gridTitle, and
+  per-kind `respawnMs`. Every renderer (grove pickup, quarry pickup,
+  drag ghost, merge-grid ingredient cell) reads from this registry.
 - `GRID_SIZE` - 24 cells (6x4)
 - `SPARK_HEAT_COST` - 1 (heat per manual spark)
 - `STICK_GATHER_MS` - 3000 (base; Stick Basket overrides via `bonuses.stickGatherMs = 5000`)
@@ -121,15 +125,29 @@ heat     -= max(expLoss, floorLoss)
 - `PHASE_1_HEAT_TARGET` - 1000 (ends stick phase)
 - `EXPLORE_UNLOCK_STICKS` - 50 (Dead Grove gating)
 - `MIN_HEAT_DECAY_PER_SEC` - 0.1 (linear floor)
+- `RESPAWN_MS_BASE` - 120000 (fallback when an item kind doesn't define
+  its own `respawnMs` in `ITEM_KINDS`; current kinds all override:
+  stick=60s, stone=180s, ironOre=300s; ±50% jitter at collect time)
 - `APP_VERSION` / `CACHE` - **kept in sync** (see `feedback_version_sync.md` memory)
 - `UPGRADES` / `ACHIEVEMENTS` (18 with ASCII icons) / `SAVE_VERSION`
 
 ## ASCII Visual Style
 
-- Fuel: `*`, `**`, `~`, `#`, `##`, `^`, `^^`, `@`
-- Ore: `o`, `O`, `0`, `()`, `<>`
-- Resource icons: `[~]` Heat, `[#]` Metal, `[%]` Alloy, `[*]` Gears, `[+]` Essence
+- Fuel (merge grid): `*`, `**`, `~`, `#`, `##`, `^`, `^^`, `@`
+- Ore (merge grid): `o`, `O`, `0`, `()`, `<>`
+- **Collectibles** (defined in `ITEM_KINDS`): stick `/`, stone `()`,
+  ironOre `[O]`. Use these consistently — every pickup, drag ghost,
+  inventory tile, and grid-ingredient cell pulls glyphs from the
+  registry.
+- Resource icons (top bar): `[~]` Heat, `[#]` Metal, `[%]` Alloy,
+  `[*]` Gears, `[+]` Essence
 - Buttons: `[+] Spark`, `[>] Forge Alloy`
+
+For new visual work (scene art, item kinds, location variants), the
+**`.claude/skills/ascii-scenes/SKILL.md`** skill is the canonical
+reference — encodes the kinds + instances pattern, depth tinting,
+slope math, sprite tintRowOnPaint behavior, and the 40-col
+verification workflow.
 
 ## Save System
 

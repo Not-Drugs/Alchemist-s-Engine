@@ -74,6 +74,43 @@ and **Abandoned Quarry** (stones + iron ore, gated by logs gathered;
 ore mining requires a Pickaxe). Full detail (scene composition, walker
 cosmetic, walker lab, respawn) in `docs/locations.md`.
 
+## Visual Architecture (kinds + instances)
+
+New scene + item work uses a **kinds + instances** pattern (flyweight /
+prefab / ECS-component model). One definition per visual concept, many
+placements that reference it. This is the canonical pattern going
+forward — text-flow rendering is legacy.
+
+**Three registries:**
+- `QUARRY_KINDS` / `GROVE_KINDS` — reusable scene visuals (`mountain-
+  medium`, `tree-far-A`, `cave-arch`, `framing-tree-left`, etc.)
+- `ITEM_KINDS` — single source of truth for collectibles (stick / stone /
+  ironOre — glyph, label, cssClass, ariaPick, **per-kind `respawnMs`**)
+- Spawn-point + parallel-item arrays per location:
+  - `GROVE_SPAWN_POINTS` (geography) + `GROVE_ITEMS` (economy)
+  - `QUARRY_SPAWN_POINTS` + `QUARRY_ITEMS`
+
+**Render contract:** every cell is an absolute-positioned `<span>` at
+`left: <col>ch` carrying `data-kind` + `data-instance` attributes —
+those attributes are the hooks for the future graphics-tier swap (one
+CSS rule or image asset per kind, every instance updates) and for
+per-instance animation / debug overlays.
+
+**Tint policy:** instance.cls > kindRow.cls > error. Kinds that have
+intrinsic aerial perspective (mountains) own their tint per-row;
+kinds that read different at different depths (trees) leave tint to
+the instance.
+
+**Sprite kinds** with `tintRowOnPaint: true` re-class every cell in
+any row their content paints into — preserves the "foreground tree
+washes its class over the band behind it" semantic.
+
+For full pattern + land-mines, see the **`ascii-scenes` skill**
+(`.claude/skills/ascii-scenes/SKILL.md`). Scene-composition reference
+including slope math, depth-class tinting, overlap resolution, and
+40-col verification lives there. Read before authoring a new scene
+or adding a new item kind.
+
 **Save**: auto-saves every 30s + on `visibilitychange → hidden`. Export/
 import via text + scannable QR. **Offline progress**: capped at 8h, 50%
 efficiency. Details in `docs/mechanics.md`.
@@ -177,9 +214,13 @@ external inspiration sources, see `docs/workflow.md`.
   game constants, ASCII style, save & offline progress
 - `docs/crafting.md` — recipes, golem assignments, save state, v60–v70
   land-mines (must-read before touching satchel/inventory/drag code)
-- `docs/locations.md` — Grove + Quarry scene composition, walker
-  cosmetic, walker lab, respawn
+- `docs/locations.md` — Grove + Quarry scene composition (text-flow v1
+  + kinds-instances v2/v4 paths), walker cosmetic, walker lab, respawn
 - `docs/workflow.md` — orchestrator/worktree pattern, pre-commit hook,
   Clean Room Protocol
 - `docs/inspiration-notes.md` — patterns lifted from upstream incrementals
+- `.claude/skills/ascii-scenes/SKILL.md` — **canonical reference** for
+  authoring new scenes / item kinds: kinds + instances pattern, tint
+  policy, sprite tintRowOnPaint, opacity gradient, slope math, 40-col
+  verification, regex alternation land-mine. Read before scene work.
 - `cowork/BACKLOG.md` — deferred design ideas

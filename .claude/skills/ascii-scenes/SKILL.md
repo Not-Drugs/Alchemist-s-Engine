@@ -91,22 +91,30 @@ Without the eviction step, hero `/` at col 11 and flanker `\` at col
 11 both render as visible chars and you get an X at the crossing.
 This bit me on the first v4 commit — fix in v129.
 
-## Kinds + instances (v4-take-2 pattern)
+## Kinds + instances (the canonical pattern for new work)
 
-The next maturity step beyond per-layer authoring: separate **kind**
+The maturity step beyond per-layer authoring: separate **kind**
 (visual identity — what a thing IS) from **instance** (where it sits
 in a scene). Same idea as flyweight pattern / Unity prefabs / ECS
 components: store the shared definition once, reference it by name
-from many instances.
+from many instances. **All new scene + item work should use this
+pattern** unless there's a strong reason not to.
+
+Live examples in `game.js`:
+- **`QUARRY_KINDS` + `QUARRY_SCENES.v4.instances`** — quarry's hero,
+  flankers (one kind used twice), inner peaks, cave, scree
+- **`GROVE_KINDS` + `GROVE_V2.instances`** — atmospheric rows, mid-band
+  trees (one kind reused across far/mid/near depth bands), framing
+  trees, foreground sprites
+- **`ITEM_KINDS` + `*_SPAWN_POINTS` + parallel `*_ITEMS`** — collectible
+  items (sticks, stones, ironOre) at fixed (row, col) per location
 
 **When to adopt:** as soon as (a) two scenes share visual types
 (grove + future forest both have scraggly trees), OR (b) you're
-committed to a graphics-tier swap. Both flankers in the quarry
-reference `mountain-medium` — at swap time, one image replaces the
-ASCII for both. Cross-location reuse, animation targeting, and
-debug overlays all become trivial.
+committed to a graphics-tier swap. Cross-location reuse, animation
+targeting, and debug overlays all become trivial.
 
-**Kind format** (see `QUARRY_KINDS` in game.js):
+**Kind format**:
 
 ```js
 const QUARRY_KINDS = {
@@ -123,25 +131,71 @@ const QUARRY_KINDS = {
 };
 ```
 
-Origin is the kind's own row 0 / col 0. Tint progression is owned by
-the kind (each row carries its own `cls`). Bounding box `width` ×
+Origin is the kind's own row 0 / col 0. Bounding box `width` ×
 `height` documents the kind's footprint.
 
-**Instance format** (see v4 in `QUARRY_SCENES`):
+**Tint policy — most-specific wins:**
+
+```
+instance.cls    →  if set on the instance, wins
+  ↓ (else)
+kindRow.cls     →  if the kind row defines tint, used
+  ↓ (else)
+no tint         →  cell skipped (warn / dev error)
+```
+
+Quarry kinds OWN their tint progression (kind rows have `cls`)
+because mountain silhouettes have intrinsic aerial perspective —
+the hero's peak is `mid`, its base is `near`. Grove tree kinds
+DON'T own tint (no `cls` on kind rows) because the same tree
+shape reads as far / midfar / mid / midnear depending on which
+depth band hosts it; the instance specifies the tint per
+placement. The renderer supports both — write whichever fits
+the visual.
+
+**Instance format**:
 
 ```js
 instances: [
     { name: 'flanker-left',  kind: 'mountain-medium', row: 11, col: 0  },
     { name: 'flanker-right', kind: 'mountain-medium', row: 11, col: 28 },
     { name: 'hero',          kind: 'mountain-tall',   row: 8,  col: 0  },
+    // Grove example — instance supplies cls because tree kinds are tint-agnostic:
+    { name: 'far-tree-1',    kind: 'tree-far-A',      row: 4, col: 10, cls: 'midfar' },
     ...
 ]
 ```
 
-`name` = unique instance identity (so you can target "the left one"
-later). `kind` = shared visual type. Order in the array is z-stacking
-order — back-to-front. Hero comes after flankers, so it overpaints
-their inner slopes via the eviction map.
+`name` = unique instance identity (target "the left one" later).
+`kind` = shared visual type. `cls` = optional tint override. Order
+in the array is z-stacking — later instances overpaint earlier ones
+at conflicting positions via the eviction map.
+
+**Sprite kinds — `tintRowOnPaint: true`** for any sprite that should
+re-class the entire row it lands on (preserves grove v1's
+`overlaySprite` row up-tinting semantic):
+
+```js
+'sprite-scraggly': {
+    width: 7, height: 9, tintRowOnPaint: true,
+    rows: [ { content: '   ^   ' }, ... ]
+}
+```
+
+After all instances paint, the renderer post-passes any row a sprite
+touched and re-classes every cell to the sprite's `cls`. Without this
+flag, sprite-tinted rows would have mixed depth classes and the
+foreground tree wouldn't read as "in front of" the band.
+
+**Optional per-row `opacity`** for kind rows that fade gradient
+(e.g., grove framing trees fade from 0.55 at row 4 → 1.0 at row 11):
+
+```js
+{ content: '    || /  ', cls: 'near', opacity: 0.55 },   // row 4
+{ content: '    ||/   ', cls: 'near', opacity: 0.61 },   // row 5
+...
+{ content: '    ||-   ', cls: 'near', opacity: 1.00 },   // row 11
+```
 
 **Rendered cells get data attributes** for future targeting:
 
@@ -171,9 +225,10 @@ every cell of every flanker — bulk-style for graphics swap. Adding
   start sharing.
 
 **Verification** (kinds + instances version): script that loads
-QUARRY_KINDS, reads the v4 instance list, composes the merged grid,
-and diffs against v3's text-flow rows. Zero diff = identical visual.
-See git history of `_check_v4.js` for the template.
+the kinds + instances data, composes the merged char grid (and
+optionally cls grid), and diffs against the text-flow reference.
+Zero diff = identical visual. See git history of `_check_v4.js`
+and `_check_grove_v2.js` for templates.
 
 **Land-mine: regex alternation order vs. depth-class names.** The
 depth-tint class names share prefixes — `mid` is a prefix of `midnear`,
@@ -204,19 +259,92 @@ when a sprite painted into their row, and rendered white instead of
 tan. Look out for this any time you generate or rewrite grove-* / depth-
 class names dynamically.
 
+## Items as positional kinds (canonical pattern)
+
+Collectible items (sticks, stones, ironOre, future kinds) follow the
+same kinds + instances split, with two extra concepts:
+
+**`ITEM_KINDS` registry** (single source of truth for every item):
+
+```js
+const ITEM_KINDS = {
+    stick: {
+        glyph: '/',                        // visual, 1 char
+        label: 'stick',
+        cssClass: 'grove-stick',           // colour rule
+        ariaPick: 'Pick up a stick',
+        gridTitle: 'Stick — drag back to Inventory rail to return',
+        respawnMs: 60 * 1000               // 1 min base, ±50% jitter
+    },
+    stone:   { glyph: '()',  ..., respawnMs: 3 * 60 * 1000 },
+    ironOre: { glyph: '[O]', ..., respawnMs: 5 * 60 * 1000 }
+};
+```
+
+Every renderer (grove pickup button, quarry pickup, drag ghost,
+merge-grid ingredient cell) reads from this. Adding a new collectible
+= one entry, flows through every site. Fixes the kind of inconsistency
+where a stone showed `()` in one place and `#` in another.
+
+**Per-kind respawn rates.** `ITEM_KINDS[type].respawnMs` is the base
+time (ms); `markItemCollected(state, id, respawnMs)` jitters ±50%.
+Sticks repopulate fast, stones medium, ore slow — set the economy
+once in the registry, every collect site honours it.
+
+**Spawn points = geography** (one list per location):
+
+```js
+const GROVE_SPAWN_POINTS = [
+    { row: 0, col: 3  },   // spot 0
+    { row: 0, col: 8  },   // spot 1
+    ...
+];
+```
+
+**`*_ITEMS` = economy** (parallel array — the kind at each spot):
+
+```js
+const GROVE_ITEMS = [
+    { type: 'stick' }, { type: 'stick' }, { type: 'stone' }, ...
+];
+```
+
+`GROVE_ITEMS[i]` fills `GROVE_SPAWN_POINTS[i]`. To change which
+KIND is at a position: edit one entry in `*_ITEMS`. To change the
+GEOMETRY: edit one entry in `*_SPAWN_POINTS`.
+
+**Render path:** items render as `<button>`s wrapped in absolute-
+positioned spans, anchored to `left: <col>ch` inside a per-row
+fixed-width frame (40ch). Picking one up just removes its button —
+siblings stay anchored to their own cols. No reflow, no width
+reservation tricks. Respawn check (`isItemAvailable`) gates whether
+the button is rendered at all.
+
+**Background content** (decorative chars in the same row, e.g.
+quarry's rock mounds `/\` / `/____\`) stays as text-flow `<span>`
+inside the frame, with `$` placeholders stripped. Items overlay
+positionally on top — neither shifts.
+
+**Future hooks the architecture supports** (not built yet):
+
+- Per-spot rate override (`spot.respawnMs`) for lush/scarce zones.
+- Randomized type-at-spot on respawn (roll a fresh kind from a
+  spawn table when the timer expires).
+- Adding new spawn points without renumbering existing items.
+
 ## Frame contract
 
 - **40 cols wide.** Every row gets padded to 40 chars by `.padEnd(40, ' ')`
-  in `_QUARRY_RAW_ROWS` / `GROVE_SCENE_ROWS` builders. You can author at
-  ≤40 cols and rely on padding, but verify before committing — see
-  "Width verification" below.
+  in `_QUARRY_RAW_ROWS` / `GROVE_SCENE_ROWS` builders (text-flow paths).
+  Kinds + instances paths render to a 40-`ch`-wide frame. You can
+  author at ≤40 cols and rely on padding, but verify before committing.
 - **Row count:** quarry currently 29 rawRows (rows 0-28). Grove uses
   `GROVE_SCENE_ROWS`, computed from depth-band primitives. Match the
   existing length when adding a variant unless you have a reason to
   change it.
-- **Ground row + 3 item rows are SEPARATE** from `rawRows` — rendered
-  by `renderGrove()` / `renderQuarry()` after the scene rows. Items
-  (`$` placeholders) only live in item rows.
+- **Ground row + 3 item rows are SEPARATE** from scene `rawRows` —
+  rendered by `renderGrove()` / `renderQuarry()` after the scene
+  rows, with their own positional-items frames.
 
 ## Depth tinting (per-row CSS class)
 
@@ -253,9 +381,10 @@ For peak at row R col C (where `/\` straddles cols C, C+1):
 - `/` (left edge) at row R+k → col C-k
 - `\` (right edge) at row R+k → col C+1+k
 
-**Quarry hero** (v2/v3): peak row 8 cols 19-20, base row 27 cols 0-39.
-That's 19 rows of widening, base width 40. Cave at rows 22-25, cols
-16-22 (`,-----.` / `|     |` / `|     |` / `|_____|`).
+**Quarry hero** (v3 text-flow / v4 kinds-instances): peak row 8 cols
+19-20, base row 27 cols 0-39. That's 19 rows of widening, base width
+40. Cave at rows 22-25, cols 16-22 (`,-----.` / `|     |` / `|     |`
+/ `|_____|`).
 
 ## Overlap resolution
 
@@ -324,16 +453,30 @@ When adding a NEW scene VARIANT (e.g. `v3` to `QUARRY_SCENES`):
 
 ## Adding a new variant
 
-1. Add the new key to `QUARRY_SCENES` (or equivalent dict): `{ rawRows,
-   groundRow, itemRows, items }`. Mirror an existing variant's shape.
-2. Update the comment block above `QUARRY_SCENES` listing the variant.
-3. Update `_pickQuarryScene()` if changing the default. The function
-   already accepts any key present in `QUARRY_SCENES`.
-4. Update `docs/locations.md` with a one-line description of the new
-   variant.
-5. Run the width-check script.
+For a kinds + instances variant (preferred for new work):
+
+1. Author kind definitions in the location's `*_KINDS` dict
+   (`QUARRY_KINDS`, `GROVE_KINDS`). Reuse existing kinds when the
+   visual already exists.
+2. Build the instance list — `{ name, kind, row, col, cls? }` per
+   placement. Order = z-stacking; later overpaints earlier.
+3. Wire the variant into the location's scene-pick function
+   (`_pickQuarryScene`, `_pickGroveScene`) and update the URL-param
+   default if needed. URL-param scene switch already auto-resets
+   `respawnAt` for the location on save load.
+4. Run the verifier — node script that composes the merged char +
+   cls grids and diffs against the reference variant.
+5. Update `docs/locations.md` with a one-line description.
 6. Bump `APP_VERSION` (game.js) AND `CACHE` (service-worker.js) in
    lock-step — pre-commit hook enforces this.
+
+For a text-flow variant (legacy path — only when matching an
+existing text-flow scene):
+
+1. Add `{ rawRows, groundRow, itemRows, items }` to the scenes dict.
+2. Update the comment block above the scenes dict listing the variant.
+3. Run the width-check script.
+4. Same docs + version-bump steps as above.
 
 ## Land-mines (lessons learned)
 
@@ -351,10 +494,13 @@ When adding a NEW scene VARIANT (e.g. `v3` to `QUARRY_SCENES`):
   `position: fixed` with `100dvh × 100dvw`.
 - **Body scroll lock** via `lockBodyScroll()` / `unlockBodyScroll()`
   on modal open/close — saves and restores `window.scrollY`.
-- **`$` is the item placeholder.** Anywhere a `$` appears in `rawRows`,
-  `groundRow`, or `itemRows` becomes a clickable item button at render
-  time. Items are consumed in array order — `items[0]` fills the first
-  `$`, etc. Don't put `$` chars where you mean literal dollar signs.
+- **Items render positionally — `$` placeholders are legacy.** As of
+  v135, items use `*_SPAWN_POINTS` (geography) + parallel `*_ITEMS`
+  (economy) instead of `$` markers in row strings. The `$` branch
+  in `buildSpan` / quarry's `buildRow` survives as a defensive
+  no-op for any future row that wants the old text-flow inline
+  pattern. Don't put `$` chars where you mean literal dollar signs
+  in any row — they'll render as a blank space.
 - **Overlay sprite `overlaySprite()`** only re-classes a row when at
   least one sprite char actually painted (so blank sprite rows don't
   up-tint the underlying band). Relevant if adding `FG_*` foreground

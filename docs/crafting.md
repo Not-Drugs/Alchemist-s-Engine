@@ -15,7 +15,11 @@ economy:
 
 A new tile kind `ingredient` (`{type:'ingredient', kind:'stick'|'stone'}`)
 sits on the grid without auto-merging. Fuel/ore merging explicitly skips
-when `draggedItem.type === 'ingredient'`.
+when `draggedItem.type === 'ingredient'`. The rendered glyph (`/` for
+sticks, `()` for stones) and tile colour come from `ITEM_KINDS[kind]`
+— the same registry that drives grove/quarry pickup buttons and drag
+ghosts. Editing one entry updates every render site (see
+`docs/locations.md` and the ascii-scenes skill for the full pattern).
 
 **Pattern matcher** (`findRecipeMatch` in `game.js`) runs after every grid
 mutation via `updateUI`. Anchor-free — the pattern can appear anywhere on

@@ -23,16 +23,28 @@ clickable and add to the player's resources.
   `renderQuarry()` via `requestAnimationFrame` and on
   resize/orientationchange. CSS `clamp()` formula on `.grove-row` is the
   first-paint fallback.
-- **Respawn (shared).** Picked items respawn after
-  `RESPAWN_MS_BASE * (0.5 + Math.random())` — a 1–3 minute spread per
-  item, naturally staggered. Stored as
-  `game.locations.<loc>.respawnAt: { itemId: epochMs }`. Helpers
-  `isItemAvailable(state, id)`, `markItemCollected(state, id)`,
-  `tickRespawns(state)` live in `game.js` and serve both locations.
-  `tickRespawns()` runs on each render so expired entries clear and the
-  map doesn't grow unbounded. Old saves with the legacy `collected:
-  [ids]` array are migrated by dropping the array; returning players see
-  a fresh location (acceptable per `project_pre_launch`).
+- **Item kinds (shared).** `ITEM_KINDS` is the single source of truth
+  for stick / stone / ironOre — glyph, label, cssClass, ariaPick,
+  gridTitle, **and per-kind `respawnMs`**. Every renderer (grove
+  pickup, quarry pickup, drag ghost, merge-grid ingredient cell)
+  reads from this registry. Adding a new collectible = one entry,
+  flows through every site.
+- **Spawn points + parallel items.** `GROVE_SPAWN_POINTS` and
+  `QUARRY_SPAWN_POINTS` are pure `{ row, col }` lists (geography).
+  `GROVE_ITEMS` / `QUARRY_ITEMS` are parallel arrays of `{ type }`
+  (economy) — index N fills spot N. Each item button renders as an
+  absolutely-positioned span at `left: <col>ch` inside a per-row
+  fixed-width frame, so picking one up never reflows neighbors.
+- **Respawn (shared).** `markItemCollected(state, id, respawnMs)`
+  sets `state.respawnAt[id] = Date.now() + respawnMs * (0.5 +
+  Math.random())` — base time per kind, ±50% jitter so items don't
+  reappear in lockstep. Sticks: 1 min base (30s-90s); stones: 3 min
+  (90s-270s); iron ore: 5 min (2.5-7.5 min). Helpers
+  `isItemAvailable(state, id)`, `tickRespawns(state)` live in
+  `game.js` and serve both locations. `tickRespawns()` runs on each
+  render so expired entries clear and the map doesn't grow
+  unbounded. Old saves with the legacy `collected: [ids]` array are
+  migrated by dropping the array (acceptable per `project_pre_launch`).
 
 ## The Dead Grove
 
@@ -71,20 +83,25 @@ Two passes of overlay paint on top of the composed rows:
   underlying band).
 
 **Items.** Below the scene sit the ground row, an underbrush row, and
-item rows. Stones render as `()`, sticks as `/`. When all items are
-collected, the three item rows are replaced by spacer / "The grove is
-empty for now." / spacer so the message lands centered without the row
-count jumping. `$` placeholders are replaced at render with clickable
-buttons. Item layout is versioned via `GROVE_LAYOUT_V` — bumping it
-resets the respawn map on load for old saves.
+3 item rows. Items render positionally: each spot in
+`GROVE_SPAWN_POINTS` is filled by the parallel entry in `GROVE_ITEMS`
+(15 spots × 15 items today: 11 sticks + 4 stones). Glyph + tint +
+respawn rate come from `ITEM_KINDS[type]`. Each item button is an
+absolute-positioned span at `left: <col>ch` inside a per-row 40-`ch`
+frame, so picking one up doesn't shift any other item. When all
+items are collected the three rows collapse to spacer / "The grove
+is empty for now." / spacer so the autofit row count stays
+constant. `GROVE_LAYOUT_V` exists for migrating old saves when
+spawn points / item types shift.
 
 **Building blocks** (in `game.js`): `LEFT_NEAR_TREE`, `RIGHT_NEAR_TREE`,
 `MID_FAR_*` / `MID_MID_*` / `MID_NEAR_*` slot primitives + `buildBand()`,
 `HORIZON_STIPPLE` / `DISTANT_TREELINE` / `FOG_ROW` distant constants,
 `FG_SCRAGGLY` / `FG_LEAN` foreground sprites, `GROVE_GROUND_ROW` /
 `GROVE_UNDERBRUSH_ROW`, `GROVE_SCENE_ROWS` (pre-computed array consumed
-by `renderGrove()`), `GROVE_ITEM_ROWS` + `GROVE_ITEMS`, and
-`autofitGroveScene()`.
+by `renderGrove()`'s v1 path), `GROVE_KINDS` + `GROVE_V2.instances`
+(v2 path), `GROVE_SPAWN_POINTS` + `GROVE_ITEMS` (positional items),
+and `autofitGroveScene()`.
 
 **Scene variants.** Two render paths, selectable at runtime via
 `?grove=v2` (default = v1):
@@ -217,27 +234,24 @@ preserved in git history if needed.
   flanker-left").
 
 Switching the URL param resets `game.locations.quarry.respawnAt`
-since item positions differ between variants.
+since item positions differ between variants. `autofitQuarryScene()`
+shares math with the grove via `autofitLocationScene()`.
 
-**Scene composition (v2).** Single dominant mountain as the main set
-piece, with a small pair of distant peaks behind for atmospheric
-depth. ~30 scene rows: 3 sky → 4 distant-peak rows (rows 3-6, far →
-midfar) → 1 sky transition → 20 main-mountain rows (rows 8-27, mid
-→ near) with a 7-wide arched cave mouth (`,-----.` / `|     |` /
-`|_____|`) at rows 22-25 → 1 scree row. Then ground row + 3 item
-rows that contain two distinct foreground rock-mound silhouettes
-(6 chars wide × 3 rows tall, peaks aligned vertically) with the 8
-items (5 stones + 3 ore) scattered around them. Single full-width
-span per row (no left/center/right framing-tree split). Depth
-tinting reuses the grove's `.grove-cell.grove-{horizon|far|midfar
-|mid|midnear|near|sky|ground}` classes. `autofitQuarryScene()` and
-`autofitLocationScene()` are generalized helpers — same auto-fit
-math as the grove. `QUARRY_LAYOUT_V` migration resets respawn map
-so old saves see the new layout cleanly.
+**Items (quarry).** Same positional pattern as grove. 8 spots in
+`QUARRY_SPAWN_POINTS` filled by parallel entries in `QUARRY_ITEMS`
+(5 stones + 3 ironOre today). Stones tap-pick directly; iron-ore
+nodes start a 30s mining bar that requires a Pickaxe. The rock
+silhouettes (`/\` / `/____\`) decorating the item rows stay as
+text-flow background — `$` placeholders stripped from the source
+strings — and items overlay positionally on top of them.
 
-**Building blocks** (in `game.js`): `_QUARRY_RAW_ROWS` →
-`QUARRY_SCENE_ROWS` (padded to 40c), `QUARRY_GROUND_ROW`,
-`QUARRY_ITEM_ROWS` + `QUARRY_ITEMS`, `renderQuarry()`,
-`collectQuarryItem()`, `startMineOre()` / `completeMineOre()` /
-`cancelMineOre()`, `mineOreState` transient. Layout is versioned via
-the `layoutV` field on `game.locations.quarry`.
+**Building blocks** (in `game.js`): `QUARRY_KINDS` (v4 visual
+registry: `mountain-tall`, `mountain-medium`, `mountain-small`,
+`cave-arch`, `scree-line`), `QUARRY_SCENES` (v3 text-flow + v4
+kinds-instances), `_QUARRY_RAW_ROWS` → `QUARRY_SCENE_ROWS` (v3
+path), `_QUARRY_INSTANCES` (v4 path), `QUARRY_GROUND_ROW`,
+`QUARRY_ITEM_ROWS` + `QUARRY_SPAWN_POINTS` + `QUARRY_ITEMS`,
+`renderQuarry()`, `collectQuarryItem()`, `startMineOre()` /
+`completeMineOre()` / `cancelMineOre()`, `mineOreState`
+transient. Layout versioned via `layoutV` on
+`game.locations.quarry`.
