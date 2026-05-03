@@ -291,7 +291,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v139';
+const APP_VERSION = 'v140';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -4711,12 +4711,29 @@ function recipePatternCell(recipe, dx, dy) {
     return null;
 }
 
+// Reads glyph from the canonical registries — keeps the recipe-shape
+// preview in sync with what the player sees in the grid / inventory /
+// pickup. Pre-v140 the ingredient branch was hardcoded `'/' : '#'`,
+// which gave stones the wrong glyph here even after ITEM_KINDS shipped.
 function specToGlyph(spec) {
     if (!spec) return '·';
     if (spec.type === 'fuel') return (FUEL_TIERS[(spec.tier || 1) - 1] || {}).glyph || '*';
     if (spec.type === 'ore')  return (ORE_TIERS[(spec.tier || 1) - 1]  || {}).glyph || 'o';
-    if (spec.type === 'ingredient') return spec.kind === 'stick' ? '/' : '#';
+    if (spec.type === 'ingredient') return (ITEM_KINDS[spec.kind] || {}).glyph || '?';
     return '?';
+}
+
+// CSS hook for a recipe-shape preview cell. Only ingredient kinds
+// get a class here — `.fuel-tier-N` / `.ore-tier-N` carry a
+// `::before { content: '*' }` rule meant for grid cells; applying
+// them to a recipe cell that ALREADY has textContent would render
+// the glyph twice.
+function specToCellClass(spec) {
+    if (!spec) return '';
+    if (spec.type === 'ingredient') {
+        return (ITEM_KINDS[spec.kind] || {}).cssClass || '';
+    }
+    return '';
 }
 
 function renderRecipesPanel() {
@@ -4739,6 +4756,14 @@ function renderRecipesPanel() {
                 const spec = recipePatternCell(recipe, dx, dy);
                 if (spec) {
                     cell.textContent = specToGlyph(spec);
+                    const cssHook = specToCellClass(spec);
+                    if (cssHook) cell.classList.add(cssHook);
+                    // Annotate so future tooling / graphics swap can target.
+                    if (spec.type === 'ingredient') {
+                        cell.dataset.kind = spec.kind;
+                    } else {
+                        cell.dataset.kind = `${spec.type}-${spec.tier || 1}`;
+                    }
                 } else {
                     cell.textContent = '·';
                     cell.classList.add('rc-empty');
