@@ -4,23 +4,28 @@
 // CONSTANTS
 // ============================================
 
+// Each tier holds name + value + CSS class hook + the ASCII glyph used
+// by satchel ghosts and recipe-shape previews. Grid cells get the glyph
+// via the CSS pseudo-element rule on `.fuel-tier-N::before` (in
+// style.css); JS callers (drag ghost, recipe preview) read `.glyph`
+// here so there's one source of truth on the JS side.
 const FUEL_TIERS = [
-    { name: 'Spark', value: 1, color: 'fuel-tier-1' },
-    { name: 'Ember', value: 3, color: 'fuel-tier-2' },
-    { name: 'Kindling', value: 9, color: 'fuel-tier-3' },
-    { name: 'Coal', value: 27, color: 'fuel-tier-4' },
-    { name: 'Charite', value: 81, color: 'fuel-tier-5' },
-    { name: 'Blazite', value: 243, color: 'fuel-tier-6' },
-    { name: 'Infernite', value: 729, color: 'fuel-tier-7' },
-    { name: 'Solite', value: 2187, color: 'fuel-tier-8' }
+    { name: 'Spark',     value: 1,    color: 'fuel-tier-1', glyph: '*'  },
+    { name: 'Ember',     value: 3,    color: 'fuel-tier-2', glyph: '**' },
+    { name: 'Kindling',  value: 9,    color: 'fuel-tier-3', glyph: '~'  },
+    { name: 'Coal',      value: 27,   color: 'fuel-tier-4', glyph: '#'  },
+    { name: 'Charite',   value: 81,   color: 'fuel-tier-5', glyph: '##' },
+    { name: 'Blazite',   value: 243,  color: 'fuel-tier-6', glyph: '^'  },
+    { name: 'Infernite', value: 729,  color: 'fuel-tier-7', glyph: '^^' },
+    { name: 'Solite',    value: 2187, color: 'fuel-tier-8', glyph: '@'  }
 ];
 
 const ORE_TIERS = [
-    { name: 'Raw Ore', value: 1, color: 'ore-tier-1' },
-    { name: 'Iron Chunk', value: 3, color: 'ore-tier-2' },
-    { name: 'Dense Ore', value: 9, color: 'ore-tier-3' },
-    { name: 'Rich Vein', value: 27, color: 'ore-tier-4' },
-    { name: 'Pure Crystal', value: 81, color: 'ore-tier-5' }
+    { name: 'Raw Ore',      value: 1,  color: 'ore-tier-1', glyph: 'o'  },
+    { name: 'Iron Chunk',   value: 3,  color: 'ore-tier-2', glyph: 'O'  },
+    { name: 'Dense Ore',    value: 9,  color: 'ore-tier-3', glyph: '0'  },
+    { name: 'Rich Vein',    value: 27, color: 'ore-tier-4', glyph: '()' },
+    { name: 'Pure Crystal', value: 81, color: 'ore-tier-5', glyph: '<>' }
 ];
 
 // Single source of truth for collectible item visuals + metadata. Every
@@ -202,7 +207,7 @@ function hasTier1FuelOnGrid(g) {
 // **WORKFLOW**: bump BOTH on every shell change. Drifting the two means the
 // player sees a "v43" tag while actually running v47 (or vice versa) and
 // can't tell whether their cache is stale.
-const APP_VERSION = 'v136';
+const APP_VERSION = 'v137';
 
 // ============================================
 // DEBUG TOUCH LOG  (set false to ship clean)
@@ -4523,13 +4528,10 @@ function renderInventoryRail() {
 }
 
 const SATCHEL_CAP = 8;
-// Glyph arrays parallel FUEL_TIERS and ORE_TIERS by index.
-const FUEL_GLYPHS = ['*', '**', '~', '#', '##', '^', '^^', '@'];
-const ORE_GLYPHS  = ['o', 'O', '0', '()', '<>'];
 
 function satchelGlyph(item) {
-    if (item.type === 'fuel') return FUEL_GLYPHS[item.tier - 1] || '*';
-    if (item.type === 'ore')  return ORE_GLYPHS[item.tier - 1]  || 'o';
+    if (item.type === 'fuel') return (FUEL_TIERS[item.tier - 1] || {}).glyph || '*';
+    if (item.type === 'ore')  return (ORE_TIERS[item.tier - 1]  || {}).glyph || 'o';
     return '?';
 }
 
@@ -4626,8 +4628,8 @@ function recipePatternCell(recipe, dx, dy) {
 
 function specToGlyph(spec) {
     if (!spec) return '·';
-    if (spec.type === 'fuel') return FUEL_GLYPHS[(spec.tier || 1) - 1] || '*';
-    if (spec.type === 'ore')  return ORE_GLYPHS[(spec.tier || 1) - 1] || 'o';
+    if (spec.type === 'fuel') return (FUEL_TIERS[(spec.tier || 1) - 1] || {}).glyph || '*';
+    if (spec.type === 'ore')  return (ORE_TIERS[(spec.tier || 1) - 1]  || {}).glyph || 'o';
     if (spec.type === 'ingredient') return spec.kind === 'stick' ? '/' : '#';
     return '?';
 }
